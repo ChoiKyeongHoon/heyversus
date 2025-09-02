@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Gamja_Flower } from "next/font/google"; // Import Gamja_Flower font
 import "./globals.css";
 
 const geistSans = Geist({
@@ -10,6 +10,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const gamjaFlower = Gamja_Flower({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-gamja-flower",
 });
 
 export const metadata: Metadata = {
@@ -25,8 +31,22 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${gamjaFlower.variable} antialiased`}
       >
+        <nav className="flex justify-between items-center p-4 bg-white shadow-sm">
+          <div className="text-3xl font-gamja-flower">
+            <span style={{ color: '#FFD700' }}>hey</span>
+            <span style={{ color: '#FF8C00' }}>Versus</span>
+          </div>
+          <div>
+            <button className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 mr-2">
+              회원가입
+            </button>
+            <button className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">
+              로그인
+            </button>
+          </div>
+        </nav>
         {children}
       </body>
     </html>
