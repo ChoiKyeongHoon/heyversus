@@ -19,3 +19,12 @@
 - eslint: ^9
 - eslint-config-next: 15.5.2
 - @eslint/eslintrc: ^3
+
+## Directory Structure
+```
+/
+├───public/
+└───src/
+    └───app/
+        └───home/
+```

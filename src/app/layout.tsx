@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Gamja_Flower } from "next/font/google"; // Import Gamja_Flower font
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Link from "next/link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -10,12 +11,6 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-});
-
-const gamjaFlower = Gamja_Flower({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-gamja-flower",
 });
 
 export const metadata: Metadata = {
@@ -31,20 +26,20 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${gamjaFlower.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <nav className="flex justify-between items-center p-4 bg-white shadow-sm">
-          <div className="text-3xl font-gamja-flower">
+          <div className="text-3xl font-bold tracking-tight">
             <span style={{ color: '#FFD700' }}>hey</span>
             <span style={{ color: '#FF8C00' }}>Versus</span>
           </div>
           <div>
-            <button className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 mr-2">
+            <Link href="/signup" className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 mr-2">
               회원가입
-            </button>
-            <button className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">
+            </Link>
+            <Link href="/signin" className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">
               로그인
-            </button>
+            </Link>
           </div>
         </nav>
         {children}
