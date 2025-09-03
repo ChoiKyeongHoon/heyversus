@@ -29,10 +29,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <nav className="flex justify-between items-center p-4 bg-white shadow-sm">
-          <div className="text-3xl font-bold tracking-tight">
+          <Link href="/home" className="text-3xl font-bold tracking-tight">
             <span style={{ color: '#FFD700' }}>hey</span>
             <span style={{ color: '#FF8C00' }}>Versus</span>
-          </div>
+          </Link>
           <div>
             <Link href="/signup" className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 mr-2">
               회원가입
