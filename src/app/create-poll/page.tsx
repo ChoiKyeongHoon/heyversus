@@ -7,6 +7,7 @@ export default function CreatePollPage() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [options, setOptions] = useState(['', '']); // Start with 2 options
+  const [isPublic, setIsPublic] = useState(false); // Default to private
 
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...options];
@@ -33,14 +34,23 @@ export default function CreatePollPage() {
     // Here you would typically send the data to a server
     // and get a real poll ID back.
     const newPollId = Math.random().toString(36).substring(2, 9);
-    console.log('Creating poll:', { title, options });
+    console.log('Creating poll:', { title, options, isPublic });
     router.push(`/poll/${newPollId}`);
   };
 
   return (
     <main className="container mx-auto p-4 pt-16">
-      <h1 className="text-3xl font-bold text-center mb-8">새로운 투표 생성</h1>
-      <div className="w-full max-w-lg mx-auto">
+      <h1 className="text-4xl font-bold text-center mb-8 text-yellow-400">Let's Poll</h1>
+      <div className="w-full max-w-lg mx-auto relative">
+        {/* Toggle Button */}
+        <button
+          type="button"
+          onClick={() => setIsPublic(!isPublic)}
+          className="absolute -top-10 left-0 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+        >
+          {isPublic ? '공개 투표' : '비공개 투표'}
+        </button>
+
         <form
           onSubmit={handleCreatePoll}
           className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4"
@@ -114,6 +124,23 @@ export default function CreatePollPage() {
             </button>
           </div>
         </form>
+
+        {/* KakaoTalk Share Button */}
+        <div className="mt-8 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              // KakaoTalk Share API integration would go here.
+              // This typically requires loading the Kakao JavaScript SDK
+              // and initializing it.
+              // Example: Kakao.Share.sendDefault(...)
+              alert('카카오톡 공유 기능은 Kakao SDK 연동이 필요합니다.');
+            }}
+            className="bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md"
+          >
+            카카오톡 공유
+          </button>
+        </div>
       </div>
     </main>
   );
