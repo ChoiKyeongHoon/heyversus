@@ -28,7 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <nav className="flex justify-between items-center p-4 bg-[#002023] shadow-sm">
+        <nav className="flex justify-between items-center p-4 bg-[#001625] shadow-sm">
           <Link href="/home" className="text-3xl font-bold tracking-tight">
             <span style={{ color: "#FFD700" }}>hey</span>
             <span style={{ color: "#FF8C00" }}>Versus</span>

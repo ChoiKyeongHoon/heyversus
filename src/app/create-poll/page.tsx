@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function CreatePollPage() {
   const router = useRouter();
-  const [title, setTitle] = useState('');
-  const [options, setOptions] = useState(['', '']); // Start with 2 options
+  const [title, setTitle] = useState("");
+  const [options, setOptions] = useState(["", ""]); // Start with 2 options
   const [isPublic, setIsPublic] = useState(false); // Default to private
 
   const handleOptionChange = (index: number, value: string) => {
@@ -17,7 +17,7 @@ export default function CreatePollPage() {
 
   const addOption = () => {
     if (options.length < 6) {
-      setOptions([...options, '']);
+      setOptions([...options, ""]);
     }
   };
 
@@ -34,13 +34,30 @@ export default function CreatePollPage() {
     // Here you would typically send the data to a server
     // and get a real poll ID back.
     const newPollId = Math.random().toString(36).substring(2, 9);
-    console.log('Creating poll:', { title, options, isPublic });
+    const newPoll = {
+      id: newPollId,
+      question: title,
+      options: options.map((optionText) => ({
+        id: Math.random().toString(36).substring(2, 9),
+        text: optionText,
+        votes: 0,
+      })),
+      isPublic: isPublic,
+    };
+
+    // Save to localStorage
+    const existingPolls = JSON.parse(localStorage.getItem("polls") || "[]");
+    localStorage.setItem("polls", JSON.stringify([...existingPolls, newPoll]));
+
+    console.log("Creating poll:", newPoll);
     router.push(`/poll/${newPollId}`);
   };
 
   return (
     <main className="container mx-auto p-4 pt-16">
-      <h1 className="text-4xl font-bold text-center mb-8 text-yellow-400">Let's Poll</h1>
+      <h1 className="text-4xl font-bold text-center mb-8 text-yellow-400">
+        Let&apos;s Poll
+      </h1>
       <div className="w-full max-w-lg mx-auto relative">
         {/* Toggle Button */}
         <button
@@ -48,7 +65,7 @@ export default function CreatePollPage() {
           onClick={() => setIsPublic(!isPublic)}
           className="absolute -top-10 left-0 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         >
-          {isPublic ? '공개 투표' : '비공개 투표'}
+          {isPublic ? "공개 투표" : "비공개 투표"}
         </button>
 
         <form
@@ -66,8 +83,8 @@ export default function CreatePollPage() {
               id="poll-title"
               type="text"
               value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="예: 최고의 프로그래밍 언어는?"
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="예: 수원 kt 위즈 최고의 타자는?"
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               required
             />
@@ -86,7 +103,7 @@ export default function CreatePollPage() {
                   id={`option${index}`}
                   type="text"
                   value={option}
-                  onChange={e => handleOptionChange(index, e.target.value)}
+                  onChange={(e) => handleOptionChange(index, e.target.value)}
                   placeholder={`항목 ${index + 1} 내용`}
                   className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                   required
@@ -124,23 +141,6 @@ export default function CreatePollPage() {
             </button>
           </div>
         </form>
-
-        {/* KakaoTalk Share Button */}
-        <div className="mt-8 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              // KakaoTalk Share API integration would go here.
-              // This typically requires loading the Kakao JavaScript SDK
-              // and initializing it.
-              // Example: Kakao.Share.sendDefault(...)
-              alert('카카오톡 공유 기능은 Kakao SDK 연동이 필요합니다.');
-            }}
-            className="bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md"
-          >
-            카카오톡 공유
-          </button>
-        </div>
       </div>
     </main>
   );

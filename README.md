@@ -5,11 +5,13 @@
 ## 사용된 라이브러리
 
 ### Dependencies
+
 - react: 19.1.0
 - react-dom: 19.1.0
 - next: 15.5.2
 
 ### DevDependencies
+
 - typescript: ^5
 - @types/node: ^20
 - @types/react: ^19
@@ -21,10 +23,25 @@
 - @eslint/eslintrc: ^3
 
 ## Directory Structure
+
 ```
 /
+├───.git/
+├───.next/
+├───.next/build/
+├───.next/cache/
+├───.next/server/
+├───.next/static/
+├───.next/types/
+├───.vscode/
+├───node_modules/
 ├───public/
 └───src/
     └───app/
-        └───home/
+        ├───create-poll/
+        ├───home/
+        ├───poll/
+        │   └───[id]/
+        ├───signin/
+        └───signup/
 ```
