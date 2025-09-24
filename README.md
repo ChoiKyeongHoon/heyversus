@@ -31,44 +31,6 @@
 - **알림**: Sonner (Toast notifications)
 - **배포**: Vercel
 
-## 🚀 시작하기
-
-### 1. 프로젝트 클론
-
-```bash
-git clone https://github.com/ChoiKyeongHoon/heyversus.git
-cd heyversus
-```
-
-### 2. 종속성 설치
-
-```bash
-npm install
-```
-
-### 3. Supabase 설정
-
-1.  [Supabase](https://supabase.com/)에 가입하고 새로운 프로젝트를 생성합니다.
-2.  프로젝트의 **SQL Editor**로 이동하여 `QUERY.md` 파일에 있는 모든 SQL 쿼리를 실행하여 테이블과 함수를 설정합니다.
-3.  **Settings > API**에서 **Project URL**과 **Project API Keys**의 `anon (public)` 키를 복사합니다.
-
-### 4. 환경 변수 설정
-
-프로젝트 루트에 `.env.local` 파일을 생성하고 아래 내용을 채워넣습니다.
-
-```
-NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_PROJECT_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-```
-
-### 5. 로컬 서버 실행
-
-```bash
-npm run dev
-```
-
-이제 브라우저에서 `http://localhost:3000`으로 접속하여 애플리케이션을 확인할 수 있습니다.
-
 ## 📁 프로젝트 구조
 
 ```
@@ -106,14 +68,14 @@ erDiagram
     poll_options ||--o{ user_votes : "is chosen in"
 
     users {
-        UUID id PK "auth.users"
+        UUID id PK
         string email
         timestamptz created_at
     }
 
     profiles {
-        UUID id PK "FK to auth.users.id"
-        string username "UNIQUE"
+        UUID id PK
+        string username
         int points
         timestamptz updated_at
     }
@@ -121,7 +83,7 @@ erDiagram
     polls {
         UUID id PK
         text question
-        UUID created_by "FK to auth.users.id (ON DELETE SET NULL)"
+        UUID created_by
         boolean is_public
         boolean is_featured
         timestamptz created_at
@@ -131,7 +93,7 @@ erDiagram
 
     poll_options {
         UUID id PK
-        UUID poll_id "FK to polls.id (ON DELETE CASCADE)"
+        UUID poll_id
         text text
         int votes
         text image_url
@@ -139,10 +101,9 @@ erDiagram
 
     user_votes {
         UUID id PK
-        UUID user_id "FK to auth.users.id (ON DELETE CASCADE)"
-        UUID poll_id "FK to polls.id (ON DELETE CASCADE)"
-        UUID option_id "FK to poll_options.id (ON DELETE CASCADE)"
+        UUID user_id
+        UUID poll_id
+        UUID option_id
         timestamptz created_at
-        UNIQUE(user_id, poll_id)
     }
 ```
