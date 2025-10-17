@@ -27,6 +27,8 @@ DROP POLICY IF EXISTS "Users can update their own profile." ON public.profiles;
 -- 기존 함수 정리 (반환 타입이 변경될 경우, REPLACE가 아닌 DROP 후 CREATE 해야 함)
 DROP FUNCTION IF EXISTS public.get_polls_with_user_status();
 DROP FUNCTION IF EXISTS public.get_poll_with_user_status(UUID);
+DROP FUNCTION IF EXISTS public.get_featured_polls_with_user_status();
+DROP FUNCTION IF EXISTS public.get_featured_polls_with_user_status();
 DROP FUNCTION IF EXISTS public.check_username_exists(TEXT);
 DROP FUNCTION IF EXISTS public.check_email_exists(TEXT);
 
@@ -306,7 +308,7 @@ RETURNS TABLE (
     poll_options JSONB
 )
 LANGUAGE plpgsql
-AS $
+AS $$
 DECLARE
 current_user_id UUID := auth.uid();
 BEGIN
@@ -328,7 +330,7 @@ public.polls p
 WHERE
 p.id = p_id;
 END;
-$;
+$$;
 
 -- 함수: public.get_featured_polls_with_user_status
 -- is_featured 플래그가 true인 투표 목록을 가져오면서, 현재 사용자의 투표 상태를 함께 반환합니다.
@@ -347,7 +349,7 @@ RETURNS TABLE (
     poll_options JSONB
 )
 LANGUAGE plpgsql
-AS $
+AS $$
 DECLARE
     current_user_id UUID := auth.uid();
 BEGIN
@@ -371,7 +373,7 @@ BEGIN
     ORDER BY
         p.created_at DESC;
 END;
-$;
+$$;
 
 -- 함수: public.check_username_exists
 -- 입력받은 닉네임이 'profiles' 테이블에 이미 존재하는지 확인합니다.

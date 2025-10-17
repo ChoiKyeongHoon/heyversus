@@ -24,13 +24,16 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
   );
   // 로컬 스토리지에 기록된, 비로그인 유저의 투표 기록
   const [anonymousVotedPolls, setAnonymousVotedPolls] = useState<string[]>([]);
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  const [selectedOptionIds, setSelectedOptionIds] = useState<
+    Record<string, string | null>
+  >({});
 
   useEffect(() => {
     // serverPolls prop이 변경될 때마다 내부 상태를 동기화합니다.
     // router.refresh() 등으로 부모 컴포넌트의 데이터가 갱신되면 이 부분이 실행됩니다.
     setPolls(serverPolls);
     setVotedPolls(serverPolls.filter((p) => p.has_voted).map((p) => p.id));
+    setSelectedOptionIds({});
   }, [serverPolls]);
 
   useEffect(() => {
@@ -90,7 +93,21 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
     return `${minutes}분 남음`;
   };
 
-  const handleVote = async (pollId: string, optionId: string) => {
+  const handleOptionSelect = (pollId: string, optionId: string) => {
+    setSelectedOptionIds((prev) => ({
+      ...prev,
+      [pollId]: optionId,
+    }));
+  };
+
+  const handleVote = async (pollId: string) => {
+    const optionId = selectedOptionIds[pollId];
+
+    if (!optionId) {
+      toast.warning("투표할 옵션을 선택해주세요.");
+      return;
+    }
+
     const isAlreadyVoted = session
       ? votedPolls.includes(pollId)
       : anonymousVotedPolls.includes(pollId);
@@ -143,6 +160,11 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
           JSON.stringify(updatedAnonymousVotes)
         );
       }
+
+      setSelectedOptionIds((prev) => ({
+        ...prev,
+        [pollId]: null,
+      }));
     }
   };
 
@@ -167,6 +189,7 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
           );
           const isPollClosed =
             poll.status === "closed" || new Date(poll.expires_at) < new Date();
+          const selectedOptionIdForPoll = selectedOptionIds[poll.id];
 
           return (
             <div
@@ -200,14 +223,14 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
                             ? "cursor-not-allowed"
                             : "cursor-pointer hover:bg-panel-hover"
                         } ${
-                          selectedOptionId === option.id
+                          selectedOptionIdForPoll === option.id
                             ? "border-primary"
                             : "border-border-subtle"
                         }`}
                         onClick={() =>
                           !isVoted &&
                           !isPollClosed &&
-                          setSelectedOptionId(option.id)
+                          handleOptionSelect(poll.id, option.id)
                         }
                       >
                         <div className="flex items-center">
@@ -237,9 +260,9 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
                 <div className="flex items-center space-x-4">
                   {!isVoted && !isPollClosed && (
                     <button
-                      onClick={() => handleVote(poll.id, selectedOptionId!)}
+                      onClick={() => handleVote(poll.id)}
                       className="bg-primary hover:bg-primary-hover text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200"
-                      disabled={!selectedOptionId} // Disable if no option is selected
+                      disabled={!selectedOptionIdForPoll} // Disable if no option is selected
                     >
                       투표하기
                     </button>

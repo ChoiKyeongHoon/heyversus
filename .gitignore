@@ -41,9 +41,13 @@ yarn-error.log*
 next-env.d.ts
 
 
-# documents
+# reference documents
 
 GEMINI.md
 QUERY.md
 userflowchart.md
 architecture.md
+review.md
+AGENT.md
+color_preview.md
+refer.png
