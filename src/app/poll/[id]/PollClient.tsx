@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { PollWithOptions } from "@/lib/types";
 import Image from "next/image";
 import { toast } from "sonner";
+import { isPollExpired, formatExpiryDate } from "@/lib/utils";
 
 interface PollClientProps {
   poll: PollWithOptions;
@@ -115,7 +116,7 @@ export default function PollClient({ poll }: PollClientProps) {
     (acc, option) => acc + (option.votes || 0),
     0
   );
-  const isPollClosed = poll.status === 'closed' || new Date(poll.expires_at) < new Date();
+  const isPollClosed = poll.status === 'closed' || isPollExpired(poll.expires_at);
 
   return (
     <div className="container mx-auto max-w-4xl p-8">
@@ -253,7 +254,7 @@ export default function PollClient({ poll }: PollClientProps) {
                 {getTimeRemaining(poll.expires_at)}
               </p>
               <p className="text-sm text-text-tertiary">
-                (마감: {new Date(poll.expires_at).toLocaleString()})
+                (마감: {formatExpiryDate(poll.expires_at)})
               </p>
             </div>
           </div>
