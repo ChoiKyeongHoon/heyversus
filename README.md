@@ -1,6 +1,6 @@
 # Heyversus
 
-🔗 Live Demo: https://heyversus.vercel.app/
+🔗 Production (Vercel): https://heyversus.vercel.app/
 
 **Heyversus**는 사용자가 직접 투표를 생성하고 참여할 수 있는 동적인 웹 애플리케이션입니다. Next.js와 Supabase를 기반으로 구축되어 있으며, 실시간 투표 결과와 사용자 인증, 포인트 시스템을 제공합니다.
 
@@ -165,6 +165,7 @@ erDiagram
 ## 📌 업데이트 기록
 
 ### v0.2.0
+- **알려진 이슈(점검필요)**: 대표 투표 카드의 만료 시간이 비표준 문자열로 전달될 경우 표시가 “원본 문자열”로 fallback 됩니다. 포맷 규칙을 명확히 정의해 차후 개선 예정.
 
 - **즐겨찾기 데이터 모델**: Supabase에 `favorite_polls` 테이블, RLS, 인덱스를 추가하고, `toggle_favorite`·`get_favorite_polls` RPC로 즐겨찾기 토글과 조회를 캡슐화했습니다.
 - **서비스 & 타입 확장**: `src/lib/services/polls.ts`에 즐겨찾기 헬퍼를 추가하고 `PollWithOptions` 타입에 `is_favorited` 필드를 도입했습니다.

@@ -12,7 +12,9 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function isPollExpired(expiresAt: string | null): boolean {
   if (!expiresAt) return false; // null이면 영구 투표로 간주
-  return new Date(expiresAt) < new Date();
+  const parsed = new Date(expiresAt);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return parsed < new Date();
 }
 
 /**
@@ -22,5 +24,19 @@ export function isPollExpired(expiresAt: string | null): boolean {
  */
 export function formatExpiryDate(expiresAt: string | null): string {
   if (!expiresAt) return "기한 없음";
-  return new Date(expiresAt).toLocaleString();
+  const parsed = new Date(expiresAt);
+  if (Number.isNaN(parsed.getTime())) {
+    return expiresAt;
+  }
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Seoul",
+  }).format(parsed);
 }

@@ -13,5 +13,8 @@ describe("poll utility helpers", () => {
   it("formats expiry dates with fallback", () => {
     const formatted = formatExpiryDate(null);
     expect(formatted).toBe("기한 없음");
+
+    const iso = "2025-10-31T07:16:00.000Z"; // 16:16 KST
+    expect(formatExpiryDate(iso)).toBe("2025. 10. 31. 16:16:00");
   });
 });

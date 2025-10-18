@@ -102,8 +102,11 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
 
   const getTimeRemaining = (expiresAt: string | null): string => {
     if (!expiresAt) return "기간 설정 없음";
-    const now = new Date();
     const expiryDate = new Date(expiresAt);
+    if (Number.isNaN(expiryDate.getTime())) {
+      return expiresAt;
+    }
+    const now = new Date();
     const diff = expiryDate.getTime() - now.getTime();
 
     if (diff <= 0) return "마감됨";
