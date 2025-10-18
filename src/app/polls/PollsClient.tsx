@@ -4,19 +4,35 @@ import { useState, useEffect } from "react";
 import { useSupabase } from "@/hooks/useSupabase";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Session } from "@supabase/supabase-js";
 import type { PollWithOptions } from "@/lib/types";
 import { toast } from "sonner";
 import { isPollExpired, formatExpiryDate } from "@/lib/utils";
 import { EmptyState } from "@/components/common/EmptyState";
+import { Button } from "@/components/ui/button";
+import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 
 type PollsClientProps = {
   serverPolls: PollWithOptions[];
+  heading?: string;
+  emptyState?: {
+    title: string;
+    message: string;
+    actionLabel?: string;
+    actionHref?: string;
+  };
+  removeOnUnfavorite?: boolean;
 };
 
-export default function PollsClient({ serverPolls }: PollsClientProps) {
+export default function PollsClient({
+  serverPolls,
+  heading = "진행중인 투표들",
+  emptyState,
+  removeOnUnfavorite = false,
+}: PollsClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = useSupabase();
   const [polls, setPolls] = useState(serverPolls);
   const [session, setSession] = useState<Session | null>(null);
@@ -29,6 +45,10 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
   const [selectedOptionIds, setSelectedOptionIds] = useState<
     Record<string, string | null>
   >({});
+  const toggleFavoriteMutation = useToggleFavorite();
+  const [favoritePendingId, setFavoritePendingId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     // serverPolls prop이 변경될 때마다 내부 상태를 동기화합니다.
@@ -170,140 +190,230 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
     }
   };
 
+  const handleToggleFavorite = (pollId: string) => {
+    if (!session) {
+      toast.error("즐겨찾기는 로그인 후 이용할 수 있습니다.");
+      router.push(`/signin?redirect=${encodeURIComponent(pathname)}`);
+      return;
+    }
+
+    setFavoritePendingId(pollId);
+
+    toggleFavoriteMutation.mutate(
+      { pollId },
+      {
+        onSuccess: ({ isFavorited }) => {
+          setPolls((currentPolls) => {
+            if (removeOnUnfavorite && !isFavorited) {
+              return currentPolls.filter((poll) => poll.id !== pollId);
+            }
+            return currentPolls.map((poll) =>
+              poll.id === pollId
+                ? { ...poll, is_favorited: isFavorited }
+                : poll
+            );
+          });
+          if (removeOnUnfavorite && !isFavorited) {
+            setVotedPolls((current) => current.filter((id) => id !== pollId));
+            setAnonymousVotedPolls((current) =>
+              current.filter((id) => id !== pollId)
+            );
+            setSelectedOptionIds((prev) => {
+              const rest = { ...prev };
+              delete rest[pollId];
+              return rest;
+            });
+          }
+          toast.success(
+            isFavorited
+              ? "즐겨찾기에 추가했습니다."
+              : "즐겨찾기에서 제거했습니다."
+          );
+          router.refresh();
+        },
+        onError: (error: unknown) => {
+          console.error("Error toggling favorite:", error);
+          const message =
+            typeof error === "object" &&
+            error !== null &&
+            "message" in error &&
+            typeof (error as { message?: string }).message === "string"
+              ? (error as { message: string }).message
+              : "";
+
+          if (message.includes("Authentication required")) {
+            toast.error("다시 로그인한 후 즐겨찾기를 사용할 수 있습니다.");
+            router.push(`/signin?redirect=${encodeURIComponent(pathname)}`);
+          } else {
+            toast.error("즐겨찾기 처리 중 오류가 발생했습니다.");
+          }
+        },
+        onSettled: () => setFavoritePendingId(null),
+      }
+    );
+  };
+
+  const effectiveEmptyState =
+    emptyState ?? {
+      title: "진행중인 투표가 없습니다",
+      message: "아직 생성된 투표가 없어요. 첫 번째 투표를 만들어보세요!",
+      actionLabel: "투표 만들기",
+      actionHref: "/create-poll",
+    };
+
   return (
     <div className="container mx-auto max-w-4xl p-8">
       {/* Main Content */}
       <main>
         <h2 className="text-2xl font-semibold tracking-tight mb-6 text-center">
-          진행중인 투표들
+          {heading}
         </h2>
 
         {polls.length === 0 ? (
           <EmptyState
-            title="진행중인 투표가 없습니다"
-            message="아직 생성된 투표가 없어요. 첫 번째 투표를 만들어보세요!"
-            actionLabel="투표 만들기"
-            actionHref="/create-poll"
+            title={effectiveEmptyState.title}
+            message={effectiveEmptyState.message}
+            actionLabel={effectiveEmptyState.actionLabel}
+            actionHref={effectiveEmptyState.actionHref}
           />
         ) : (
           polls.map((poll) => {
-          // 로그인 상태에 따라 투표 여부를 확인합니다.
-          const isVoted = session
-            ? votedPolls.includes(poll.id)
-            : anonymousVotedPolls.includes(poll.id);
+            // 로그인 상태에 따라 투표 여부를 확인합니다.
+            const isVoted = session
+              ? votedPolls.includes(poll.id)
+              : anonymousVotedPolls.includes(poll.id);
+            const isFavorited = Boolean(poll.is_favorited);
 
-          // 각 투표의 총 투표수를 계산합니다.
-          const totalVotes = poll.poll_options.reduce(
-            (acc, option) => acc + option.votes,
-            0
-          );
-          const isPollClosed =
-            poll.status === "closed" || isPollExpired(poll.expires_at);
-          const selectedOptionIdForPoll = selectedOptionIds[poll.id];
+            // 각 투표의 총 투표수를 계산합니다.
+            const totalVotes = poll.poll_options.reduce(
+              (acc, option) => acc + option.votes,
+              0
+            );
+            const isPollClosed =
+              poll.status === "closed" || isPollExpired(poll.expires_at);
+            const selectedOptionIdForPoll = selectedOptionIds[poll.id];
 
-          return (
-            <div
-              key={poll.id}
-              className={`bg-panel border border-border rounded-lg shadow-lg overflow-hidden mb-8 ${
-                isPollClosed ? "opacity-60" : ""
-              }`}
-            >
-              <div className="p-6">
-                <h3 className="text-xl font-semibold text-text-primary mb-2">
-                  {poll.question}
-                </h3>
-                <p className="text-text-secondary mb-6">
-                  이 투표에 참여해보세요.
-                </p>
-
-                {/* Poll Options */}
-                <div className="space-y-3 mb-6">
-                  {poll.poll_options.map((option) => {
-                    // 각 옵션의 득표율을 계산합니다.
-                    const percentage =
-                      totalVotes > 0
-                        ? Math.round((option.votes / totalVotes) * 100)
-                        : 0;
-
-                    return (
-                      <div
-                        key={option.id}
-                        className={`flex items-center justify-between bg-surface p-3 rounded-md border ${
-                          isVoted || isPollClosed
-                            ? "cursor-not-allowed"
-                            : "cursor-pointer hover:bg-panel-hover"
-                        } ${
-                          selectedOptionIdForPoll === option.id
-                            ? "border-primary"
-                            : "border-border-subtle"
-                        }`}
-                        onClick={() =>
-                          !isVoted &&
-                          !isPollClosed &&
-                          handleOptionSelect(poll.id, option.id)
-                        }
-                      >
-                        <div className="flex items-center">
-                          {option.image_url && (
-                            <div className="relative w-12 h-12 mr-4 rounded-md overflow-hidden">
-                              <Image
-                                src={option.image_url}
-                                alt={option.text}
-                                fill
-                                sizes="48px"
-                                style={{ objectFit: 'cover' }}
-                              />
-                            </div>
-                          )}
-                          <h3 className="text-text-primary">{option.text}</h3>
-                        </div>
-                        <span className="text-text-tertiary">
-                          {isVoted || isPollClosed
-                            ? `${option.votes} votes (${percentage}%)`
-                            : `${option.votes} votes`}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Buttons */}
-                <div className="flex items-center space-x-4">
-                  {!isVoted && !isPollClosed && (
-                    <button
-                      onClick={() => handleVote(poll.id)}
-                      className="bg-primary hover:bg-primary-hover text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200"
-                      disabled={!selectedOptionIdForPoll} // Disable if no option is selected
+            return (
+              <div
+                key={poll.id}
+                className={`bg-panel border border-border rounded-lg shadow-lg overflow-hidden mb-8 ${
+                  isPollClosed ? "opacity-60" : ""
+                }`}
+              >
+                <div className="p-6">
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <h3 className="text-xl font-semibold text-text-primary">
+                      {poll.question}
+                    </h3>
+                    <Button
+                      variant={isFavorited ? "secondary" : "outline"}
+                      size="sm"
+                      onClick={() => handleToggleFavorite(poll.id)}
+                      disabled={
+                        favoritePendingId === poll.id &&
+                        toggleFavoriteMutation.isPending
+                      }
+                      aria-label={
+                        isFavorited
+                          ? "즐겨찾기에서 제거"
+                          : "즐겨찾기에 추가"
+                      }
                     >
-                      투표하기
-                    </button>
-                  )}
-                  {isVoted && !isPollClosed && (
-                    <span className="text-success font-semibold py-2 px-4">
-                      ✓ 투표 완료
-                    </span>
-                  )}
-                  <Link
-                    href={`/poll/${poll.id}`}
-                    className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2 px-4 rounded-md transition-colors duration-200"
-                  >
-                    결과 보기
-                  </Link>
+                      {isFavorited ? "즐겨찾기 해제" : "즐겨찾기"}
+                    </Button>
+                  </div>
+                  <p className="text-text-secondary mb-6">
+                    이 투표에 참여해보세요.
+                  </p>
+
+                  {/* Poll Options */}
+                  <div className="space-y-3 mb-6">
+                    {poll.poll_options.map((option) => {
+                      // 각 옵션의 득표율을 계산합니다.
+                      const percentage =
+                        totalVotes > 0
+                          ? Math.round((option.votes / totalVotes) * 100)
+                          : 0;
+
+                      return (
+                        <div
+                          key={option.id}
+                          className={`flex items-center justify-between bg-surface p-3 rounded-md border ${
+                            isVoted || isPollClosed
+                              ? "cursor-not-allowed"
+                              : "cursor-pointer hover:bg-panel-hover"
+                          } ${
+                            selectedOptionIdForPoll === option.id
+                              ? "border-primary"
+                              : "border-border-subtle"
+                          }`}
+                          onClick={() =>
+                            !isVoted &&
+                            !isPollClosed &&
+                            handleOptionSelect(poll.id, option.id)
+                          }
+                        >
+                          <div className="flex items-center">
+                            {option.image_url && (
+                              <div className="relative w-12 h-12 mr-4 rounded-md overflow-hidden">
+                                <Image
+                                  src={option.image_url}
+                                  alt={option.text}
+                                  fill
+                                  sizes="48px"
+                                  style={{ objectFit: "cover" }}
+                                />
+                              </div>
+                            )}
+                            <h3 className="text-text-primary">{option.text}</h3>
+                          </div>
+                          <span className="text-text-tertiary">
+                            {isVoted || isPollClosed
+                              ? `${option.votes} votes (${percentage}%)`
+                              : `${option.votes} votes`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex items-center space-x-4">
+                    {!isVoted && !isPollClosed && (
+                      <button
+                        onClick={() => handleVote(poll.id)}
+                        className="bg-primary hover:bg-primary-hover text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200"
+                        disabled={!selectedOptionIdForPoll} // Disable if no option is selected
+                      >
+                        투표하기
+                      </button>
+                    )}
+                    {isVoted && !isPollClosed && (
+                      <span className="text-success font-semibold py-2 px-4">
+                        ✓ 투표 완료
+                      </span>
+                    )}
+                    <Link
+                      href={`/poll/${poll.id}`}
+                      className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2 px-4 rounded-md transition-colors duration-200"
+                    >
+                      결과 보기
+                    </Link>
+                  </div>
+                </div>
+                <div className="bg-background-subtle px-6 py-3 border-t border-border">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-text-tertiary">
+                      {getTimeRemaining(poll.expires_at)}
+                    </p>
+                    <p className="text-sm text-text-tertiary">
+                      마감: {formatExpiryDate(poll.expires_at)}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="bg-background-subtle px-6 py-3 border-t border-border">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-text-tertiary">
-                    {getTimeRemaining(poll.expires_at)}
-                  </p>
-                  <p className="text-sm text-text-tertiary">
-                    마감: {formatExpiryDate(poll.expires_at)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })
+            );
+          })
         )}
       </main>
     </div>

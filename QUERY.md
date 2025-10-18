@@ -23,6 +23,15 @@ DROP POLICY IF EXISTS "Allow authenticated users to insert their own votes" ON p
 DROP POLICY IF EXISTS "Allow authenticated users to read their own votes" ON public.user_votes;
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone." ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile." ON public.profiles;
+DO $$
+BEGIN
+  IF to_regclass('public.favorite_polls') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Allow authenticated users to insert favorites" ON public.favorite_polls;
+    DROP POLICY IF EXISTS "Allow authenticated users to read their favorites" ON public.favorite_polls;
+    DROP POLICY IF EXISTS "Allow authenticated users to delete their favorites" ON public.favorite_polls;
+  END IF;
+END;
+$$;
 
 -- 기존 함수 정리 (반환 타입이 변경될 경우, REPLACE가 아닌 DROP 후 CREATE 해야 함)
 DROP FUNCTION IF EXISTS public.get_polls_with_user_status();
@@ -31,6 +40,8 @@ DROP FUNCTION IF EXISTS public.get_featured_polls_with_user_status();
 DROP FUNCTION IF EXISTS public.get_featured_polls_with_user_status();
 DROP FUNCTION IF EXISTS public.check_username_exists(TEXT);
 DROP FUNCTION IF EXISTS public.check_email_exists(TEXT);
+DROP FUNCTION IF EXISTS public.toggle_favorite(UUID);
+DROP FUNCTION IF EXISTS public.get_favorite_polls();
 
 -- 3. 테이블 정의
 -- 'polls' 및 'poll_options' 테이블의 스키마를 정의합니다.
@@ -214,6 +225,32 @@ ON public.user_votes
 FOR SELECT
 USING (auth.uid() = user_id);
 
+-- 즐겨찾기 테이블: favorite_polls
+CREATE TABLE IF NOT EXISTS public.favorite_polls (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    poll_id UUID REFERENCES public.polls(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (user_id, poll_id)
+);
+
+ALTER TABLE public.favorite_polls ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow authenticated users to read their favorites"
+ON public.favorite_polls
+FOR SELECT
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Allow authenticated users to insert favorites"
+ON public.favorite_polls
+FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Allow authenticated users to delete their favorites"
+ON public.favorite_polls
+FOR DELETE
+USING (auth.uid() = user_id);
+
 -- 함수: public.increment_vote
 -- 특정 투표 선택지의 투표 수를 증가시키고, 사용자의 투표 기록을 남깁니다.
 -- 공개 투표: 비로그인 사용자도 투표 가능 (클라이언트에서 중복 방지)
@@ -289,6 +326,7 @@ RETURNS TABLE (
     expires_at TIMESTAMPTZ,
     status VARCHAR,
     has_voted BOOLEAN,
+    is_favorited BOOLEAN,
     poll_options JSONB -- 선택지 정보를 JSONB 형태로 포함
 )
 LANGUAGE plpgsql
@@ -309,6 +347,7 @@ p.expires_at,
 p.status,
 -- user_votes 테이블에 현재 사용자의 투표 기록이 있는지 확인
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
+EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
 -- 각 투표에 대한 선택지들을 투표 수(내림차순)에 따라 정렬하여 JSON 배열로 집계
 (SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
@@ -334,6 +373,7 @@ RETURNS TABLE (
     expires_at TIMESTAMPTZ,
     status VARCHAR,
     has_voted BOOLEAN,
+    is_favorited BOOLEAN,
     poll_options JSONB
 )
 LANGUAGE plpgsql
@@ -353,6 +393,7 @@ p.featured_image_url,
 p.expires_at,
 p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
+EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
 (SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
@@ -375,6 +416,7 @@ RETURNS TABLE (
     expires_at TIMESTAMPTZ,
     status VARCHAR,
     has_voted BOOLEAN,
+    is_favorited BOOLEAN,
     poll_options JSONB
 )
 LANGUAGE plpgsql
@@ -394,6 +436,7 @@ BEGIN
         p.expires_at,
         p.status,
         EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
+        EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
         (SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
     FROM
         public.polls p
@@ -401,6 +444,88 @@ BEGIN
         p.is_featured = TRUE
     ORDER BY
         p.created_at DESC;
+END;
+$$;
+
+-- 함수: public.toggle_favorite
+-- 즐겨찾기를 토글하고 현재 상태를 반환합니다.
+CREATE OR REPLACE FUNCTION public.toggle_favorite(p_poll_id UUID)
+RETURNS TABLE (is_favorited BOOLEAN)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    current_user_id UUID := auth.uid();
+    favorite_record_id UUID;
+BEGIN
+    IF current_user_id IS NULL THEN
+        RAISE EXCEPTION 'Authentication required to toggle favorites.';
+    END IF;
+
+    SELECT id INTO favorite_record_id
+    FROM public.favorite_polls
+    WHERE user_id = current_user_id AND poll_id = p_poll_id;
+
+    IF favorite_record_id IS NOT NULL THEN
+        DELETE FROM public.favorite_polls
+        WHERE id = favorite_record_id;
+
+        RETURN QUERY SELECT false;
+    ELSE
+        INSERT INTO public.favorite_polls (user_id, poll_id)
+        VALUES (current_user_id, p_poll_id);
+
+        RETURN QUERY SELECT true;
+    END IF;
+END;
+$$;
+
+-- 함수: public.get_favorite_polls
+-- 현재 사용자가 즐겨찾기한 투표 목록을 반환합니다.
+CREATE OR REPLACE FUNCTION public.get_favorite_polls()
+RETURNS TABLE (
+    id UUID,
+    created_at TIMESTAMPTZ,
+    question TEXT,
+    created_by UUID,
+    is_public BOOLEAN,
+    is_featured BOOLEAN,
+    featured_image_url TEXT,
+    expires_at TIMESTAMPTZ,
+    status VARCHAR,
+    has_voted BOOLEAN,
+    is_favorited BOOLEAN,
+    poll_options JSONB
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    current_user_id UUID := auth.uid();
+BEGIN
+    IF current_user_id IS NULL THEN
+        RAISE EXCEPTION 'Authentication required to view favorites.';
+    END IF;
+
+    RETURN QUERY
+    SELECT
+        p.id,
+        p.created_at,
+        p.question,
+        p.created_by,
+        p.is_public,
+        p.is_featured,
+        p.featured_image_url,
+        p.expires_at,
+        p.status,
+        EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
+        true AS is_favorited,
+        (SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+    FROM
+        public.favorite_polls fp
+        JOIN public.polls p ON p.id = fp.poll_id
+    WHERE
+        fp.user_id = current_user_id
+    ORDER BY
+        fp.created_at DESC;
 END;
 $$;
 
@@ -487,6 +612,8 @@ CREATE INDEX IF NOT EXISTS idx_poll_options_poll_id ON public.poll_options(poll_
 -- (user_id, poll_id)는 UNIQUE 제약조건이 있어 자동으로 인덱스가 생성되지만, 개별 컬럼 조회를 위한 인덱스도 추가)
 CREATE INDEX IF NOT EXISTS idx_user_votes_poll_id ON public.user_votes(poll_id);
 CREATE INDEX IF NOT EXISTS idx_user_votes_user_id ON public.user_votes(user_id);
+CREATE INDEX IF NOT EXISTS idx_favorite_polls_user_id ON public.favorite_polls(user_id);
+CREATE INDEX IF NOT EXISTS idx_favorite_polls_poll_id ON public.favorite_polls(poll_id);
 
 -- polls 테이블: is_featured, is_public, created_by로 필터링이 자주 발생
 CREATE INDEX IF NOT EXISTS idx_polls_is_featured ON public.polls(is_featured) WHERE is_featured = TRUE;

@@ -23,6 +23,7 @@ export interface PollOption {
 export interface PollWithOptions extends Poll {
   poll_options: PollOption[];
   has_voted?: boolean;
+  is_favorited?: boolean;
 }
 
 export interface PollWithUserStatus extends PollWithOptions {

@@ -51,6 +51,13 @@ export default function Navbar({ session, profile }: NavbarProps) {
           </Link>
           <span className="text-gray-500 text-xs">|</span>
           <Link
+            href="/favorites"
+            className="text-xs md:text-sm lg:text-base text-gray-300 hover:text-white font-bold"
+          >
+            FAVORITES
+          </Link>
+          <span className="text-gray-500 text-xs">|</span>
+          <Link
             href="/score"
             className="text-xs md:text-sm lg:text-base text-gray-300 hover:text-white font-bold"
           >

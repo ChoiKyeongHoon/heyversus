@@ -159,6 +159,45 @@ export async function voteOnPoll(params: VoteParams) {
 }
 
 /**
+ * 즐겨찾기한 투표 목록을 가져옵니다.
+ * 즐겨찾기는 사용자별 데이터이므로 캐시하지 않습니다.
+ */
+export async function getFavoritePolls() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("get_favorite_polls");
+
+  if (error) {
+    console.error("Error fetching favorite polls:", error);
+    return { data: null, error };
+  }
+
+  return { data: data as PollWithOptions[], error: null };
+}
+
+/**
+ * 즐겨찾기 상태를 토글합니다.
+ * @param pollId - 즐겨찾기할 투표 ID
+ * @returns 현재 즐겨찾기 여부
+ */
+export async function toggleFavorite(pollId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("toggle_favorite", {
+    p_poll_id: pollId,
+  });
+
+  if (error) {
+    console.error("Error toggling favorite:", error);
+    return { data: null, error };
+  }
+
+  const result = Array.isArray(data) && data.length > 0 ? data[0] : null;
+
+  return { data: result?.is_favorited as boolean | null, error: null };
+}
+
+/**
  * 사용자 프로필 목록을 포인트 순으로 가져옵니다 (리더보드).
  * @param limit - 가져올 최대 개수 (기본값: 10)
  * @returns 프로필 목록과 오류 정보
