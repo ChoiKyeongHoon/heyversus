@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
  */
 export default function TestSentryPage() {
   const [errorCount, setErrorCount] = useState(0);
+  const hasSentryClient = Boolean(Sentry.getCurrentHub().getClient());
 
   // 1. 클라이언트 측 에러
   const throwClientError = () => {
@@ -27,6 +28,11 @@ export default function TestSentryPage() {
 
   // 3. 수동으로 Sentry에 에러 전송
   const captureManualError = () => {
+    if (!hasSentryClient) {
+      console.info("[Sentry] DSN 미설정으로 인해 수동 에러 전송을 건너뜁니다.");
+      return;
+    }
+
     Sentry.captureException(new Error("수동으로 전송된 테스트 에러입니다!"), {
       tags: {
         test_type: "manual",
@@ -41,6 +47,11 @@ export default function TestSentryPage() {
 
   // 4. 사용자 정의 메시지 전송
   const captureCustomMessage = () => {
+    if (!hasSentryClient) {
+      console.info("[Sentry] DSN 미설정으로 인해 메시지 전송을 건너뜁니다.");
+      return;
+    }
+
     Sentry.captureMessage("테스트 메시지입니다!", {
       level: "info",
       tags: {

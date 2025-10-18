@@ -22,7 +22,9 @@ export default function Error({
 }) {
   useEffect(() => {
     // Sentry에 에러 리포트
-    Sentry.captureException(error);
+    if (Sentry.getCurrentHub().getClient()) {
+      Sentry.captureException(error);
+    }
   }, [error]);
 
   return (
