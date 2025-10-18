@@ -28,8 +28,9 @@
 - **언어**: TypeScript
 - **스타일링**: Tailwind CSS
 - **백엔드 (BaaS)**: Supabase (Auth, PostgreSQL, Storage, Edge Functions)
-- **UI 컴포넌트**: shadcn/ui
-- **상태 관리**: React Context (Session Provider)
+- **UI 컴포넌트**: shadcn/ui, Tailwind CSS 유틸리티 + `class-variance-authority`
+- **데이터 페칭**: `@tanstack/react-query`
+- **상태 관리**: React Query 캐시, Zustand 스토어, Supabase Session Provider
 - **폰트 최적화**: `next/font`
 - **알림**: Sonner (Toast notifications)
 - **배포**: Vercel
@@ -40,21 +41,56 @@
 /
 ├── public/              # 정적 에셋 (이미지, 폰트 등)
 ├── src/
-│   ├── app/             # Next.js App Router 페이지 및 레이아웃
-│   │   ├── page.tsx     # 메인 랜딩 페이지 (대표 투표)
-│   │   ├── signin/      # 로그인 페이지
-│   │   ├── signup/      # 회원가입 페이지
-│   │   ├── create-poll/ # 투표 생성 페이지
-│   │   ├── polls/       # 전체 투표 목록 페이지
-│   │   ├── favorites/   # 즐겨찾기한 투표 목록 페이지
-│   │   ├── poll/[id]/   # 투표 상세 및 결과 페이지
-│   │   └── score/       # 사용자 랭킹(스코어보드) 페이지
-│   ├── components/      # 재사용 가능한 UI 컴포넌트
-│   ├── lib/             # 공통 유틸리티 및 Supabase 클라이언트
-│   └── middleware.ts    # Supabase 세션 관리 미들웨어
+│   ├── app/               # Next.js App Router 페이지 및 레이아웃
+│   │   ├── api/           # RESTful API Route handlers
+│   │   ├── page.tsx       # 메인 랜딩 페이지 (대표 투표)
+│   │   ├── signin/        # 로그인 페이지
+│   │   ├── signup/        # 회원가입 페이지
+│   │   ├── create-poll/   # 투표 생성 페이지
+│   │   ├── polls/         # 전체 투표 목록 페이지
+│   │   ├── favorites/     # 즐겨찾기한 투표 목록 페이지
+│   │   ├── poll/[id]/     # 투표 상세 및 결과 페이지
+│   │   └── score/         # 사용자 랭킹(스코어보드) 페이지
+│   ├── components/        # 재사용 가능한 UI 컴포넌트
+│   ├── hooks/             # 클라이언트 전용 커스텀 훅
+│   ├── lib/               # 공통 유틸리티, Supabase 클라이언트 및 서비스 계층
+│   │   ├── services/      # Supabase RPC를 감싼 비즈니스 로직
+│   │   └── stores/        # Zustand 기반 전역 상태
+│   ├── providers/         # React Query 등 글로벌 Provider 구성
+│   └── middleware.ts      # Supabase 세션 관리 미들웨어
 ├── QUERY.md             # 데이터베이스 스키마 (SQL)
 └── README.md            # 프로젝트 문서
 ```
+
+## 🚀 시작하기
+
+1. 저장소를 클론합니다.
+   ```bash
+   git clone https://github.com/ChoiKyeongHoon/heyversus.git
+   cd heyversus
+   ```
+2. 의존성을 설치합니다.
+   ```bash
+   npm install
+   ```
+3. Supabase 환경 변수를 설정합니다. `.env.local` 파일을 생성하고 아래 키를 채웁니다.
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+   SUPABASE_SERVICE_ROLE_KEY=<optional-service-role-key-for-seeding>
+   ```
+4. 개발 서버를 실행합니다.
+   ```bash
+   npm run dev
+   ```
+5. (선택) 샘플 데이터를 넣으려면 Supabase에 로그인된 상태에서 시딩 스크립트를 실행합니다.
+   ```bash
+   npm run db:seed
+   ```
+6. 변경 사항을 커밋하기 전에 린트를 실행합니다.
+   ```bash
+   npm run lint
+   ```
 
 ## 📊 데이터베이스 스키마
 
@@ -103,11 +139,21 @@ erDiagram
         text image_url
     }
 
+    users ||--o{ favorite_polls : "favorites"
+    polls ||--o{ favorite_polls : "is favorited"
+
     user_votes {
         UUID id PK
         UUID user_id
         UUID poll_id
         UUID option_id
+        timestamptz created_at
+    }
+
+    favorite_polls {
+        UUID id PK
+        UUID user_id
+        UUID poll_id
         timestamptz created_at
     }
 ```
