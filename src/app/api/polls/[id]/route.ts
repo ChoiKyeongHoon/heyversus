@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { getPollById } from "@/lib/services/polls";
 
 /**

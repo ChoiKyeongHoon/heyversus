@@ -1,10 +1,11 @@
 "use client";
 
+import { Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Session } from "@supabase/supabase-js";
+
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
 interface Profile {

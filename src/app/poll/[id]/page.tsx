@@ -1,7 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
-import PollClient from "./PollClient";
-import { PollWithOptions } from "@/lib/types";
 import { notFound } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/server";
+import { PollWithOptions } from "@/lib/types";
+
+import PollClient from "./PollClient";
 
 export const dynamic = "force-dynamic"; // 항상 동적으로 렌더링
 

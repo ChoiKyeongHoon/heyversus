@@ -1,9 +1,11 @@
 import "@/app/globals.css";
-import { Inter } from "next/font/google";
 import "./global.css";
+
+import { Inter } from "next/font/google";
+import { Toaster } from "sonner";
+
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/lib/supabase/server";
-import { Toaster } from "sonner";
 import { QueryProvider } from "@/providers/QueryProvider";
 
 const inter = Inter({

@@ -4,7 +4,7 @@ interface UIStore {
   // 모달 상태
   isModalOpen: boolean;
   modalContent: React.ReactNode | null;
-  openModal: (content: React.ReactNode) => void;
+  openModal: (_content: React.ReactNode) => void;
   closeModal: () => void;
 
   // 사이드바 상태 (모바일)

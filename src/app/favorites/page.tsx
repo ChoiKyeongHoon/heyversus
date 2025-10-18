@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { getFavoritePolls } from "@/lib/services/polls";
+
 import PollsClient from "@/app/polls/PollsClient";
+import { getFavoritePolls } from "@/lib/services/polls";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function FavoritesPage() {
   const supabase = await createClient();

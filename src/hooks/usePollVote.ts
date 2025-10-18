@@ -1,7 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
-import { useSupabase } from "./useSupabase";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+
+import { useSupabase } from "./useSupabase";
 
 interface VoteParams {
   pollId: string;

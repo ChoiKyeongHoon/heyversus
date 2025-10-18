@@ -4,11 +4,11 @@ interface PollStore {
   // 투표한 옵션 ID들을 poll_id별로 저장
   votedOptions: Record<string, string>;
   // 투표 추가
-  addVote: (pollId: string, optionId: string) => void;
+  addVote: (_pollId: string, _optionId: string) => void;
   // 투표 확인
-  hasVoted: (pollId: string) => boolean;
+  hasVoted: (_pollId: string) => boolean;
   // 투표한 옵션 ID 가져오기
-  getVotedOptionId: (pollId: string) => string | null;
+  getVotedOptionId: (_pollId: string) => string | null;
   // 초기화
   reset: () => void;
 }

@@ -1,8 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
-import FeaturedPollClient from "./FeaturedPollClient"; // 데이터를 표시할 클라이언트 컴포넌트
 import Link from "next/link";
 
+import { createClient } from "@/lib/supabase/server";
 import { PollWithUserStatus } from "@/lib/types";
+
+import FeaturedPollClient from "./FeaturedPollClient"; // 데이터를 표시할 클라이언트 컴포넌트
 
 // 이 페이지는 동적으로 렌더링됩니다.
 // export const revalidate = 3600; // cookies()와 함께 사용할 수 없습니다.

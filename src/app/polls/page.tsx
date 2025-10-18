@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+
 import PollsClient from "./PollsClient";
 
 export default async function PollsPage() {

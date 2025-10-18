@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useEffect,useState } from "react";
+import { toast } from "sonner";
+
 import { usePollVote } from "@/hooks/usePollVote";
 import type { PollWithOptions } from "@/lib/types";
-import Image from "next/image";
-import { toast } from "sonner";
-import { isPollExpired, formatExpiryDate } from "@/lib/utils";
+import { formatExpiryDate,isPollExpired } from "@/lib/utils";
 
 interface PollClientProps {
   poll: PollWithOptions;

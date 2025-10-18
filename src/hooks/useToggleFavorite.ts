@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+
 import { useSupabase } from "@/hooks/useSupabase";
 
 interface ToggleFavoriteParams {

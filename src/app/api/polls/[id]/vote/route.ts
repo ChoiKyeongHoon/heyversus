@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { voteOnPoll } from "@/lib/services/polls";
 import { revalidatePath } from "next/cache";
+import { NextRequest, NextResponse } from "next/server";
+
+import { voteOnPoll } from "@/lib/services/polls";
 
 /**
  * POST /api/polls/[id]/vote

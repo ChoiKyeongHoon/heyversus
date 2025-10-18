@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSupabase } from "@/hooks/useSupabase";
 import type { User } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import { useEffect,useState } from "react";
+
+import { useSupabase } from "@/hooks/useSupabase";
 
 export default function CreatePollPage() {
   const router = useRouter();
