@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useSupabase } from "@/hooks/useSupabase";
 import type { User } from "@supabase/supabase-js";
 
 export default function CreatePollPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSupabase();
   const [user, setUser] = useState<User | null>(null);
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]); // 2개의 선택지로 시작

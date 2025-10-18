@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
-import { createClient } from "@/lib/supabase/client";
+import { useSupabase } from "@/hooks/useSupabase";
 import { PollWithOptions } from "@/lib/types";
 import { Session } from "@supabase/supabase-js";
 
 // useSession 훅을 위한 임시 구현
 const useSession = () => {
   const [session, setSession] = useState<Session | null>(null);
-  const supabase = createClient();
+  const supabase = useSupabase();
 
   useEffect(() => {
     const getSession = async () => {
@@ -51,7 +51,7 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
   const [isStatusLoading, setIsStatusLoading] = useState(true);
 
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSupabase();
 
   useEffect(() => {
     const handleVisibilityChange = () => {

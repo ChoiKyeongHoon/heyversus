@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useSupabase } from "@/hooks/useSupabase";
 import type { PollWithOptions } from "@/lib/types";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ interface PollClientProps {
 
 export default function PollClient({ poll }: PollClientProps) {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSupabase();
   // `has_voted`는 서버에서 내려온, 로그인 사용자의 투표 여부입니다.
   const [isVoted, setIsVoted] = useState(poll.has_voted || false);
   const [loading, setLoading] = useState(false);
@@ -156,8 +156,9 @@ export default function PollClient({ poll }: PollClientProps) {
                             <Image
                               src={option.image_url}
                               alt={option.text || "Poll option"}
-                              layout="fill"
-                              objectFit="cover"
+                              fill
+                              sizes="48px"
+                              style={{ objectFit: 'cover' }}
                             />
                           </div>
                         )}

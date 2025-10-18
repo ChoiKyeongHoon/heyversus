@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useSupabase } from "@/hooks/useSupabase";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -16,7 +16,7 @@ type PollsClientProps = {
 
 export default function PollsClient({ serverPolls }: PollsClientProps) {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSupabase();
   const [polls, setPolls] = useState(serverPolls);
   const [session, setSession] = useState<Session | null>(null);
   // DB에 기록된, 로그인한 유저의 투표 기록
@@ -240,8 +240,9 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
                               <Image
                                 src={option.image_url}
                                 alt={option.text}
-                                layout="fill"
-                                objectFit="cover"
+                                fill
+                                sizes="48px"
+                                style={{ objectFit: 'cover' }}
                               />
                             </div>
                           )}

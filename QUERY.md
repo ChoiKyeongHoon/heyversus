@@ -106,11 +106,40 @@ SECURITY DEFINER -- 함수 소유자(예: supabase_admin)의 권한으로 실행
 AS $$
 DECLARE
 new_poll_id UUID; -- 새로 생성될 투표의 ID를 저장할 변수
+option_text TEXT; -- 각 옵션 검증용 임시 변수
 BEGIN
--- 'polls' 테이블에 새 투표를 삽입합니다.
-INSERT INTO public.polls (question, created_by, is_public, expires_at)
-VALUES (question_text, auth.uid(), is_public, expires_at_param) -- auth.uid()는 현재 인증된 사용자의 ID를 가져옵니다.
-RETURNING id INTO new_poll_id; -- 새로 생성된 투표의 ID를 검색합니다.
+    -- 서버 측 검증: 질문이 비어있는지 확인
+    IF question_text IS NULL OR trim(question_text) = '' THEN
+        RAISE EXCEPTION 'Question text cannot be empty.';
+    END IF;
+
+    -- 서버 측 검증: 최소 2개 이상의 옵션이 있는지 확인
+    IF option_texts IS NULL OR array_length(option_texts, 1) < 2 THEN
+        RAISE EXCEPTION 'At least 2 options are required.';
+    END IF;
+
+    -- 서버 측 검증: 최대 6개 이하의 옵션인지 확인
+    IF array_length(option_texts, 1) > 6 THEN
+        RAISE EXCEPTION 'Maximum 6 options are allowed.';
+    END IF;
+
+    -- 서버 측 검증: 각 옵션이 비어있지 않은지 확인
+    FOREACH option_text IN ARRAY option_texts
+    LOOP
+        IF option_text IS NULL OR trim(option_text) = '' THEN
+            RAISE EXCEPTION 'All option texts must be non-empty.';
+        END IF;
+    END LOOP;
+
+    -- 서버 측 검증: 만료 시간이 현재 시간보다 미래인지 확인 (null은 허용 - 영구 투표)
+    IF expires_at_param IS NOT NULL AND expires_at_param <= now() THEN
+        RAISE EXCEPTION 'Expiration time must be in the future.';
+    END IF;
+
+    -- 'polls' 테이블에 새 투표를 삽입합니다.
+    INSERT INTO public.polls (question, created_by, is_public, expires_at)
+    VALUES (question_text, auth.uid(), is_public, expires_at_param) -- auth.uid()는 현재 인증된 사용자의 ID를 가져옵니다.
+    RETURNING id INTO new_poll_id; -- 새로 생성된 투표의 ID를 검색합니다.
 
     -- 'option_texts' 배열의 각 선택지를 'poll_options' 테이블에 삽입합니다.
     -- unnest()는 배열을 행 집합으로 변환합니다.
@@ -446,3 +475,27 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- =============================================================================
+-- 8. 성능 최적화를 위한 인덱스 추가
+-- =============================================================================
+
+-- poll_options 테이블: poll_id로 자주 조회되므로 인덱스 추가
+CREATE INDEX IF NOT EXISTS idx_poll_options_poll_id ON public.poll_options(poll_id);
+
+-- user_votes 테이블: poll_id와 user_id로 자주 조회되므로 인덱스 추가
+-- (user_id, poll_id)는 UNIQUE 제약조건이 있어 자동으로 인덱스가 생성되지만, 개별 컬럼 조회를 위한 인덱스도 추가)
+CREATE INDEX IF NOT EXISTS idx_user_votes_poll_id ON public.user_votes(poll_id);
+CREATE INDEX IF NOT EXISTS idx_user_votes_user_id ON public.user_votes(user_id);
+
+-- polls 테이블: is_featured, is_public, created_by로 필터링이 자주 발생
+CREATE INDEX IF NOT EXISTS idx_polls_is_featured ON public.polls(is_featured) WHERE is_featured = TRUE;
+CREATE INDEX IF NOT EXISTS idx_polls_is_public ON public.polls(is_public) WHERE is_public = TRUE;
+CREATE INDEX IF NOT EXISTS idx_polls_created_by ON public.polls(created_by);
+
+-- polls 테이블: created_at으로 정렬이 자주 발생 (최신순 조회)
+CREATE INDEX IF NOT EXISTS idx_polls_created_at ON public.polls(created_at DESC);
+
+-- profiles 테이블: username으로 조회가 발생 (이미 UNIQUE 제약조건이 있으므로 인덱스 자동 생성됨)
+-- profiles 테이블: points로 정렬 (리더보드)
+CREATE INDEX IF NOT EXISTS idx_profiles_points ON public.profiles(points DESC);

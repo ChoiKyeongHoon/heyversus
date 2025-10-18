@@ -2,8 +2,11 @@ export interface Poll {
   id: string;
   created_at: string;
   question: string;
-  user_id: string;
-  expires_at: string;
+  created_by: string;
+  is_public: boolean;
+  is_featured: boolean;
+  featured_image_url: string | null;
+  expires_at: string | null;
   status: string;
 }
 
