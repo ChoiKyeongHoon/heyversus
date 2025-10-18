@@ -52,13 +52,24 @@
 │   │   ├── poll/[id]/     # 투표 상세 및 결과 페이지
 │   │   └── score/         # 사용자 랭킹(스코어보드) 페이지
 │   ├── components/        # 재사용 가능한 UI 컴포넌트
-│   ├── hooks/             # 클라이언트 전용 커스텀 훅
+│   │   ├── common/        # 공통 UI 컴포넌트 (Skeleton, ErrorState, EmptyState)
+│   │   ├── layout/        # 레이아웃 컴포넌트 (Navbar)
+│   │   └── ui/            # shadcn/ui 기본 컴포넌트
+│   ├── constants/         # 애플리케이션 상수 (storage, cache, defaults)
+│   ├── hooks/             # 재사용 가능한 커스텀 훅
+│   │   ├── useSession.ts          # Supabase 세션 관리
+│   │   ├── useLocalStorage.ts     # 타입 안전 localStorage 동기화
+│   │   ├── useVisibilityChange.ts # 페이지 가시성 감지
+│   │   ├── useSupabase.ts         # Supabase 클라이언트 최적화
+│   │   ├── usePollVote.ts         # 투표 참여 Optimistic Update
+│   │   └── useToggleFavorite.ts   # 즐겨찾기 토글
 │   ├── lib/               # 공통 유틸리티, Supabase 클라이언트 및 서비스 계층
 │   │   ├── services/      # Supabase RPC를 감싼 비즈니스 로직
 │   │   └── stores/        # Zustand 기반 전역 상태
 │   ├── providers/         # React Query 등 글로벌 Provider 구성
 │   └── middleware.ts      # Supabase 세션 관리 미들웨어
 ├── QUERY.md             # 데이터베이스 스키마 (SQL)
+├── ROADMAP.md           # 개발 로드맵 및 진행 현황
 └── README.md            # 프로젝트 문서
 ```
 
@@ -163,6 +174,14 @@ erDiagram
 ```
 
 ## 📌 업데이트 기록
+
+### v0.3.0
+
+- **코드 재사용성 대폭 향상**: 15곳 이상의 localStorage 중복 코드와 6곳의 visibilitychange 리스너를 커스텀 훅으로 통합. `useSession`, `useLocalStorage<T>`, `useVisibilityChange` 훅을 새로 생성해 재사용 가능한 로직 분리.
+- **상수 중앙화**: `src/constants/` 디렉터리를 추가하고 `STORAGE_KEYS`, `CACHE_TAGS`, `CACHE_TIMES`, `DEFAULTS` 등 매직 스트링/넘버를 한 곳에서 관리. 코드 일관성 및 유지보수성 개선.
+- **컴포넌트 구조 개선**: `components/layout/` 디렉터리를 생성하고 Navbar 컴포넌트를 이동. App Router 컨벤션에 맞춰 `*Client.tsx` 컴포넌트는 해당 route 디렉터리에 유지.
+- **타입 안전성 강화**: `useLocalStorage<T>` 제네릭 훅으로 localStorage 사용 시 타입 안전성 보장. 다른 탭/윈도우 간 storage 이벤트 동기화 지원.
+- **코드 품질**: `npm run lint` 및 `npm run test` 모두 통과. 런타임 에러 없이 모든 페이지 정상 작동 확인.
 
 ### v0.2.1
 - **Hydration 대응**: 대표 투표 카드의 만료 시간을 `Intl.DateTimeFormat('ko-KR')`으로 고정 포맷해 서버/클라이언트 렌더 결과를 일치시켰습니다.
