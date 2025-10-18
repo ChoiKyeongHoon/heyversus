@@ -42,12 +42,12 @@ next-env.d.ts
 
 
 # reference documents
-
+AGENTS.md
+CLAUDE.md
 GEMINI.md
 QUERY.md
-USERFLOWCHART.md
-ARCHITECTURE.md
-AGENT.md
-COLOR_PREVIEW.md
-REFER.png
 ROADMAP.md
+architecture.md
+color_preview.html
+refer.png
+userflowchart.md
