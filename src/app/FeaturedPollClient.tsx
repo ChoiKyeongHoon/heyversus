@@ -1,6 +1,5 @@
 "use client";
 
-import { Session } from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,36 +7,11 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { STORAGE_KEYS } from "@/constants/storage";
+import { useSession } from "@/hooks/useSession";
 import { useSupabase } from "@/hooks/useSupabase";
+import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate } from "@/lib/utils";
-
-// useSession 훅을 위한 임시 구현
-const useSession = () => {
-  const [session, setSession] = useState<Session | null>(null);
-  const supabase = useSupabase();
-
-  useEffect(() => {
-    const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setSession(session);
-    };
-
-    getSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [supabase.auth]);
-
-  return { session };
-};
 
 interface PollCardProps {
   poll: PollWithOptions;
@@ -56,17 +30,10 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
   const router = useRouter();
   const supabase = useSupabase();
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        router.refresh();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [router]);
+  // 탭 전환 시 자동 새로고침
+  useVisibilityChange(() => {
+    router.refresh();
+  });
 
   useEffect(() => {
     // initialPoll prop이 변경될 때마다 내부 상태를 동기화합니다.

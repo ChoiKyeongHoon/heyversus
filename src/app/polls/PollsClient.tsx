@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { STORAGE_KEYS } from "@/constants/storage";
 import { useSupabase } from "@/hooks/useSupabase";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
+import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate,isPollExpired } from "@/lib/utils";
 
@@ -60,17 +61,10 @@ export default function PollsClient({
     setSelectedOptionIds({});
   }, [serverPolls]);
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        router.refresh();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [router]);
+  // 탭 전환 시 자동 새로고침
+  useVisibilityChange(() => {
+    router.refresh();
+  });
 
   useEffect(() => {
     // 세션 정보 가져오기 및 인증 상태 변경 감지

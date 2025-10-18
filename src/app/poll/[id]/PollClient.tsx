@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { STORAGE_KEYS } from "@/constants/storage";
 import { usePollVote } from "@/hooks/usePollVote";
+import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate,isPollExpired } from "@/lib/utils";
 
@@ -21,17 +22,10 @@ export default function PollClient({ poll }: PollClientProps) {
   const [isVoted, setIsVoted] = useState(poll.has_voted || false);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        router.refresh();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [router]);
+  // 탭 전환 시 자동 새로고침
+  useVisibilityChange(() => {
+    router.refresh();
+  });
 
   // poll prop이 변경될 때마다 내부 상태를 동기화합니다.
   useEffect(() => {
