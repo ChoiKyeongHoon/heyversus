@@ -185,7 +185,7 @@ erDiagram
     }
 ```
 
-## 📌 업데이트 기록
+## 📌 업데이트 기록 (2025-10-21까지)
 
 ### v0.5.0
 
@@ -195,7 +195,7 @@ erDiagram
   - 정렬 옵션: 최신순 / 오래된순 / 투표 많은순 / 투표 적은순 / 마감 임박순 / 마감 여유순
   - 필터/정렬 상태를 URL 쿼리 파라미터로 관리하여 공유 가능한 링크 생성
 - **데이터베이스 최적화**:
-  - `get_polls_paginated` RPC 함수 생성 (SQL은 `PAGINATION_SQL.md` 참조)
+  - `get_polls_paginated` RPC 함수 생성 (SQL은 `QUERY.md` 참조)
   - 성능 인덱스 추가: created_at, expires_at, status, public_creator, votes
   - 페이지네이션 메타데이터 포함 (total, hasNextPage, nextOffset)
 - **API 계층 강화**:
@@ -217,12 +217,12 @@ erDiagram
 - **접근성 유지**: WCAG 2.1 AA 준수, 키보드 네비게이션, 스크린 리더 지원, 44px 터치 영역.
 - **문서화**:
   - `SCALE_DESIGN.md`: 아키텍처 설계 문서
-  - `PAGINATION_SQL.md`: Supabase SQL 실행 가이드
+  - `QUERY.md`: Supabase SQL 실행 스크립트 및 가이드
   - `STEP10_IMPLEMENTATION.md`: 구현 요약 및 배포 체크리스트
 - **번들 크기**: +15KB (+7.6%) - React Query 통합으로 인한 증가지만 성능 이득이 훨씬 큼.
 - **빌드 검증**: `npm run lint` (0 warnings), `npm run build` 성공 (14개 페이지).
 
-**⚠️ 배포 전 필수 작업**: `PAGINATION_SQL.md`의 SQL을 Supabase SQL Editor에서 실행해야 프로덕션에서 작동합니다.
+**⚠️ 배포 전 필수 작업**: `QUERY.md`의 SQL을 Supabase SQL Editor에서 실행해야 프로덕션에서 작동합니다.
 
 ### v0.4.0
 
