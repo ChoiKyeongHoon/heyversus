@@ -17,7 +17,11 @@ npm run lint         # Run ESLint
 ```
 
 ### Testing & Database
-- No test framework is currently configured
+```bash
+npm run test         # Run Jest tests
+npm run db:seed      # Seed database with sample data
+```
+- Test framework: Jest + Testing Library (configured in `jest.config.js`)
 - Database schema is defined in `QUERY.md` - apply it directly to Supabase SQL editor
 
 ## Architecture & Key Patterns
@@ -143,36 +147,35 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 3. Modify relevant RPC functions to return new fields
 4. Update UI components to display new data
 
-## Known Issues & Technical Debt
+## Development Status & Roadmap
 
-**CRITICAL - review.md contains a comprehensive list of bugs and improvements. Check review.md before making changes.**
+**Reference `roadmap.md` for comprehensive project status and planned improvements.**
 
-### P0: Critical Issues (Fix Immediately)
-- **Shared selection state across poll cards** (src/app/polls/PollsClient.tsx): Single `selectedOptionId` state causes selection to be shared across all polls. Must use `Record<pollId, optionId>` pattern.
-- **Null expires_at treated as expired**: Polls with `expires_at = null` (permanent polls) are incorrectly marked as closed. Must check for null before date comparison.
+### Completed (Steps 1-6)
 
-### P1: High Priority
-- **No test framework configured**: Add Jest/Playwright for regression testing
-- **Missing server-side validation**: `create_new_poll` lacks input validation (empty questions, insufficient options)
-- **Missing TypeScript null handling**: `expires_at` should be `string | null` in types.ts
-- **Performance issues**: No indexes on `poll_options(poll_id)`, `user_votes(poll_id, user_id)`
-- **Client instance duplication**: Multiple components create Supabase clients on each render. Use `useMemo` or Context.
-- **Deprecated Next.js 15 Image props**: Remove `layout`, `objectFit` - use `fill`, `sizes`, `style` instead
+- ✅ Core voting bugs fixed (`selectedOptionIds` pattern, poll expiry handling)
+- ✅ TypeScript types aligned with database schema
+- ✅ Database indexes added for performance optimization
+- ✅ Server-side validation in `create_new_poll`
+- ✅ Service layer + API routes for business logic separation
+- ✅ React Query for optimistic updates
+- ✅ Loading/error/empty state components
+- ✅ Zustand for global state management
+- ✅ User favorites feature with dedicated `/favorites` page
+- ✅ Jest + Testing Library configured
+- ✅ Husky + lint-staged for commit hooks
+- ✅ ESLint with import sorting
 
-### P2: Medium Priority (UX/Code Quality)
-- **Insufficient loading/error feedback**: Add skeleton UI and error toasts
-- **Timezone issues in poll expiration**: `datetime-local` input doesn't account for user timezone
-- **Inconsistent styling**: Hardcoded colors instead of Tailwind theme tokens
-- **Duplicate global CSS**: Both `globals.css` and `global.css` imported
-- **Legacy /poll page**: Old localStorage-based UI conflicts with Supabase data flow
+### In Progress (Step 7)
 
-### P3: Low Priority (Long-term)
-- **Duplicated time calculation logic**: Extract `getTimeRemaining` to `src/lib/utils.ts`
-- **Unsafe env variable handling**: Add startup validation for `process.env.VAR!` assertions
-- **Complex form state**: Consider `react-hook-form` for create-poll page
-- **Incomplete private poll feature**: UI exists but access control not implemented
+- **Component structure refactoring**: Organizing into `common`, `domain`, `layout` directories
+- **Custom hooks extraction**: Moving reusable logic to `src/hooks`
+- **Constants centralization**: Managing magic strings/numbers in `src/constants`
 
-**Reference review.md for detailed explanations and solutions.**
+### Planned (Step 8)
+
+- **Sentry integration**: Production error monitoring
+- **Private polls access control**: Complete UI/backend logic alignment
 
 ## Project-Specific Notes
 

@@ -4,7 +4,7 @@ import "./global.css";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/layout/Navbar";
 import { createClient } from "@/lib/supabase/server";
 import { QueryProvider } from "@/providers/QueryProvider";
 
