@@ -3,7 +3,14 @@ import { unstable_cache } from "next/cache";
 import { DEFAULTS } from "@/constants/app";
 import { CACHE_TAGS, CACHE_TIMES } from "@/constants/cache";
 import { createClient } from "@/lib/supabase/server";
-import type { PollWithOptions } from "@/lib/types";
+import type {
+  FilterStatus,
+  GetPollsParams,
+  PollsResponse,
+  PollWithOptions,
+  SortBy,
+  SortOrder,
+} from "@/lib/types";
 
 /**
  * Poll Service Layer
@@ -31,6 +38,7 @@ export interface VoteParams {
 
 /**
  * 모든 공개 투표 목록을 가져옵니다.
+ * @deprecated Use getPollsPaginated for better performance
  * @returns 투표 목록과 오류 정보
  */
 export async function getPolls() {
@@ -53,6 +61,71 @@ export async function getPolls() {
       revalidate: CACHE_TIMES.POLLS, // 60초마다 재검증
     }
   )();
+}
+
+/**
+ * 페이지네이션을 지원하는 투표 목록을 가져옵니다.
+ * @param params - 페이지네이션, 정렬, 필터링 파라미터
+ * @returns 투표 목록과 페이지네이션 메타데이터
+ */
+export async function getPollsPaginated(
+  params: GetPollsParams = {}
+): Promise<{ data: PollsResponse | null; error: Error | null }> {
+  const {
+    limit = 20,
+    offset = 0,
+    sortBy = "created_at" as SortBy,
+    sortOrder = "desc" as SortOrder,
+    filterStatus = "all" as FilterStatus,
+  } = params;
+
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.rpc("get_polls_paginated", {
+      p_limit: limit,
+      p_offset: offset,
+      p_sort_by: sortBy,
+      p_sort_order: sortOrder,
+      p_filter_status: filterStatus,
+    });
+
+    if (error) {
+      console.error("Error fetching paginated polls:", error);
+      return { data: null, error };
+    }
+
+    // Parse the response
+    // The RPC returns an array of rows, each with total_count
+    const polls = (data || []) as Array<PollWithOptions & { total_count: number }>;
+
+    // Extract total count from first row (all rows have same total_count)
+    const total = polls.length > 0 ? polls[0].total_count : 0;
+
+    // Remove total_count from poll objects using destructuring
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const cleanedPolls: PollWithOptions[] = polls.map(({ total_count: _, ...poll }) => poll);
+
+    // Calculate pagination metadata
+    const hasNextPage = offset + limit < total;
+    const nextOffset = hasNextPage ? offset + limit : null;
+
+    const response: PollsResponse = {
+      data: cleanedPolls,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasNextPage,
+        nextOffset,
+      },
+    };
+
+    return { data: response, error: null };
+  } catch (error) {
+    console.error("Unexpected error fetching paginated polls:", error);
+    return { data: null, error: error as Error };
+  }
 }
 
 /**

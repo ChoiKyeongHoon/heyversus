@@ -30,3 +30,30 @@ export interface PollWithUserStatus extends PollWithOptions {
   username?: string;
   user_points?: number;
 }
+
+// Pagination & Filtering Types (Step 10)
+
+export type SortBy = 'created_at' | 'votes' | 'expires_at';
+export type SortOrder = 'asc' | 'desc';
+export type FilterStatus = 'all' | 'active' | 'closed';
+
+export interface GetPollsParams {
+  limit?: number;
+  offset?: number;
+  sortBy?: SortBy;
+  sortOrder?: SortOrder;
+  filterStatus?: FilterStatus;
+}
+
+export interface PaginationMetadata {
+  total: number;
+  limit: number;
+  offset: number;
+  hasNextPage: boolean;
+  nextOffset: number | null;
+}
+
+export interface PollsResponse {
+  data: PollWithOptions[];
+  pagination: PaginationMetadata;
+}
