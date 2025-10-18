@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { voteOnPoll, type VoteParams } from "@/lib/services/polls";
+import { voteOnPoll } from "@/lib/services/polls";
 import { revalidatePath } from "next/cache";
 
 /**

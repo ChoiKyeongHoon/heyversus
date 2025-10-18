@@ -9,6 +9,7 @@ import { Session } from "@supabase/supabase-js";
 import type { PollWithOptions } from "@/lib/types";
 import { toast } from "sonner";
 import { isPollExpired, formatExpiryDate } from "@/lib/utils";
+import { EmptyState } from "@/components/common/EmptyState";
 
 type PollsClientProps = {
   serverPolls: PollWithOptions[];
@@ -177,7 +178,15 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
           진행중인 투표들
         </h2>
 
-        {polls.map((poll) => {
+        {polls.length === 0 ? (
+          <EmptyState
+            title="진행중인 투표가 없습니다"
+            message="아직 생성된 투표가 없어요. 첫 번째 투표를 만들어보세요!"
+            actionLabel="투표 만들기"
+            actionHref="/create-poll"
+          />
+        ) : (
+          polls.map((poll) => {
           // 로그인 상태에 따라 투표 여부를 확인합니다.
           const isVoted = session
             ? votedPolls.includes(poll.id)
@@ -294,7 +303,8 @@ export default function PollsClient({ serverPolls }: PollsClientProps) {
               </div>
             </div>
           );
-        })}
+        })
+        )}
       </main>
     </div>
   );

@@ -4,6 +4,7 @@ import "./global.css";
 import Navbar from "@/components/Navbar";
 import { createClient } from "@/lib/supabase/server";
 import { Toaster } from "sonner";
+import { QueryProvider } from "@/providers/QueryProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,13 +39,15 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
-        <Navbar session={session} profile={profile} />
-        <h1 className="text-4xl font-bold tracking-tighter mb-2 text-center mt-8">
-          <span style={{ color: "#FFD700" }}>Hey!</span>
-          <span style={{ color: "#FF8C00" }}> Vote Here!!</span>
-        </h1>
-        {children}
-        <Toaster position="bottom-center" />
+        <QueryProvider>
+          <Navbar session={session} profile={profile} />
+          <h1 className="text-4xl font-bold tracking-tighter mb-2 text-center mt-8">
+            <span style={{ color: "#FFD700" }}>Hey!</span>
+            <span style={{ color: "#FF8C00" }}> Vote Here!!</span>
+          </h1>
+          {children}
+          <Toaster position="bottom-center" />
+        </QueryProvider>
       </body>
     </html>
   );

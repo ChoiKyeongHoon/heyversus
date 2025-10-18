@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSupabase } from "@/hooks/useSupabase";
+import { usePollVote } from "@/hooks/usePollVote";
 import type { PollWithOptions } from "@/lib/types";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -14,10 +14,9 @@ interface PollClientProps {
 
 export default function PollClient({ poll }: PollClientProps) {
   const router = useRouter();
-  const supabase = useSupabase();
+  const voteMutation = usePollVote();
   // `has_voted`는 서버에서 내려온, 로그인 사용자의 투표 여부입니다.
   const [isVoted, setIsVoted] = useState(poll.has_voted || false);
-  const [loading, setLoading] = useState(false);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,48 +67,21 @@ export default function PollClient({ poll }: PollClientProps) {
   };
 
   const handleVote = async (optionId: string) => {
-    if (isVoted || loading) return;
+    if (isVoted || voteMutation.isPending) return;
 
-    setLoading(true);
-    const { error } = await supabase.rpc("increment_vote", {
-      option_id_to_update: optionId,
-      poll_id_for_vote: poll.id,
-    });
+    // Optimistic update: 즉시 UI 상태 업데이트
+    setIsVoted(true);
 
-    if (error) {
-      console.error("Error voting:", error);
-      if (error.message.includes("User has already voted")) {
-        toast.warning("이미 이 투표에 참여했습니다.");
-        setIsVoted(true); // 다른 곳에서 투표한 경우 UI 업데이트
-      } else if (error.message.includes("Authentication required")) {
-        toast.error("이 투표는 로그인이 필요합니다.");
-      } else {
-        toast.error("투표 중 오류가 발생했습니다.");
+    // React Query mutation 실행
+    voteMutation.mutate(
+      { pollId: poll.id, optionId },
+      {
+        onError: () => {
+          // 에러 발생 시 롤백
+          setIsVoted(false);
+        },
       }
-      setLoading(false);
-    } else {
-      // 투표 성공
-      setIsVoted(true);
-
-      // 비로그인 사용자인 경우 로컬 스토리지에 기록
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        const storedVotes = localStorage.getItem("heyversus-voted-polls");
-        const votedPolls: string[] = storedVotes ? JSON.parse(storedVotes) : [];
-        if (!votedPolls.includes(poll.id)) {
-          votedPolls.push(poll.id);
-          localStorage.setItem(
-            "heyversus-voted-polls",
-            JSON.stringify(votedPolls)
-          );
-        }
-      }
-
-      // 서버 컴포넌트를 새로고침하여 최신 투표 수를 가져옵니다.
-      router.refresh();
-    }
+    );
   };
 
   const totalVotes = poll.poll_options.reduce(
@@ -174,7 +146,7 @@ export default function PollClient({ poll }: PollClientProps) {
 
             {/* Buttons */}
             <div className="flex items-center space-x-4">
-              {!isVoted && !isPollClosed && !loading && (
+              {!isVoted && !isPollClosed && !voteMutation.isPending && (
                 <button
                   onClick={() => handleVote(selectedOptionId!)}
                   className="bg-primary hover:bg-primary-hover text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200"
@@ -188,7 +160,7 @@ export default function PollClient({ poll }: PollClientProps) {
                   ✓ 투표 완료
                 </span>
               )}
-              {loading && (
+              {voteMutation.isPending && (
                 <span className="text-text-secondary font-semibold py-2 px-4">
                   투표 중...
                 </span>
