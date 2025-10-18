@@ -152,13 +152,13 @@ export default function CreatePollPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl p-8">
+    <div className="container mx-auto max-w-4xl px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8">
       {/* Header */}
-      <header className="mb-12 text-center">
-        <h1 className="text-4xl font-bold tracking-tighter mb-2">
+      <header className="mb-8 md:mb-12 text-center">
+        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tighter mb-2 px-4">
           새로운 투표 만들기
         </h1>
-        <p className="text-text-secondary text-lg">
+        <p className="text-sm md:text-base lg:text-lg text-text-secondary px-4">
           당신만의 투표를 만들어보세요.
         </p>
       </header>
@@ -168,11 +168,11 @@ export default function CreatePollPage() {
         <div className="w-full max-w-2xl mx-auto">
           <form
             onSubmit={handleCreatePoll}
-            className="bg-panel border border-border rounded-lg p-6"
+            className="bg-panel border border-border rounded-lg p-4 md:p-6"
           >
-            <div className="mb-4">
+            <div className="mb-4 md:mb-6">
               <label
-                className="block text-sm font-medium text-text-secondary mb-2"
+                className="block text-xs md:text-sm font-medium text-text-secondary mb-2"
                 htmlFor="poll-question"
               >
                 투표 질문
@@ -183,13 +183,13 @@ export default function CreatePollPage() {
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 placeholder="투표하실 질문을 입력해 주세요"
-                className="w-full bg-background-light border border-border rounded-md px-3 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background-light border border-border rounded-md px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               />
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-text-secondary mb-2">
+            <div className="mb-4 md:mb-6">
+              <label className="block text-xs md:text-sm font-medium text-text-secondary mb-2">
                 투표 종류
               </label>
               <div className="flex rounded-lg border border-border overflow-hidden">
@@ -216,25 +216,25 @@ export default function CreatePollPage() {
                   비공개 투표
                 </button>
               </div>
-              <p className="text-xs text-text-tertiary mt-2">
+              <p className="text-xs md:text-sm text-text-tertiary mt-2">
                 {isPublic
                   ? "누구나 투표하고 결과를 볼 수 있습니다."
                   : "로그인한 사용자만 투표할 수 있습니다. (기능 준비중)"}
               </p>
             </div>
 
-            <div className="mb-6">
+            <div className="mb-4 md:mb-6">
               <label
-                className="block text-sm font-medium text-text-secondary mb-2"
+                className="block text-xs md:text-sm font-medium text-text-secondary mb-2"
                 htmlFor="expires-at"
               >
                 투표 만료 시간
               </label>
-              <div className="flex space-x-2 mb-2">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-2">
                 <button
                   type="button"
                   onClick={() => handlePresetClick("1h")}
-                  className={`flex-1 py-2 px-2 text-xs rounded-md transition-colors duration-200 ${
+                  className={`py-2 px-2 text-xs rounded-md transition-colors duration-200 min-h-[44px] ${
                     activePreset === "1h"
                       ? "bg-primary text-white"
                       : "bg-background-light text-text-secondary hover:bg-panel-hover"
@@ -245,7 +245,7 @@ export default function CreatePollPage() {
                 <button
                   type="button"
                   onClick={() => handlePresetClick("6h")}
-                  className={`flex-1 py-2 px-2 text-xs rounded-md transition-colors duration-200 ${
+                  className={`py-2 px-2 text-xs rounded-md transition-colors duration-200 min-h-[44px] ${
                     activePreset === "6h"
                       ? "bg-primary text-white"
                       : "bg-background-light text-text-secondary hover:bg-panel-hover"
@@ -256,7 +256,7 @@ export default function CreatePollPage() {
                 <button
                   type="button"
                   onClick={() => handlePresetClick("12h")}
-                  className={`flex-1 py-2 px-2 text-xs rounded-md transition-colors duration-200 ${
+                  className={`py-2 px-2 text-xs rounded-md transition-colors duration-200 min-h-[44px] ${
                     activePreset === "12h"
                       ? "bg-primary text-white"
                       : "bg-background-light text-text-secondary hover:bg-panel-hover"
@@ -267,7 +267,7 @@ export default function CreatePollPage() {
                 <button
                   type="button"
                   onClick={() => handlePresetClick("1d")}
-                  className={`flex-1 py-2 px-2 text-xs rounded-md transition-colors duration-200 ${
+                  className={`py-2 px-2 text-xs rounded-md transition-colors duration-200 min-h-[44px] ${
                     activePreset === "1d"
                       ? "bg-primary text-white"
                       : "bg-background-light text-text-secondary hover:bg-panel-hover"
@@ -278,7 +278,7 @@ export default function CreatePollPage() {
                 <button
                   type="button"
                   onClick={() => handlePresetClick("3d")}
-                  className={`flex-1 py-2 px-2 text-xs rounded-md transition-colors duration-200 ${
+                  className={`py-2 px-2 text-xs rounded-md transition-colors duration-200 min-h-[44px] ${
                     activePreset === "3d"
                       ? "bg-primary text-white"
                       : "bg-background-light text-text-secondary hover:bg-panel-hover"
@@ -289,7 +289,7 @@ export default function CreatePollPage() {
                 <button
                   type="button"
                   onClick={() => handlePresetClick("7d")}
-                  className={`flex-1 py-2 px-2 text-xs rounded-md transition-colors duration-200 ${
+                  className={`py-2 px-2 text-xs rounded-md transition-colors duration-200 min-h-[44px] ${
                     activePreset === "7d"
                       ? "bg-primary text-white"
                       : "bg-background-light text-text-secondary hover:bg-panel-hover"
@@ -304,34 +304,34 @@ export default function CreatePollPage() {
                 value={expiresAt}
                 onChange={handleDateTimeChange}
                 max={getMaxExpiresAt()}
-                className="w-full bg-background-light border border-border rounded-md px-3 py-2 text-text-primary placeholder-text-tertiary focus-outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background-light border border-border rounded-md px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-text-primary placeholder-text-tertiary focus-outline-none focus:ring-2 focus:ring-primary"
                 required
               />
             </div>
 
             {options.map((option, index) => (
-              <div key={index} className="mb-4">
+              <div key={index} className="mb-4 md:mb-6">
                 <label
-                  className="block text-sm font-medium text-text-secondary mb-2"
+                  className="block text-xs md:text-sm font-medium text-text-secondary mb-2"
                   htmlFor={`option${index}`}
                 >
                   항목 {index + 1}
                 </label>
-                <div className="flex items-center">
+                <div className="flex items-center gap-2">
                   <input
                     id={`option${index}`}
                     type="text"
                     value={option}
                     onChange={(e) => handleOptionChange(index, e.target.value)}
                     placeholder={`${index + 1} 번째 투표 대상을 입력해주세요.`}
-                    className="w-full bg-background-light border border-border rounded-md px-3 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full bg-background-light border border-border rounded-md px-3 py-2 md:px-4 md:py-3 text-sm md:text-base text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
                     required
                   />
                   {options.length > 2 && (
                     <button
                       type="button"
                       onClick={() => removeOption(index)}
-                      className="ml-2 text-danger hover:text-danger/80 font-bold p-2 transition-colors duration-200"
+                      className="text-danger hover:text-danger/80 font-bold p-2 transition-colors duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >
                       X
                     </button>
@@ -341,24 +341,24 @@ export default function CreatePollPage() {
             ))}
 
             {error && (
-              <p className="text-danger text-xs italic mt-4">{error}</p>
+              <p className="text-danger text-xs md:text-sm italic mt-4">{error}</p>
             )}
 
-            <div className="flex items-center justify-between mt-6">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mt-6">
               <div>
                 {options.length < 6 && (
                   <button
                     type="button"
                     onClick={addOption}
-                    className="bg-surface text-text-secondary p-2 rounded-full hover:bg-panel-hover flex items-center justify-center w-10 h-10 transition-colors duration-200"
+                    className="bg-surface text-text-secondary rounded-full hover:bg-panel-hover flex items-center justify-center w-12 h-12 transition-colors duration-200 text-xl font-bold"
                   >
-                    <span className="text-xl font-bold">+</span>
+                    +
                   </button>
                 )}
               </div>
               <button
                 type="submit"
-                className="bg-primary hover:bg-primary-hover text-white font-semibold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-400 transition-colors duration-200"
+                className="w-full sm:w-auto bg-primary hover:bg-primary-hover text-white font-semibold py-2.5 md:py-3 px-6 md:px-8 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-400 transition-colors duration-200 text-sm md:text-base min-h-[44px]"
                 disabled={isLoading}
               >
                 {isLoading ? "생성 중..." : "투표 생성"}

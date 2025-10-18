@@ -30,37 +30,40 @@ export default function Navbar({ session, profile }: NavbarProps) {
   };
 
   return (
-    <nav className="flex justify-between items-center p-4 bg-transparent shadow-sm">
-      <div className="flex items-center space-x-4 md:space-x-8">
-        <div className="text-2xl md:text-3xl font-bold tracking-tight">
+    <nav className="flex justify-between items-center p-3 md:p-4 bg-transparent shadow-sm">
+      <div className="flex items-center space-x-2 sm:space-x-4 md:space-x-8">
+        <Link
+          href="/"
+          className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight hover:opacity-80 transition-opacity"
+        >
           <span style={{ color: "#FFD700" }}>Hey</span>
           <span style={{ color: "#FF8C00" }}>Versus</span>
-        </div>
-        <div className="flex items-center space-x-2 md:space-x-4">
+        </Link>
+        <div className="flex items-center space-x-1.5 sm:space-x-2 md:space-x-4">
           <Link
             href="/"
-            className="text-xs md:text-sm lg:text-base text-gray-300 hover:text-white font-bold"
+            className="text-xs sm:text-sm md:text-base text-gray-300 hover:text-white font-bold transition-colors"
           >
             HOME
           </Link>
-          <span className="text-gray-500 text-xs">|</span>
+          <span className="text-gray-500 text-xs hidden sm:inline">|</span>
           <Link
             href="/polls"
-            className="text-xs md:text-sm lg:text-base text-gray-300 hover:text-white font-bold"
+            className="text-xs sm:text-sm md:text-base text-gray-300 hover:text-white font-bold transition-colors"
           >
             POLLS
           </Link>
-          <span className="text-gray-500 text-xs">|</span>
+          <span className="text-gray-500 text-xs hidden md:inline">|</span>
           <Link
             href="/favorites"
-            className="text-xs md:text-sm lg:text-base text-gray-300 hover:text-white font-bold"
+            className="hidden md:inline text-xs sm:text-sm md:text-base text-gray-300 hover:text-white font-bold transition-colors"
           >
             FAVORITES
           </Link>
-          <span className="text-gray-500 text-xs">|</span>
+          <span className="text-gray-500 text-xs hidden lg:inline">|</span>
           <Link
             href="/score"
-            className="text-xs md:text-sm lg:text-base text-gray-300 hover:text-white font-bold"
+            className="hidden lg:inline text-xs sm:text-sm md:text-base text-gray-300 hover:text-white font-bold transition-colors"
           >
             SCORE
           </Link>
@@ -68,41 +71,55 @@ export default function Navbar({ session, profile }: NavbarProps) {
       </div>
       <div className="flex items-center">
         {session ? (
-          <div className="flex items-center space-x-2 md:space-x-4">
-            <span className="text-white text-sm md:text-base hidden sm:block">
+          <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
+            <span className="text-white text-xs md:text-sm lg:text-base hidden lg:block truncate max-w-[120px]">
               {profile?.username ?? session.user.email}
             </span>
-            <span className="text-yellow-400 text-sm md:text-base font-semibold hidden sm:block">
-              (XP: {profile?.points ?? 0})
+            <span className="text-yellow-400 text-xs md:text-sm font-semibold hidden md:block">
+              {profile?.points ?? 0}XP
             </span>
             <Button
               asChild
-              className="text-xs md:text-sm px-2 md:px-4 py-1 md:py-2"
+              size="sm"
+              className="text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
             >
-              <Link href="/create-poll">투표 생성</Link>
+              <Link href="/create-poll">
+                <span className="hidden sm:inline">투표 생성</span>
+                <span className="sm:hidden">+</span>
+              </Link>
             </Button>
             <Button
               variant="destructive"
+              size="sm"
               onClick={handleLogout}
-              className="text-xs md:text-sm px-2 md:px-4 py-1 md:py-2"
+              className="text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
             >
-              로그아웃
+              <span className="hidden sm:inline">로그아웃</span>
+              <span className="sm:hidden">OUT</span>
             </Button>
           </div>
         ) : (
-          <div className="flex items-center space-x-1 md:space-x-2">
+          <div className="flex items-center space-x-1 sm:space-x-2">
             <Button
               asChild
-              className="text-xs md:text-sm px-2 md:px-4 py-1 md:py-2"
+              size="sm"
+              className="text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
             >
-              <Link href="/signup">회원가입</Link>
+              <Link href="/signup">
+                <span className="hidden sm:inline">회원가입</span>
+                <span className="sm:hidden">JOIN</span>
+              </Link>
             </Button>
             <Button
               asChild
               variant="default"
-              className="bg-success hover:bg-success/90 text-xs md:text-sm px-2 md:px-4 py-1 md:py-2"
+              size="sm"
+              className="bg-success hover:bg-success/90 text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
             >
-              <Link href={`/signin?redirect=${pathname}`}>로그인</Link>
+              <Link href={`/signin?redirect=${pathname}`}>
+                <span className="hidden sm:inline">로그인</span>
+                <span className="sm:hidden">IN</span>
+              </Link>
             </Button>
           </div>
         )}

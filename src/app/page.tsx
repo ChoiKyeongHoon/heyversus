@@ -25,31 +25,31 @@ export default async function LandingPage() {
   const featuredPolls = await getFeaturedPolls();
 
   return (
-    <div className="container mx-auto p-4">
-      <header className="text-center my-8 md:my-12">
-        <p className="text-lg md:text-xl text-gray-400 mt-3">
+    <div className="container mx-auto px-4 md:px-6 lg:px-8">
+      <header className="text-center my-6 md:my-8 lg:my-12">
+        <p className="text-sm md:text-base lg:text-lg text-gray-400 mt-3 px-4">
           당신의 선택은? 흥미로운 주제에 투표하고 결과를 확인하세요.
         </p>
       </header>
 
-      <main className="my-10">
-        <h2 className="text-2xl md:text-3xl font-semibold mb-6 text-center">
+      <main className="my-8 md:my-10">
+        <h2 className="text-xl md:text-2xl lg:text-3xl font-semibold mb-4 md:mb-6 text-center px-4">
           오늘의 투표
         </h2>
         <FeaturedPollClient polls={featuredPolls} />
       </main>
 
-      <footer className="text-center mt-12 py-6 border-t border-gray-700">
-        <p className="text-gray-400">더 많은 투표를 보고 직접 만들어보세요.</p>
-        <div className="mt-4 space-x-4">
+      <footer className="text-center mt-8 md:mt-12 py-4 md:py-6 border-t border-gray-700">
+        <p className="text-sm md:text-base text-gray-400 px-4">더 많은 투표를 보고 직접 만들어보세요.</p>
+        <div className="mt-4">
           <Link
             href="/polls"
-            className="px-6 py-2 font-semibold text-blue-600 border border-blue-700 rounded-md hover:bg-blue-50 transition-colors"
+            className="inline-block px-4 md:px-6 py-2 md:py-2.5 font-semibold text-sm md:text-base text-blue-600 border border-blue-700 rounded-md hover:bg-blue-50 transition-colors min-h-[44px] flex items-center justify-center"
           >
             모든 투표 보기
           </Link>
         </div>
-        <div className="mt-8 text-sm text-gray-500">
+        <div className="mt-6 md:mt-8 text-xs md:text-sm text-gray-500 px-4">
           <p>
             &copy; {new Date().getFullYear()} heyversus. All Rights Reserved.
           </p>

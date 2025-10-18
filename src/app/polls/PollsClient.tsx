@@ -258,10 +258,10 @@ export default function PollsClient({
     };
 
   return (
-    <div className="container mx-auto max-w-4xl p-8">
+    <div className="container mx-auto max-w-4xl px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8">
       {/* Main Content */}
       <main>
-        <h2 className="text-2xl font-semibold tracking-tight mb-6 text-center">
+        <h2 className="text-xl md:text-2xl font-semibold tracking-tight mb-4 md:mb-6 text-center">
           {heading}
         </h2>
 
@@ -292,13 +292,13 @@ export default function PollsClient({
             return (
               <div
                 key={poll.id}
-                className={`bg-panel border border-border rounded-lg shadow-lg overflow-hidden mb-8 ${
+                className={`bg-panel border border-border rounded-lg shadow-lg overflow-hidden mb-6 md:mb-8 ${
                   isPollClosed ? "opacity-60" : ""
                 }`}
               >
-                <div className="p-6">
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <h3 className="text-xl font-semibold text-text-primary">
+                <div className="p-4 md:p-6">
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-3 md:gap-4 mb-2">
+                    <h3 className="text-lg md:text-xl font-semibold text-text-primary">
                       {poll.question}
                     </h3>
                     <Button
@@ -318,12 +318,12 @@ export default function PollsClient({
                       {isFavorited ? "즐겨찾기 해제" : "즐겨찾기"}
                     </Button>
                   </div>
-                  <p className="text-text-secondary mb-6">
+                  <p className="text-sm md:text-base text-text-secondary mb-4 md:mb-6">
                     이 투표에 참여해보세요.
                   </p>
 
                   {/* Poll Options */}
-                  <div className="space-y-3 mb-6">
+                  <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
                     {poll.poll_options.map((option) => {
                       // 각 옵션의 득표율을 계산합니다.
                       const percentage =
@@ -334,7 +334,7 @@ export default function PollsClient({
                       return (
                         <div
                           key={option.id}
-                          className={`flex items-center justify-between bg-surface p-3 rounded-md border ${
+                          className={`flex items-center justify-between bg-surface p-2.5 md:p-3 rounded-md border min-h-[44px] ${
                             isVoted || isPollClosed
                               ? "cursor-not-allowed"
                               : "cursor-pointer hover:bg-panel-hover"
@@ -349,24 +349,24 @@ export default function PollsClient({
                             handleOptionSelect(poll.id, option.id)
                           }
                         >
-                          <div className="flex items-center">
+                          <div className="flex items-center min-w-0 flex-1">
                             {option.image_url && (
-                              <div className="relative w-12 h-12 mr-4 rounded-md overflow-hidden">
+                              <div className="relative w-10 h-10 md:w-12 md:h-12 mr-3 md:mr-4 rounded-md overflow-hidden flex-shrink-0">
                                 <Image
                                   src={option.image_url}
                                   alt={option.text}
                                   fill
-                                  sizes="48px"
+                                  sizes="(max-width: 768px) 40px, 48px"
                                   style={{ objectFit: "cover" }}
                                 />
                               </div>
                             )}
-                            <h3 className="text-text-primary">{option.text}</h3>
+                            <h3 className="text-sm md:text-base text-text-primary truncate">{option.text}</h3>
                           </div>
-                          <span className="text-text-tertiary">
+                          <span className="text-xs md:text-sm text-text-tertiary ml-2 flex-shrink-0">
                             {isVoted || isPollClosed
-                              ? `${option.votes} votes (${percentage}%)`
-                              : `${option.votes} votes`}
+                              ? `${option.votes} (${percentage}%)`
+                              : `${option.votes}`}
                           </span>
                         </div>
                       );
@@ -374,35 +374,35 @@ export default function PollsClient({
                   </div>
 
                   {/* Buttons */}
-                  <div className="flex items-center space-x-4">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
                     {!isVoted && !isPollClosed && (
                       <button
                         onClick={() => handleVote(poll.id)}
-                        className="bg-primary hover:bg-primary-hover text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200"
+                        className="bg-primary hover:bg-primary-hover text-white font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base min-h-[44px]"
                         disabled={!selectedOptionIdForPoll} // Disable if no option is selected
                       >
                         투표하기
                       </button>
                     )}
                     {isVoted && !isPollClosed && (
-                      <span className="text-success font-semibold py-2 px-4">
+                      <span className="text-success font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center">
                         ✓ 투표 완료
                       </span>
                     )}
                     <Link
                       href={`/poll/${poll.id}`}
-                      className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2 px-4 rounded-md transition-colors duration-200"
+                      className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base text-center min-h-[44px] flex items-center justify-center"
                     >
                       결과 보기
                     </Link>
                   </div>
                 </div>
-                <div className="bg-background-subtle px-6 py-3 border-t border-border">
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm text-text-tertiary">
+                <div className="bg-background-subtle px-4 md:px-6 py-2.5 md:py-3 border-t border-border">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-1 sm:gap-2">
+                    <p className="text-xs md:text-sm text-text-tertiary">
                       {getTimeRemaining(poll.expires_at)}
                     </p>
-                    <p className="text-sm text-text-tertiary">
+                    <p className="text-xs md:text-sm text-text-tertiary">
                       마감: {formatExpiryDate(poll.expires_at)}
                     </p>
                   </div>

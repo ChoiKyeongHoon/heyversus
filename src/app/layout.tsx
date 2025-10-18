@@ -43,7 +43,7 @@ export default async function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <QueryProvider>
           <Navbar session={session} profile={profile} />
-          <h1 className="text-4xl font-bold tracking-tighter mb-2 text-center mt-8">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tighter mb-2 text-center mt-4 md:mt-6 lg:mt-8 px-4">
             <span style={{ color: "#FFD700" }}>Hey!</span>
             <span style={{ color: "#FF8C00" }}> Vote Here!!</span>
           </h1>
