@@ -151,7 +151,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 
 **Reference `roadmap.md` for comprehensive project status and planned improvements.**
 
-### Completed (Steps 1-6)
+### Completed (Steps 1-7)
 
 - ✅ Core voting bugs fixed (`selectedOptionIds` pattern, poll expiry handling)
 - ✅ TypeScript types aligned with database schema
@@ -165,12 +165,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 - ✅ Jest + Testing Library configured
 - ✅ Husky + lint-staged for commit hooks
 - ✅ ESLint with import sorting
-
-### In Progress (Step 7)
-
-- **Component structure refactoring**: Organizing into `common`, `domain`, `layout` directories
-- **Custom hooks extraction**: Moving reusable logic to `src/hooks`
-- **Constants centralization**: Managing magic strings/numbers in `src/constants`
+- ✅ Constants centralized (`STORAGE_KEYS`, `CACHE_TAGS`, `CACHE_TIMES`, `DEFAULTS`)
+- ✅ Custom hooks extracted (`useSession`, `useLocalStorage<T>`, `useVisibilityChange`)
+- ✅ Component structure reorganized (`components/layout/` for Navbar)
 
 ### Planned (Step 8)
 
