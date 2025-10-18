@@ -33,6 +33,7 @@
 - **상태 관리**: React Query 캐시, Zustand 스토어, Supabase Session Provider
 - **폰트 최적화**: `next/font`
 - **알림**: Sonner (Toast notifications)
+- **에러 모니터링**: Sentry (Error tracking, Performance monitoring, Session replay)
 - **배포**: Vercel
 
 ## 📁 프로젝트 구조
@@ -84,12 +85,21 @@
    ```bash
    npm install
    ```
-3. Supabase 환경 변수를 설정합니다. `.env.local` 파일을 생성하고 아래 키를 채웁니다.
+3. 환경 변수를 설정합니다. `.env.local` 파일을 생성하고 아래 키를 채웁니다.
    ```bash
+   # Supabase
    NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
    NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
    SUPABASE_SERVICE_ROLE_KEY=<optional-service-role-key-for-seeding>
+
+   # Sentry (선택사항 - 에러 모니터링)
+   NEXT_PUBLIC_SENTRY_DSN=<your-sentry-dsn>
+   SENTRY_ORG=<your-sentry-org>
+   SENTRY_PROJECT=<your-sentry-project>
+   SENTRY_AUTH_TOKEN=<your-sentry-auth-token>
    ```
+
+   `.env.local.example` 파일을 참고하세요.
 4. 개발 서버를 실행합니다.
    ```bash
    npm run dev
@@ -181,7 +191,8 @@ erDiagram
 - **상수 중앙화**: `src/constants/` 디렉터리를 추가하고 `STORAGE_KEYS`, `CACHE_TAGS`, `CACHE_TIMES`, `DEFAULTS` 등 매직 스트링/넘버를 한 곳에서 관리. 코드 일관성 및 유지보수성 개선.
 - **컴포넌트 구조 개선**: `components/layout/` 디렉터리를 생성하고 Navbar 컴포넌트를 이동. App Router 컨벤션에 맞춰 `*Client.tsx` 컴포넌트는 해당 route 디렉터리에 유지.
 - **타입 안전성 강화**: `useLocalStorage<T>` 제네릭 훅으로 localStorage 사용 시 타입 안전성 보장. 다른 탭/윈도우 간 storage 이벤트 동기화 지원.
-- **코드 품질**: `npm run lint` 및 `npm run test` 모두 통과. 런타임 에러 없이 모든 페이지 정상 작동 확인.
+- **Sentry 통합**: `@sentry/nextjs`를 도입하여 프로덕션 에러 모니터링, 성능 추적, 세션 리플레이 기능 추가. Error Boundary (`error.tsx`, `global-error.tsx`)로 에러 자동 캡처 및 사용자 친화적 UI 제공. `/test-sentry` 페이지로 통합 테스트 가능.
+- **코드 품질**: `npm run lint` 및 `npm run build` 모두 통과. 런타임 에러 없이 모든 페이지 정상 작동 확인.
 
 ### v0.2.1
 - **Hydration 대응**: 대표 투표 카드의 만료 시간을 `Intl.DateTimeFormat('ko-KR')`으로 고정 포맷해 서버/클라이언트 렌더 결과를 일치시켰습니다.

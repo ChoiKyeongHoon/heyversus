@@ -106,6 +106,20 @@ Type definitions in `src/lib/types.ts`:
 - Toast notifications via `sonner` library
 - Global styles in `src/app/globals.css` and `src/app/global.css`
 
+### 8. Error Monitoring & Observability
+
+- **Sentry Integration**: `@sentry/nextjs` for production error tracking, performance monitoring, and session replay
+- **Configuration Files**:
+  - `sentry.client.config.ts` - Client-side error tracking with replay integration
+  - `sentry.server.config.ts` - Server-side tracking with sensitive header filtering
+  - `sentry.edge.config.ts` - Edge runtime configuration
+  - `src/instrumentation.ts` - Next.js 15 instrumentation hook for automatic error capture
+- **Error Boundaries**:
+  - `src/app/error.tsx` - Page-level error boundary with Sentry integration
+  - `src/app/global-error.tsx` - Global error boundary for root layout errors
+- **Test Page**: `/test-sentry` provides buttons to trigger different error types for testing
+- **Note**: Sentry + Turbopack support is limited; for production builds, consider removing `--turbo` flag or suppressing warnings with `SENTRY_SUPPRESS_TURBOPACK_WARNING=1`
+
 ## Important Conventions
 
 ### Database Schema Updates
@@ -119,9 +133,18 @@ Type definitions in `src/lib/types.ts`:
 ### Environment Variables
 Required in `.env.local`:
 ```
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+
+# Sentry (optional - for error monitoring)
+NEXT_PUBLIC_SENTRY_DSN=<your-sentry-dsn>
+SENTRY_ORG=<your-sentry-org>
+SENTRY_PROJECT=<your-sentry-project>
+SENTRY_AUTH_TOKEN=<your-sentry-auth-token>
 ```
+
+See `.env.local.example` for the complete list.
 
 ### Poll Status & Expiration
 - Polls have `status` field ('open' or 'closed')
@@ -151,7 +174,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 
 **Reference `roadmap.md` for comprehensive project status and planned improvements.**
 
-### Completed (Steps 1-7)
+### Completed (Steps 1-8.1)
 
 - ✅ Core voting bugs fixed (`selectedOptionIds` pattern, poll expiry handling)
 - ✅ TypeScript types aligned with database schema
@@ -168,10 +191,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 - ✅ Constants centralized (`STORAGE_KEYS`, `CACHE_TAGS`, `CACHE_TIMES`, `DEFAULTS`)
 - ✅ Custom hooks extracted (`useSession`, `useLocalStorage<T>`, `useVisibilityChange`)
 - ✅ Component structure reorganized (`components/layout/` for Navbar)
+- ✅ **Sentry integration**: `@sentry/nextjs` for error monitoring, performance tracking, and session replay
+- ✅ **Error Boundaries**: Page-level and global error boundaries with automatic Sentry reporting
+- ✅ **Test infrastructure**: `/test-sentry` page for validating error tracking
 
-### Planned (Step 8)
+### Planned (Step 8.2+)
 
-- **Sentry integration**: Production error monitoring
 - **Private polls access control**: Complete UI/backend logic alignment
 
 ## Project-Specific Notes
