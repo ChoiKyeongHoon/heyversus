@@ -4,11 +4,12 @@ import { Session } from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { useSupabase } from "@/hooks/useSupabase";
-import { PollWithOptions } from "@/lib/types";
+import type { PollWithOptions } from "@/lib/types";
+import { formatExpiryDate } from "@/lib/utils";
 
 // useSession 훅을 위한 임시 구현
 const useSession = () => {
@@ -337,10 +338,7 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
               {getTimeRemaining(poll.expires_at)}
             </p>
             <p className="text-sm text-text-tertiary">
-              마감:{" "}
-              {poll.expires_at
-                ? new Date(poll.expires_at).toLocaleString()
-                : "N/A"}
+              마감: {formatExpiryDate(poll.expires_at)}
             </p>
           </div>
         </div>
