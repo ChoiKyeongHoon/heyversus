@@ -164,8 +164,12 @@ erDiagram
 
 ## 📌 업데이트 기록
 
+### v0.2.1
+- **Hydration 대응**: 대표 투표 카드의 만료 시간을 `Intl.DateTimeFormat('ko-KR')`으로 고정 포맷해 서버/클라이언트 렌더 결과를 일치시켰습니다.
+- **Developer Experience**: Husky + lint-staged 기반 pre-commit 검사와 Jest 유틸 테스트 러너를 추가해 변경 시 자동 품질 체크가 이뤄집니다.
+- **문서 업데이트**: README에 린트/테스트 실행 절차 및 새 개발 흐름을 명시했습니다.
+
 ### v0.2.0
-- **알려진 이슈(점검필요)**: 대표 투표 카드의 만료 시간이 비표준 문자열로 전달될 경우 표시가 “원본 문자열”로 fallback 됩니다. 포맷 규칙을 명확히 정의해 차후 개선 예정.
 
 - **즐겨찾기 데이터 모델**: Supabase에 `favorite_polls` 테이블, RLS, 인덱스를 추가하고, `toggle_favorite`·`get_favorite_polls` RPC로 즐겨찾기 토글과 조회를 캡슐화했습니다.
 - **서비스 & 타입 확장**: `src/lib/services/polls.ts`에 즐겨찾기 헬퍼를 추가하고 `PollWithOptions` 타입에 `is_favorited` 필드를 도입했습니다.
