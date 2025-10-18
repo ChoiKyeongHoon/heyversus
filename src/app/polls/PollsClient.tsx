@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
+import { STORAGE_KEYS } from "@/constants/storage";
 import { useSupabase } from "@/hooks/useSupabase";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import type { PollWithOptions } from "@/lib/types";
@@ -91,7 +92,7 @@ export default function PollsClient({
   // 비로그인 사용자일 경우에만 로컬 스토리지에서 투표 기록을 불러옵니다.
   useEffect(() => {
     if (!session) {
-      const storedVotes = localStorage.getItem("heyversus-voted-polls");
+      const storedVotes = localStorage.getItem(STORAGE_KEYS.VOTED_POLLS);
       if (storedVotes) {
         setAnonymousVotedPolls(JSON.parse(storedVotes));
       }
@@ -179,7 +180,7 @@ export default function PollsClient({
         const updatedAnonymousVotes = [...anonymousVotedPolls, pollId];
         setAnonymousVotedPolls(updatedAnonymousVotes);
         localStorage.setItem(
-          "heyversus-voted-polls",
+          STORAGE_KEYS.VOTED_POLLS,
           JSON.stringify(updatedAnonymousVotes)
         );
       }

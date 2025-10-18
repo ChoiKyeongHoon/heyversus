@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect,useState } from "react";
 import { toast } from "sonner";
 
+import { STORAGE_KEYS } from "@/constants/storage";
 import { usePollVote } from "@/hooks/usePollVote";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate,isPollExpired } from "@/lib/utils";
@@ -40,7 +41,7 @@ export default function PollClient({ poll }: PollClientProps) {
       return;
     }
     // 서버에서 투표하지 않았다고 할 경우, 비로그인 상태를 대비해 로컬 스토리지를 확인합니다.
-    const storedVotes = localStorage.getItem("heyversus-voted-polls");
+    const storedVotes = localStorage.getItem(STORAGE_KEYS.VOTED_POLLS);
     if (storedVotes) {
       const votedPolls: string[] = JSON.parse(storedVotes);
       setIsVoted(votedPolls.includes(poll.id));

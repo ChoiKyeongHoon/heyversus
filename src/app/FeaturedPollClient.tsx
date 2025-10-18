@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { STORAGE_KEYS } from "@/constants/storage";
 import { useSupabase } from "@/hooks/useSupabase";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate } from "@/lib/utils";
@@ -75,7 +76,7 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
       setHasVoted(initialPoll.has_voted || false);
     } else {
       const votedPolls = JSON.parse(
-        localStorage.getItem("heyversus-voted-polls") || "[]"
+        localStorage.getItem(STORAGE_KEYS.VOTED_POLLS) || "[]"
       );
       setHasVoted(votedPolls.includes(initialPoll.id));
     }
@@ -89,7 +90,7 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
     } else {
       // 비로그인 사용자는 localStorage 확인
       const votedPolls = JSON.parse(
-        localStorage.getItem("heyversus-voted-polls") || "[]"
+        localStorage.getItem(STORAGE_KEYS.VOTED_POLLS) || "[]"
       );
       if (votedPolls.includes(poll.id)) {
         setHasVoted(true);
@@ -145,12 +146,12 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
       // 비로그인 사용자를 위해 로컬 스토리지에 기록
       if (!session) {
         const votedPolls = JSON.parse(
-          localStorage.getItem("heyversus-voted-polls") || "[]"
+          localStorage.getItem(STORAGE_KEYS.VOTED_POLLS) || "[]"
         );
         if (!votedPolls.includes(poll.id)) {
           votedPolls.push(poll.id);
           localStorage.setItem(
-            "heyversus-voted-polls",
+            STORAGE_KEYS.VOTED_POLLS,
             JSON.stringify(votedPolls)
           );
         }

@@ -1,5 +1,7 @@
 import { unstable_cache } from "next/cache";
 
+import { DEFAULTS } from "@/constants/app";
+import { CACHE_TAGS, CACHE_TIMES } from "@/constants/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { PollWithOptions } from "@/lib/types";
 
@@ -45,10 +47,10 @@ export async function getPolls() {
 
       return { data: data as PollWithOptions[], error: null };
     },
-    ["polls"], // 캐시 키
+    [CACHE_TAGS.POLLS], // 캐시 키
     {
-      tags: ["polls"], // 캐시 태그
-      revalidate: 60, // 60초마다 재검증
+      tags: [CACHE_TAGS.POLLS], // 캐시 태그
+      revalidate: CACHE_TIMES.POLLS, // 60초마다 재검증
     }
   )();
 }
@@ -77,10 +79,10 @@ export async function getPollById(pollId: string) {
 
       return { data: poll as PollWithOptions | null, error: null };
     },
-    [`poll-${pollId}`], // 캐시 키
+    [CACHE_TAGS.POLL(pollId)], // 캐시 키
     {
-      tags: [`poll-${pollId}`, "polls"], // 캐시 태그
-      revalidate: 30, // 30초마다 재검증
+      tags: [CACHE_TAGS.POLL(pollId), CACHE_TAGS.POLLS], // 캐시 태그
+      revalidate: CACHE_TIMES.POLL_DETAIL, // 30초마다 재검증
     }
   )();
 }
@@ -105,10 +107,10 @@ export async function getFeaturedPolls() {
 
       return { data: data as PollWithOptions[], error: null };
     },
-    ["featured-polls"], // 캐시 키
+    [CACHE_TAGS.FEATURED_POLLS], // 캐시 키
     {
-      tags: ["featured-polls", "polls"], // 캐시 태그
-      revalidate: 120, // 120초(2분)마다 재검증
+      tags: [CACHE_TAGS.FEATURED_POLLS, CACHE_TAGS.POLLS], // 캐시 태그
+      revalidate: CACHE_TIMES.FEATURED_POLLS, // 120초(2분)마다 재검증
     }
   )();
 }
@@ -203,7 +205,7 @@ export async function toggleFavorite(pollId: string) {
  * @param limit - 가져올 최대 개수 (기본값: 10)
  * @returns 프로필 목록과 오류 정보
  */
-export async function getLeaderboard(limit: number = 10) {
+export async function getLeaderboard(limit: number = DEFAULTS.LEADERBOARD_LIMIT) {
   const supabase = await createClient();
 
   const { data, error } = await supabase
