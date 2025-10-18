@@ -221,3 +221,40 @@ export async function getLeaderboard(limit: number = DEFAULTS.LEADERBOARD_LIMIT)
 
   return { data, error: null };
 }
+
+/**
+ * 현재 사용자가 특정 투표에 접근할 수 있는지 확인합니다.
+ * @param pollId - 확인할 투표 ID
+ * @returns 접근 가능 여부
+ */
+export async function canAccessPoll(pollId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("can_access_poll", {
+    p_poll_id: pollId,
+  });
+
+  if (error) {
+    console.error("Error checking poll access:", error);
+    return { data: false, error };
+  }
+
+  return { data: data as boolean, error: null };
+}
+
+/**
+ * 현재 사용자가 생성한 모든 투표 (공개 + 비공개)를 가져옵니다.
+ * @returns 투표 목록과 오류 정보
+ */
+export async function getMyPolls() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("get_my_polls_with_user_status");
+
+  if (error) {
+    console.error("Error fetching my polls:", error);
+    return { data: null, error };
+  }
+
+  return { data: data as PollWithOptions[], error: null };
+}
