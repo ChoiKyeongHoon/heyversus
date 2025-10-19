@@ -20,6 +20,10 @@ export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
 
+  sourcemaps: {
+    disable: true,
+  },
+
   // 빌드 출력 제어
   silent: !process.env.CI,
 
