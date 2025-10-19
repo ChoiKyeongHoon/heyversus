@@ -37,6 +37,19 @@
     --warning-foreground: 0 0% 20%;
     --info: 214 95% 60%;
     --info-foreground: 0 0% 100%;
+
+    /* Auxiliary Surface & Text Colors */
+    --background-light: 0 0% 96%;
+    --background-subtle: 0 0% 93%;
+    --panel: 0 0% 100%;
+    --panel-hover: 45 100% 96%;
+    --surface: 0 0% 100% / 0.03;
+    --primary-hover: 29 100% 45%;
+    --text-primary: 0 0% 20%;
+    --text-secondary: 0 0% 40%;
+    --text-tertiary: 0 0% 55%;
+    --border-subtle: 0 0% 92%;
+    --danger: 0 84.2% 60.2%;
   }
 
   .dark {
@@ -68,6 +81,19 @@
     --warning-foreground: 0 0% 10%;
     --info: 214 95% 65%;
     --info-foreground: 0 0% 10%;
+
+    /* Auxiliary Surface & Text Colors */
+    --background-light: 0 0% 20%;
+    --background-subtle: 0 0% 18%;
+    --panel: 0 0% 18%;
+    --panel-hover: 0 0% 24%;
+    --surface: 0 0% 100% / 0.05;
+    --primary-hover: 29 100% 65%;
+    --text-primary: 0 0% 95%;
+    --text-secondary: 0 0% 70%;
+    --text-tertiary: 0 0% 55%;
+    --border-subtle: 0 0% 26%;
+    --danger: 0 62.8% 50.6%;
   }
 
   * {
@@ -77,5 +103,8 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
   }
 }

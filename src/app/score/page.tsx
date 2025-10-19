@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 
-// 1시간마다 페이지를 재생성 (ISR)
-export const revalidate = 3600;
+// Ensure server rendering executes on every request (dynamic data)
+export const dynamic = "force-dynamic";
 
 async function getProfiles() {
   const supabase = await createClient();
