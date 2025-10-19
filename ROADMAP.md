@@ -298,23 +298,119 @@
 4. 프로덕션 배포
 5. 메트릭 모니터링
 
-## Step 11 – 계정·프로필 관리 강화 (예정)
+## Step 11 – 계정·프로필 관리 강화 (✅ 완료)
 
-1. **요구사항 정리**
-   - 편집 가능 필드(닉네임, 아바타, 소개글) 정의 및 이메일·포인트는 읽기 전용으로 명시.
-   - Supabase RLS 정책과 Storage 버킷 구조, 파일 크기·확장자 제한 결정.
-2. **UX 설계**
-   - `/account` 플로우 와이어프레임 작성, 입력 유효성 규칙과 에러/성공 토스트 시나리오 문서화.
-   - 모바일·데스크톱 동시 고려한 IA(Information Architecture) 리뷰.
-3. **백엔드/RPC 준비**
-   - `update_profile` RPC 또는 서버 액션 추가, 프로필 이미지 업로드 서명 URL 유틸 구현.
-   - 변경 감사 로그 저장 방안과 테스트 계정으로 권한 검증.
-4. **프론트엔드 구현**
-   - React Hook Form + React Query mutate로 폼 구성, 저장 후 `profiles` 캐시 무효화.
-   - 헤더/사이드바 프로필 스냅샷 즉시 갱신, 실패 시 롤백 처리.
-5. **QA 및 배포**
-   - 동시 수정, XSS, 대용량 파일 업로드 등 엣지 케이스 검증.
-   - Staging 검수 후 README/운영 가이드 업데이트 및 프로덕션 배포.
+사용자가 자신의 프로필 정보를 관리할 수 있는 `/account` 페이지를 구현하여 개인화 기능을 강화했습니다.
+
+### 완료 내역
+
+1. **데이터베이스 스키마 확장** ✅
+   - profiles 테이블에 새 컬럼 추가 (`QUERY.md`):
+     - `avatar_url` (TEXT): 프로필 이미지 URL
+     - `bio` (TEXT): 자기소개 (최대 500자)
+     - `full_name` (TEXT): 이름
+   - bio 길이 제약 조건 추가 (500자 제한)
+   - 기존 RLS 정책 유지 (사용자는 자신의 프로필만 수정 가능)
+
+2. **Supabase Storage 버킷 설정** ✅
+   - `avatars` 버킷 생성 (`QUERY.md`):
+     - 공개 버킷 (URL로 직접 접근 가능)
+     - 5MB 파일 크기 제한
+     - 허용 MIME 타입: JPEG, PNG, GIF, WebP
+   - Storage RLS 정책 구현:
+     - 누구나 아바타 이미지 조회 가능
+     - 인증된 사용자만 자신의 아바타 업로드/수정/삭제
+
+3. **백엔드 RPC 함수 구현** ✅
+   - `update_profile()`: 프로필 정보 업데이트 (`QUERY.md`)
+     - username 중복 검증
+     - username 길이 검증 (최소 3자)
+     - bio 길이 검증 (최대 500자)
+     - 업데이트된 프로필 JSON 반환
+   - `get_profile(p_user_id)`: 프로필 조회
+     - 현재 사용자 또는 특정 사용자 프로필 조회
+     - email 정보 포함 (auth.users와 조인)
+
+4. **서비스 계층 구현** ✅
+   - `src/lib/services/profile.ts` 생성:
+     - `getCurrentProfile()`: 현재 사용자 프로필 조회
+     - `getProfileById()`: 특정 사용자 프로필 조회
+     - `updateProfile()`: 프로필 업데이트
+     - `uploadAvatar()`: 아바타 이미지 업로드 (파일 검증 포함)
+     - `deleteAvatar()`: 이전 아바타 삭제
+   - TypeScript 타입 정의: `Profile`, `UpdateProfileRequest`
+
+5. **/account 페이지 UI 구현** ✅
+   - `src/app/account/page.tsx`: 서버 컴포넌트
+     - 세션 검증 및 미로그인 시 리다이렉트
+     - 프로필 데이터 fetch 및 에러 처리
+   - `src/app/account/AccountClient.tsx`: 클라이언트 컴포넌트
+     - React Hook Form + Zod 스키마 검증
+     - 아바타 업로드 (파일 선택, 미리보기, 검증)
+     - 편집 모드 토글 (읽기/쓰기 모드 전환)
+     - 로딩 상태 및 에러 처리
+     - 반응형 디자인 (Mobile-First)
+   - `src/components/ui/textarea.tsx`: Textarea 컴포넌트 추가
+
+6. **Navbar 프로필 정보 동기화** ✅
+   - `src/components/layout/Navbar.tsx` 업데이트:
+     - 아바타 이미지 표시 (있는 경우)
+     - 프로필 아이콘 + username + 포인트 표시 (데스크톱)
+     - 프로필 아이콘만 표시 (모바일)
+     - /account 페이지로 링크 추가
+   - `src/app/layout.tsx` 업데이트:
+     - profile 쿼리에 `avatar_url` 추가
+
+7. **폼 유효성 검사** ✅
+   - Zod 스키마 정의:
+     - username: 최소 3자, 영문/숫자/_/- 만 허용
+     - full_name: 최대 50자
+     - bio: 최대 500자
+   - React Hook Form 통합으로 실시간 에러 표시
+   - 서버 측 이중 검증 (RPC 함수)
+
+8. **아바타 업로드 기능** ✅
+   - 파일 타입 검증: JPEG, PNG, GIF, WebP만 허용
+   - 파일 크기 검증: 5MB 제한
+   - 미리보기 기능: FileReader로 실시간 프리뷰
+   - 기존 아바타 자동 삭제 (새 이미지 업로드 시)
+   - Storage URL 자동 생성 및 프로필에 저장
+
+9. **의존성 패키지 추가** ✅
+   - `react-hook-form`: 폼 상태 관리
+   - `zod`: 스키마 검증
+   - `@hookform/resolvers`: Zod resolver
+   - `lucide-react`: UI 아이콘
+
+10. **빌드 검증** ✅
+    - `npm run build`: 성공 (15개 페이지, /account 포함)
+    - TypeScript 타입 검증 통과
+    - ESLint 통과
+
+### 주요 특징
+
+- **완전한 프로필 관리**: 아바타, 사용자명, 이름, 소개 편집 가능
+- **안전한 파일 업로드**: 클라이언트/서버 이중 검증
+- **실시간 미리보기**: 아바타 변경 전 미리 확인
+- **반응형 디자인**: 모든 화면 크기 대응
+- **에러 처리**: 명확한 에러 메시지 및 롤백
+- **Navbar 동기화**: 프로필 변경 시 자동 업데이트
+
+### 알려진 제약사항
+
+- **SQL 실행 필요**: `QUERY.md`의 다음 SQL을 Supabase SQL Editor에서 실행해야 합니다:
+  1. profiles 테이블 컬럼 추가 (avatar_url, bio, full_name)
+  2. bio 길이 제약 조건 추가
+  3. avatars Storage 버킷 생성
+  4. Storage RLS 정책 생성
+  5. update_profile, get_profile RPC 함수 생성
+
+### 다음 단계
+
+1. Supabase SQL Editor에서 `QUERY.md` (라인 724-1135) 실행
+2. 프로필 편집 기능 수동 테스트
+3. 아바타 업로드 엣지 케이스 검증
+4. 프로덕션 배포
 
 ## Step 12 – 브랜드 & UI 리프레시 (✅ 완료)
 
@@ -398,7 +494,7 @@
 9. **Step 8.2** – ✅ 완료: 비공개 투표 접근 제어 구현 및 EmptyState UI 개선.
 10. **Step 9** – ✅ 완료: 반응형 레이아웃 & 뷰포트 최적화 (Mobile-First 전략, 44px 터치 영역, RESPONSIVE_GUIDE.md).
 11. **Step 10** – ✅ 완료: 투표 목록 스케일 대응 (무한 스크롤, 필터링, 정렬, 성능 최적화).
-12. **Step 11** – ⏳ 예정: 계정·프로필 관리 강화 (사용자 개인화).
+12. **Step 11** – ✅ 완료: 계정·프로필 관리 강화 (아바타, 사용자명, 소개 편집, Navbar 동기화).
 13. **Step 12** – ✅ 완료: 브랜드 & UI 리프레시 (디자인 토큰, 다크모드, 컴포넌트 리뉴얼).
 14. **Step 13** – ⏳ 예정: 관리자 운영 대시보드 (운영 도구).
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { Session } from "@supabase/supabase-js";
+import { User } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -12,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 interface Profile {
   username: string | null;
   points: number;
+  avatar_url?: string | null;
 }
 
 interface NavbarProps {
@@ -74,12 +77,56 @@ export default function Navbar({ session, profile }: NavbarProps) {
         <ThemeToggle />
         {session ? (
           <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
-            <span className="text-foreground text-xs md:text-sm lg:text-base hidden lg:block truncate max-w-[120px]">
-              {profile?.username ?? session.user.email}
-            </span>
-            <span className="text-accent text-xs md:text-sm font-semibold hidden md:block">
-              {profile?.points ?? 0}XP
-            </span>
+            {/* Profile Avatar & Info - Desktop */}
+            <Link
+              href="/account"
+              className="hidden lg:flex items-center space-x-2 hover:opacity-80 transition-opacity"
+              title="내 프로필"
+            >
+              {profile?.avatar_url ? (
+                <Image
+                  src={profile.avatar_url}
+                  alt={profile.username || "프로필"}
+                  width={32}
+                  height={32}
+                  className="rounded-full object-cover border-2 border-border"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border-2 border-border">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-foreground text-xs font-medium truncate max-w-[120px]">
+                  {profile?.username ?? session.user.email}
+                </span>
+                <span className="text-accent text-xs font-semibold">
+                  {profile?.points ?? 0}XP
+                </span>
+              </div>
+            </Link>
+
+            {/* Mobile Profile Link */}
+            <Link
+              href="/account"
+              className="lg:hidden"
+              title="내 프로필"
+            >
+              {profile?.avatar_url ? (
+                <Image
+                  src={profile.avatar_url}
+                  alt={profile.username || "프로필"}
+                  width={32}
+                  height={32}
+                  className="rounded-full object-cover border-2 border-border min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
+                />
+              ) : (
+                <div className="w-8 h-8 md:w-8 md:h-8 rounded-full bg-muted flex items-center justify-center border-2 border-border min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                </div>
+              )}
+            </Link>
+
             <Button
               asChild
               size="sm"

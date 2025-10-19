@@ -17,6 +17,7 @@
 - **대표 투표**: 관리자가 지정한 '오늘의 투표'를 메인 페이지에 노출하여 사용자 참여를 유도합니다.
 - **포인트 및 랭킹**: 투표에 참여할 때마다 포인트를 획득하고, 다른 사용자들과의 순위를 `SCORE` 페이지에서 확인할 수 있습니다.
 - **즐겨찾기 관리**: 로그인 사용자는 관심 있는 투표를 즐겨찾기에 추가하고 `/favorites` 페이지에서 모아볼 수 있습니다.
+- **프로필 관리**: `/account` 페이지에서 아바타 이미지, 사용자명, 이름, 자기소개를 편집할 수 있으며, 변경사항은 즉시 Navbar에 반영됩니다.
 - **사용자 경험(UX) 최적화**:
   - **다크/라이트 모드**: 사용자 선호도에 맞는 테마를 제공하고 실시간으로 전환할 수 있습니다. 시스템 설정을 자동으로 감지하며, Navbar의 토글 버튼으로 즉시 변경 가능합니다.
   - **그라디언트 디자인**: 모든 버튼과 배지에 그라디언트 효과를 적용하여 시각적으로 매력적이고 현대적인 UI를 제공합니다.
@@ -57,6 +58,7 @@
 │   │   ├── polls/         # 전체 투표 목록 페이지
 │   │   ├── favorites/     # 즐겨찾기한 투표 목록 페이지
 │   │   ├── poll/[id]/     # 투표 상세 및 결과 페이지
+│   │   ├── account/       # 프로필 관리 페이지
 │   │   ├── score/         # 사용자 랭킹(스코어보드) 페이지
 │   │   └── globals.css    # 글로벌 스타일 및 디자인 토큰
 │   ├── components/        # 재사용 가능한 UI 컴포넌트
@@ -154,6 +156,9 @@ erDiagram
     profiles {
         UUID id PK
         string username
+        string avatar_url
+        string bio
+        string full_name
         int points
         timestamptz updated_at
     }
@@ -197,6 +202,56 @@ erDiagram
 ```
 
 ## 📌 업데이트 기록 (2025-10-19까지)
+
+### v0.6.0
+
+- **계정·프로필 관리 시스템 구축**: 사용자가 자신의 프로필 정보를 관리할 수 있는 `/account` 페이지 구현으로 개인화 기능 강화.
+- **데이터베이스 스키마 확장**:
+  - profiles 테이블에 `avatar_url`, `bio` (최대 500자), `full_name` 컬럼 추가
+  - bio 길이 제약 조건 추가 (500자 제한)
+  - 기존 RLS 정책 유지 (사용자는 자신의 프로필만 수정 가능)
+- **Supabase Storage 통합**:
+  - `avatars` 공개 버킷 생성 (5MB 파일 크기 제한)
+  - JPEG, PNG, GIF, WebP 이미지 타입만 허용
+  - Storage RLS 정책 구현 (조회는 공개, 업로드/수정/삭제는 본인만)
+- **백엔드 RPC 함수**:
+  - `update_profile()`: username 중복/길이 검증, bio 길이 검증, 프로필 업데이트
+  - `get_profile(p_user_id)`: 프로필 조회 (email 정보 포함)
+- **서비스 계층 구현** (`src/lib/services/profile.ts`):
+  - `getCurrentProfile()`: 현재 사용자 프로필 조회
+  - `getProfileById()`: 특정 사용자 프로필 조회
+  - `updateProfile()`: 프로필 업데이트
+  - `uploadAvatar()`: 아바타 업로드 (클라이언트/서버 이중 검증)
+  - `deleteAvatar()`: 이전 아바타 삭제
+- **/account 페이지 구현**:
+  - 서버 컴포넌트로 세션 검증 및 데이터 fetch
+  - 클라이언트 컴포넌트로 편집 모드 토글, 폼 관리, 로딩/에러 처리
+  - 반응형 디자인 (Mobile-First)
+- **React Hook Form + Zod 검증**:
+  - username: 최소 3자, 영문/숫자/_/- 만 허용
+  - full_name: 최대 50자
+  - bio: 최대 500자
+  - 실시간 에러 표시 및 서버 측 이중 검증
+- **아바타 업로드 기능**:
+  - 파일 타입/크기 검증 (5MB, JPEG/PNG/GIF/WebP)
+  - 실시간 미리보기 (FileReader)
+  - 기존 아바타 자동 삭제
+  - Storage URL 자동 생성
+- **Navbar 프로필 동기화**:
+  - 아바타 이미지 표시 (있는 경우)
+  - 프로필 아이콘 + username + 포인트 (데스크톱)
+  - 프로필 아이콘만 표시 (모바일)
+  - /account 페이지 링크 추가
+- **새 UI 컴포넌트**:
+  - `src/components/ui/textarea.tsx`: Textarea 컴포넌트 추가
+- **의존성 추가**:
+  - `react-hook-form`: 폼 상태 관리
+  - `zod`: 스키마 검증
+  - `@hookform/resolvers`: Zod resolver
+  - `lucide-react`: UI 아이콘 라이브러리
+- **빌드 검증**: `npm run build` 성공 (15개 페이지, /account 포함), TypeScript 통과, ESLint 통과.
+
+**⚠️ 배포 전 필수 작업**: `QUERY.md` (라인 724-1135)의 SQL을 Supabase SQL Editor에서 실행해야 프로덕션에서 작동합니다.
 
 ### v0.5.1
 

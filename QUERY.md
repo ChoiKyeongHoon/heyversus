@@ -24,6 +24,15 @@ DROP POLICY IF EXISTS "Allow authenticated users to insert their own votes" ON p
 DROP POLICY IF EXISTS "Allow authenticated users to read their own votes" ON public.user_votes;
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone." ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile." ON public.profiles;
+
+-- Storage 정책 삭제 (Step 11 - 프로필 관리)
+-- 주의: Storage 정책은 Supabase Dashboard > Storage > Policies에서 수동으로 삭제해야 합니다.
+-- SQL Editor에서는 storage.objects 테이블에 대한 권한이 없습니다.
+-- DROP POLICY IF EXISTS "Avatar images are publicly accessible" ON storage.objects;
+-- DROP POLICY IF EXISTS "Users can upload their own avatar" ON storage.objects;
+-- DROP POLICY IF EXISTS "Users can update their own avatar" ON storage.objects;
+-- DROP POLICY IF EXISTS "Users can delete their own avatar" ON storage.objects;
+
 DO $$
 BEGIN
 IF to_regclass('public.favorite_polls') IS NOT NULL THEN
@@ -45,6 +54,8 @@ DROP FUNCTION IF EXISTS public.check_username_exists(TEXT);
 DROP FUNCTION IF EXISTS public.check_email_exists(TEXT);
 DROP FUNCTION IF EXISTS public.toggle_favorite(UUID);
 DROP FUNCTION IF EXISTS public.get_favorite_polls();
+DROP FUNCTION IF EXISTS public.update_profile(TEXT, TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_profile(UUID);
 
 -- 3. 테이블 정의
 -- 'polls' 및 'poll_options' 테이블의 스키마를 정의합니다.
@@ -721,6 +732,25 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   CONSTRAINT username_length CHECK (char_length(username) >= 3)
 );
 
+-- profiles 테이블에 새로운 컬럼 추가 (Step 11 - 계정·프로필 관리 강화)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
+
+-- bio 길이 제한 제약 조건 추가 (최대 500자)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'bio_length'
+    AND conrelid = 'public.profiles'::regclass
+  ) THEN
+    ALTER TABLE public.profiles
+    ADD CONSTRAINT bio_length CHECK (char_length(bio) <= 500);
+  END IF;
+END;
+$$;
+
 -- RLS 정책: profiles 테이블
 -- 모든 사용자가 프로필을 볼 수 있도록 허용합니다.
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -923,3 +953,239 @@ CREATE INDEX IF NOT EXISTS idx_poll_options_poll_id_votes ON public.poll_options
 -- SELECT DISTINCT total_count FROM public.get_polls_paginated(10, 0, 'created_at', 'desc', 'all');
 -- SELECT proname FROM pg_proc WHERE proname = 'get_polls_paginated';
 -- SELECT indexname FROM pg_indexes WHERE tablename IN ('polls', 'poll_options') AND indexname LIKE 'idx_%';
+
+
+-- =============================================================================
+-- 8. Supabase Storage 버킷 설정 (Step 11 - 계정·프로필 관리 강화)
+-- =============================================================================
+
+-- 8-1. avatars 버킷 생성
+-- 프로필 이미지를 저장하기 위한 Storage 버킷입니다.
+-- Supabase Dashboard > Storage에서 직접 생성하거나 아래 SQL로 생성할 수 있습니다.
+
+-- 버킷이 없으면 생성 (Supabase Dashboard에서 실행 또는 Migration으로 실행)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'avatars',
+  'avatars',
+  true, -- 공개 버킷 (URL로 직접 접근 가능)
+  5242880, -- 5MB 파일 크기 제한
+  ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp'] -- 허용된 이미지 타입
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 8-2. Storage RLS 정책 설정
+--
+-- ⚠️ 중요: Storage 정책은 Supabase Dashboard UI를 통해 설정해야 합니다!
+-- SQL Editor에서는 storage.objects 테이블에 대한 권한이 없어 아래 SQL은 실행되지 않습니다.
+--
+-- 📋 Supabase Dashboard에서 수동으로 설정하는 방법:
+-- Dashboard > Storage > avatars 버킷 선택 > Policies 탭으로 이동
+--
+-- ========================================================================
+-- 🚀 가장 쉬운 방법: 템플릿 + 수동 정책 1개
+-- ========================================================================
+-- 1. "New Policy" 버튼 클릭
+-- 2. 템플릿 선택:
+--
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ 템플릿: "Give users access to only their own top level folder named    │
+-- │         as uid"                                                         │
+-- ├─────────────────────────────────────────────────────────────────────────┤
+-- │ Policy name: Allow users to manage their own avatars                   │
+-- │ 이 템플릿은 자동으로 INSERT, UPDATE, DELETE, SELECT 정책을 생성합니다  │
+-- │ (사용자가 자신의 uid 폴더에만 접근 가능)                                 │
+-- └─────────────────────────────────────────────────────────────────────────┘
+--
+-- 3. 공개 읽기 정책 수동 추가 (중요!)
+--    템플릿 적용 후, 다시 "New Policy" 클릭:
+--
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ 옵션: "For full customization" 선택                                     │
+-- ├─────────────────────────────────────────────────────────────────────────┤
+-- │ Policy name: Public read access for avatars                            │
+-- │ Allowed operation: SELECT 체크                                          │
+-- │ Policy definition: true                                                 │
+-- │                                                                         │
+-- │ 이 정책은 누구나 (로그인 안 한 사용자도) 아바타를 볼 수 있게 합니다    │
+-- └─────────────────────────────────────────────────────────────────────────┘
+--
+-- ========================================================================
+-- 또는 수동으로 정책 생성 (고급)
+-- ========================================================================
+-- "For full customization" 옵션 선택 시:
+--
+-- Policy 1: 공개 읽기 (누구나 아바타 조회)
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ Policy name: Public avatar images                                       │
+-- │ Allowed operation: SELECT                                               │
+-- │ Policy definition: true  (또는 bucket_id = 'avatars')                   │
+-- └─────────────────────────────────────────────────────────────────────────┘
+--
+-- Policy 2: 업로드 (본인만)
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ Policy name: Users can upload their own avatar                          │
+-- │ Allowed operation: INSERT                                               │
+-- │ Policy definition (WITH CHECK):                                         │
+-- │   (bucket_id = 'avatars'::text) AND                                     │
+-- │   ((storage.foldername(name))[1] = (auth.uid())::text)                  │
+-- └─────────────────────────────────────────────────────────────────────────┘
+--
+-- Policy 3: 수정 (본인만)
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ Policy name: Users can update their own avatar                          │
+-- │ Allowed operation: UPDATE                                               │
+-- │ Policy definition (USING):                                              │
+-- │   (bucket_id = 'avatars'::text) AND                                     │
+-- │   ((storage.foldername(name))[1] = (auth.uid())::text)                  │
+-- └─────────────────────────────────────────────────────────────────────────┘
+--
+-- Policy 4: 삭제 (본인만)
+-- ┌─────────────────────────────────────────────────────────────────────────┐
+-- │ Policy name: Users can delete their own avatar                          │
+-- │ Allowed operation: DELETE                                               │
+-- │ Policy definition (USING):                                              │
+-- │   (bucket_id = 'avatars'::text) AND                                     │
+-- │   ((storage.foldername(name))[1] = (auth.uid())::text)                  │
+-- └─────────────────────────────────────────────────────────────────────────┘
+
+
+-- =============================================================================
+-- 9. 프로필 업데이트 RPC 함수 (Step 11)
+-- =============================================================================
+
+-- 9-1. update_profile 함수
+-- 사용자가 자신의 프로필 정보를 업데이트할 수 있는 함수입니다.
+-- 보안을 위해 RPC 함수를 사용하여 비즈니스 로직을 서버 측에서 처리합니다.
+
+CREATE OR REPLACE FUNCTION public.update_profile(
+  p_username TEXT DEFAULT NULL,
+  p_full_name TEXT DEFAULT NULL,
+  p_bio TEXT DEFAULT NULL,
+  p_avatar_url TEXT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_current_username TEXT;
+  v_username_exists BOOLEAN;
+  v_result JSON;
+BEGIN
+  -- 현재 로그인한 사용자 ID 확인
+  v_user_id := auth.uid();
+
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- 현재 사용자명 조회
+  SELECT username INTO v_current_username
+  FROM public.profiles
+  WHERE id = v_user_id;
+
+  -- username이 변경되는 경우 중복 체크
+  IF p_username IS NOT NULL AND p_username != v_current_username THEN
+    -- username 중복 확인
+    SELECT EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE username = p_username AND id != v_user_id
+    ) INTO v_username_exists;
+
+    IF v_username_exists THEN
+      RAISE EXCEPTION 'Username already exists';
+    END IF;
+
+    -- username 길이 검증 (3자 이상)
+    IF char_length(p_username) < 3 THEN
+      RAISE EXCEPTION 'Username must be at least 3 characters';
+    END IF;
+  END IF;
+
+  -- bio 길이 검증 (500자 이하)
+  IF p_bio IS NOT NULL AND char_length(p_bio) > 500 THEN
+    RAISE EXCEPTION 'Bio must be 500 characters or less';
+  END IF;
+
+  -- 프로필 업데이트
+  UPDATE public.profiles
+  SET
+    username = COALESCE(p_username, username),
+    full_name = COALESCE(p_full_name, full_name),
+    bio = COALESCE(p_bio, bio),
+    avatar_url = COALESCE(p_avatar_url, avatar_url),
+    updated_at = now()
+  WHERE id = v_user_id;
+
+  -- 업데이트된 프로필 정보 반환
+  SELECT json_build_object(
+    'id', p.id,
+    'username', p.username,
+    'full_name', p.full_name,
+    'bio', p.bio,
+    'avatar_url', p.avatar_url,
+    'points', p.points,
+    'created_at', u.created_at,
+    'updated_at', p.updated_at
+  ) INTO v_result
+  FROM public.profiles p
+  LEFT JOIN auth.users u ON p.id = u.id
+  WHERE p.id = v_user_id;
+
+  RETURN v_result;
+END;
+$$;
+
+-- 9-2. get_profile 함수 (프로필 조회 헬퍼 함수)
+-- 사용자 ID로 프로필 정보를 조회하는 함수입니다.
+
+CREATE OR REPLACE FUNCTION public.get_profile(p_user_id UUID DEFAULT NULL)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_result JSON;
+BEGIN
+  -- p_user_id가 NULL이면 현재 로그인한 사용자 ID 사용
+  v_user_id := COALESCE(p_user_id, auth.uid());
+
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'User ID is required';
+  END IF;
+
+  -- 프로필 정보 조회
+  SELECT json_build_object(
+    'id', p.id,
+    'username', p.username,
+    'full_name', p.full_name,
+    'bio', p.bio,
+    'avatar_url', p.avatar_url,
+    'points', p.points,
+    'created_at', u.created_at,
+    'updated_at', p.updated_at,
+    'email', u.email
+  ) INTO v_result
+  FROM public.profiles p
+  LEFT JOIN auth.users u ON p.id = u.id
+  WHERE p.id = v_user_id;
+
+  IF v_result IS NULL THEN
+    RAISE EXCEPTION 'Profile not found';
+  END IF;
+
+  RETURN v_result;
+END;
+$$;
+
+
+-- =============================================================================
+-- 테스트 쿼리 (Step 11 - 프로필 관리)
+-- =============================================================================
+-- SELECT * FROM public.get_profile(); -- 현재 사용자 프로필 조회
+-- SELECT * FROM public.get_profile('user-uuid-here'); -- 특정 사용자 프로필 조회
+-- SELECT * FROM public.update_profile(p_username := 'newusername', p_bio := 'Hello World!');
+-- SELECT * FROM storage.buckets WHERE id = 'avatars';
