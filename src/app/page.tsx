@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { PollWithUserStatus } from "@/lib/types";
 
@@ -42,12 +43,13 @@ export default async function LandingPage() {
       <footer className="text-center mt-8 md:mt-12 py-4 md:py-6 border-t border-gray-700">
         <p className="text-sm md:text-base text-gray-400 px-4">더 많은 투표를 보고 직접 만들어보세요.</p>
         <div className="mt-4">
-          <Link
-            href="/polls"
-            className="inline-block px-4 md:px-6 py-2 md:py-2.5 font-semibold text-sm md:text-base text-blue-600 border border-blue-700 rounded-md hover:bg-blue-50 transition-colors min-h-[44px] flex items-center justify-center"
+          <Button
+            asChild
+            size="lg"
+            className="text-sm font-semibold sm:text-base"
           >
-            모든 투표 보기
-          </Link>
+            <Link href="/polls">모든 투표 보기</Link>
+          </Button>
         </div>
         <div className="mt-6 md:mt-8 text-xs md:text-sm text-gray-500 px-4">
           <p>

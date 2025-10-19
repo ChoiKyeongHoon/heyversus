@@ -33,6 +33,8 @@
 - **스타일링**: Tailwind CSS v4
 - **백엔드 (BaaS)**: Supabase (Auth, PostgreSQL, Storage, Edge Functions)
 - **UI 컴포넌트**: shadcn/ui, Tailwind CSS 유틸리티 + `class-variance-authority`
+- **폼 & 검증**: react-hook-form, Zod, @hookform/resolvers
+- **아이콘**: lucide-react
 - **데이터 페칭**: `@tanstack/react-query`
 - **상태 관리**: React Query 캐시, Zustand 스토어, Supabase Session Provider
 - **테마 관리**: next-themes (다크/라이트 모드)
@@ -49,6 +51,7 @@
 /
 ├── public/              # 정적 에셋 (이미지, 폰트 등)
 ├── src/
+│   ├── __tests__/          # Jest + RTL 테스트 코드
 │   ├── app/               # Next.js App Router 페이지 및 레이아웃
 │   │   ├── api/           # RESTful API Route handlers
 │   │   ├── page.tsx       # 메인 랜딩 페이지 (대표 투표)
@@ -79,11 +82,11 @@
 │   │   ├── services/      # Supabase RPC를 감싼 비즈니스 로직
 │   │   └── stores/        # Zustand 기반 전역 상태
 │   ├── providers/         # React Query 등 글로벌 Provider 구성
+│   ├── instrumentation.ts # Sentry 등 Next.js instrumentation 훅
 │   └── middleware.ts      # Supabase 세션 관리 미들웨어
 ├── QUERY.md             # 데이터베이스 스키마 (SQL)
 ├── ROADMAP.md           # 개발 로드맵 및 진행 현황
-├── DESIGN_SYSTEM.md     # 디자인 시스템 가이드
-├── RESPONSIVE_GUIDE.md  # 반응형 디자인 가이드
+├── references/          # 참고 문서 및 가이드 (디자인 시스템, SQL 스크립트 등)
 └── README.md            # 프로젝트 문서
 ```
 
@@ -228,7 +231,7 @@ erDiagram
   - 클라이언트 컴포넌트로 편집 모드 토글, 폼 관리, 로딩/에러 처리
   - 반응형 디자인 (Mobile-First)
 - **React Hook Form + Zod 검증**:
-  - username: 최소 3자, 영문/숫자/_/- 만 허용
+  - username: 최소 3자, 영문/숫자/\_/- 만 허용
   - full_name: 최대 50자
   - bio: 최대 500자
   - 실시간 에러 표시 및 서버 측 이중 검증
@@ -242,6 +245,8 @@ erDiagram
   - 프로필 아이콘 + username + 포인트 (데스크톱)
   - 프로필 아이콘만 표시 (모바일)
   - /account 페이지 링크 추가
+  - 프로필 클릭 시 드롭다운 메뉴 통일 (프로필/즐겨찾기/로그아웃)
+  - 로그인 상태 버튼 간소화 및 투표/스코어를 아이콘 네비게이션으로 정리
 - **새 UI 컴포넌트**:
   - `src/components/ui/textarea.tsx`: Textarea 컴포넌트 추가
 - **의존성 추가**:
@@ -251,7 +256,7 @@ erDiagram
   - `lucide-react`: UI 아이콘 라이브러리
 - **빌드 검증**: `npm run build` 성공 (15개 페이지, /account 포함), TypeScript 통과, ESLint 통과.
 
-**⚠️ 배포 전 필수 작업**: `QUERY.md` (라인 724-1135)의 SQL을 Supabase SQL Editor에서 실행해야 프로덕션에서 작동합니다.
+**⚠️ 배포 전 필수 작업**: `QUERY.md`의 SQL을 Supabase SQL Editor에서 실행해야 프로덕션에서 작동합니다.
 
 ### v0.5.1
 
@@ -293,7 +298,7 @@ erDiagram
   - 그라디언트 hover 애니메이션 추가
   - 페이드 인, 슬라이드 인 애니메이션 정의
 - **문서화**:
-  - `DESIGN_SYSTEM.md`: 브랜드 정체성, 색상 시스템, 타이포그래피, 컴포넌트 사용 가이드 등 전체 디자인 시스템 문서화
+  - `references/DESIGN_SYSTEM.md`: 브랜드 정체성, 색상 시스템, 타이포그래피, 컴포넌트 사용 가이드 등 전체 디자인 시스템 문서화
   - Tailwind 클래스 사용 가이드 및 베스트 프랙티스 제공
   - 다크모드 설정 방법 및 컴포넌트 조합 예시
 - **접근성 강화**:
@@ -332,18 +337,16 @@ erDiagram
   - 필터/정렬 변경: 전체 리로드 → 클라이언트 사이드 즉시 반응
 - **접근성 유지**: WCAG 2.1 AA 준수, 키보드 네비게이션, 스크린 리더 지원, 44px 터치 영역.
 - **문서화**:
-  - `SCALE_DESIGN.md`: 아키텍처 설계 문서
+  - `references/SCALE_DESIGN.md`: 아키텍처 설계 문서
   - `QUERY.md`: Supabase SQL 실행 스크립트 및 가이드
-  - `STEP10_IMPLEMENTATION.md`: 구현 요약 및 배포 체크리스트
+  - `references/POLL_LIST_SCALE_IMPLEMENTATION.md`: 구현 요약 및 배포 체크리스트
 - **번들 크기**: +15KB (+7.6%) - React Query 통합으로 인한 증가지만 성능 이득이 훨씬 큼.
 - **빌드 검증**: `npm run lint` (0 warnings), `npm run build` 성공 (14개 페이지).
-
-**⚠️ 배포 전 필수 작업**: `QUERY.md`의 SQL을 Supabase SQL Editor에서 실행해야 프로덕션에서 작동합니다.
 
 ### v0.4.0
 
 - **Mobile-First 반응형 디자인 전면 적용**: 모든 페이지와 컴포넌트를 Mobile-First 전략으로 리팩터링하여 360px부터 1920px까지 모든 해상도에서 최적화된 UI 제공.
-- **반응형 디자인 가이드 문서화**: `RESPONSIVE_GUIDE.md` 생성 - 브레이크포인트, 그리드 시스템, 타이포그래피, 간격 시스템 등 반응형 디자인 표준 정의.
+- **반응형 디자인 가이드 문서화**: `references/RESPONSIVE_GUIDE.md` 생성 - 브레이크포인트, 그리드 시스템, 타이포그래피, 간격 시스템 등 반응형 디자인 표준 정의.
 - **접근성 표준 준수**: WCAG 2.1 AA 기준 적용, 모든 터치 가능 요소에 최소 44x44px 터치 영역 보장, 키보드 네비게이션 지원.
 - **글로벌 레이아웃 개선**:
   - Navbar: 메뉴 링크 선택적 숨김 (화면 크기별), 모바일 버튼 텍스트 축약 ("투표 생성" → "+")

@@ -1,10 +1,11 @@
 "use client";
 
 import { Session } from "@supabase/supabase-js";
-import { User } from "lucide-react";
+import { ListChecks, Trophy, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -26,16 +27,39 @@ export default function Navbar({ session, profile }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("로그아웃되었습니다.");
     router.refresh(); // 세션이 변경되었으므로 페이지를 새로고침하여 서버 데이터를 다시 가져옵니다.
+    setProfileMenuOpen(false);
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    setProfileMenuOpen(false);
+  }, [pathname]);
+
   return (
-    <nav className="flex justify-between items-center p-3 md:p-4 bg-transparent shadow-sm">
-      <div className="flex items-center space-x-2 sm:space-x-4 md:space-x-8">
+    <nav className="flex items-center justify-between gap-3 p-3 md:p-4 bg-transparent shadow-sm">
+      <div className="flex items-center gap-2">
         <Link
           href="/"
           className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight hover:opacity-80 transition-opacity"
@@ -43,108 +67,100 @@ export default function Navbar({ session, profile }: NavbarProps) {
           <span className="text-brand-gold">Hey</span>
           <span className="text-brand-orange">Versus</span>
         </Link>
-        <div className="flex items-center space-x-1.5 sm:space-x-2 md:space-x-4">
-          <Link
-            href="/"
-            className="text-xs sm:text-sm md:text-base text-muted-foreground hover:text-foreground font-bold transition-colors"
-          >
-            HOME
-          </Link>
-          <span className="text-muted-foreground text-xs hidden sm:inline">|</span>
-          <Link
-            href="/polls"
-            className="text-xs sm:text-sm md:text-base text-muted-foreground hover:text-foreground font-bold transition-colors"
-          >
-            POLLS
-          </Link>
-          <span className="text-muted-foreground text-xs hidden md:inline">|</span>
-          <Link
-            href="/favorites"
-            className="hidden md:inline text-xs sm:text-sm md:text-base text-muted-foreground hover:text-foreground font-bold transition-colors"
-          >
-            FAVORITES
-          </Link>
-          <span className="text-muted-foreground text-xs hidden lg:inline">|</span>
-          <Link
-            href="/score"
-            className="hidden lg:inline text-xs sm:text-sm md:text-base text-muted-foreground hover:text-foreground font-bold transition-colors"
-          >
-            SCORE
-          </Link>
-        </div>
       </div>
       <div className="flex items-center space-x-2">
+        <Link
+          href="/polls"
+          className="flex h-10 w-10 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+          aria-label="전체 투표"
+          title="전체 투표"
+        >
+          <ListChecks className="h-4 w-4" />
+        </Link>
+        <Link
+          href="/score"
+          className="flex h-10 w-10 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+          aria-label="Score ranking"
+          title="Score ranking"
+        >
+          <Trophy className="h-4 w-4" />
+        </Link>
         <ThemeToggle />
         {session ? (
           <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
             {/* Profile Avatar & Info - Desktop */}
-            <Link
-              href="/account"
-              className="hidden lg:flex items-center space-x-2 hover:opacity-80 transition-opacity"
-              title="내 프로필"
+            <div
+              ref={profileMenuRef}
+              className="relative flex items-center"
             >
-              {profile?.avatar_url ? (
-                <Image
-                  src={profile.avatar_url}
-                  alt={profile.username || "프로필"}
-                  width={32}
-                  height={32}
-                  className="rounded-full object-cover border-2 border-border"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border-2 border-border">
-                  <User className="w-4 h-4 text-muted-foreground" />
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen((prev) => !prev)}
+                className="flex items-center space-x-2 rounded-md px-2 py-1 hover:bg-accent/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                aria-haspopup="menu"
+                aria-expanded={isProfileMenuOpen}
+              >
+                {profile?.avatar_url ? (
+                  <Image
+                    src={profile.avatar_url}
+                    alt={profile.username || "프로필"}
+                    width={32}
+                    height={32}
+                    className="rounded-full object-cover border-2 border-border"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border-2 border-border">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="hidden lg:flex flex-col items-start">
+                  <span className="text-foreground text-xs font-medium truncate max-w-[140px]">
+                    {profile?.username ?? session.user.email}
+                  </span>
+                  <span className="text-accent text-xs font-semibold">
+                    {profile?.points ?? 0}XP
+                  </span>
                 </div>
-              )}
-              <div className="flex flex-col">
-                <span className="text-foreground text-xs font-medium truncate max-w-[120px]">
-                  {profile?.username ?? session.user.email}
-                </span>
-                <span className="text-accent text-xs font-semibold">
-                  {profile?.points ?? 0}XP
-                </span>
-              </div>
-            </Link>
-
-            {/* Mobile Profile Link */}
-            <Link
-              href="/account"
-              className="lg:hidden"
-              title="내 프로필"
-            >
-              {profile?.avatar_url ? (
-                <Image
-                  src={profile.avatar_url}
-                  alt={profile.username || "프로필"}
-                  width={32}
-                  height={32}
-                  className="rounded-full object-cover border-2 border-border min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
-                />
-              ) : (
-                <div className="w-8 h-8 md:w-8 md:h-8 rounded-full bg-muted flex items-center justify-center border-2 border-border min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0">
-                  <User className="w-4 h-4 text-muted-foreground" />
+                <span className="sr-only">프로필 메뉴 열기</span>
+              </button>
+              {isProfileMenuOpen ? (
+                <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-md border border-border bg-background p-2 shadow-lg">
+                  <div className="flex flex-col gap-1">
+                    <Link
+                      href="/account"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+                    >
+                      프로필
+                    </Link>
+                    <Link
+                      href="/favorites"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+                    >
+                      즐겨찾기
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="block rounded-md px-3 py-2 text-left text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
                 </div>
-              )}
-            </Link>
+              ) : null}
+            </div>
 
             <Button
               asChild
               size="sm"
-              className="text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
+              className="inline-flex text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
             >
               <Link href="/create-poll">
                 <span className="hidden sm:inline">투표 생성</span>
                 <span className="sm:hidden">+</span>
               </Link>
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleLogout}
-              className="text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
-            >
-              <span className="hidden sm:inline">로그아웃</span>
-              <span className="sm:hidden">OUT</span>
             </Button>
           </div>
         ) : (
@@ -155,8 +171,7 @@ export default function Navbar({ session, profile }: NavbarProps) {
               className="text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
             >
               <Link href="/signup">
-                <span className="hidden sm:inline">회원가입</span>
-                <span className="sm:hidden">JOIN</span>
+                <span>회원가입</span>
               </Link>
             </Button>
             <Button
@@ -166,8 +181,7 @@ export default function Navbar({ session, profile }: NavbarProps) {
               className="text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
             >
               <Link href={`/signin?redirect=${pathname}`}>
-                <span className="hidden sm:inline">로그인</span>
-                <span className="sm:hidden">IN</span>
+                <span>로그인</span>
               </Link>
             </Button>
           </div>
