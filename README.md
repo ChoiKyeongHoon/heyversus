@@ -18,22 +18,28 @@
 - **포인트 및 랭킹**: 투표에 참여할 때마다 포인트를 획득하고, 다른 사용자들과의 순위를 `SCORE` 페이지에서 확인할 수 있습니다.
 - **즐겨찾기 관리**: 로그인 사용자는 관심 있는 투표를 즐겨찾기에 추가하고 `/favorites` 페이지에서 모아볼 수 있습니다.
 - **사용자 경험(UX) 최적화**:
+  - **다크/라이트 모드**: 사용자 선호도에 맞는 테마를 제공하고 실시간으로 전환할 수 있습니다. 시스템 설정을 자동으로 감지하며, Navbar의 토글 버튼으로 즉시 변경 가능합니다.
+  - **그라디언트 디자인**: 모든 버튼과 배지에 그라디언트 효과를 적용하여 시각적으로 매력적이고 현대적인 UI를 제공합니다.
   - **신속한 피드백**: `sonner` 라이브러리를 활용하여 직관적인 Toast 알림을 제공합니다.
   - **자동 리디렉션**: 로그인 후 이전에 보던 페이지로 자동 이동하여 사용 흐름이 끊기지 않도록 합니다.
   - **데이터 자동 갱신**: 페이지에 다시 방문했을 때 최신 투표 데이터를 자동으로 불러와 보여줍니다.
+  - **반응형 디자인**: Mobile-First 전략으로 모든 기기에서 최적화된 경험을 제공합니다 (360px~1920px).
 
 ## 🛠️ 기술 스택
 
-- **프레임워크**: Next.js (App Router)
+- **프레임워크**: Next.js 15 (App Router)
 - **언어**: TypeScript
-- **스타일링**: Tailwind CSS
+- **스타일링**: Tailwind CSS v4
 - **백엔드 (BaaS)**: Supabase (Auth, PostgreSQL, Storage, Edge Functions)
 - **UI 컴포넌트**: shadcn/ui, Tailwind CSS 유틸리티 + `class-variance-authority`
 - **데이터 페칭**: `@tanstack/react-query`
 - **상태 관리**: React Query 캐시, Zustand 스토어, Supabase Session Provider
-- **폰트 최적화**: `next/font`
+- **테마 관리**: next-themes (다크/라이트 모드)
+- **폰트 최적화**: `next/font` (Inter)
 - **알림**: Sonner (Toast notifications)
 - **에러 모니터링**: Sentry (Error tracking, Performance monitoring, Session replay)
+- **코드 품질**: ESLint, Prettier, Husky, lint-staged
+- **테스트**: Jest, React Testing Library
 - **배포**: Vercel
 
 ## 📁 프로젝트 구조
@@ -51,11 +57,14 @@
 │   │   ├── polls/         # 전체 투표 목록 페이지
 │   │   ├── favorites/     # 즐겨찾기한 투표 목록 페이지
 │   │   ├── poll/[id]/     # 투표 상세 및 결과 페이지
-│   │   └── score/         # 사용자 랭킹(스코어보드) 페이지
+│   │   ├── score/         # 사용자 랭킹(스코어보드) 페이지
+│   │   └── globals.css    # 글로벌 스타일 및 디자인 토큰
 │   ├── components/        # 재사용 가능한 UI 컴포넌트
 │   │   ├── common/        # 공통 UI 컴포넌트 (Skeleton, ErrorState, EmptyState)
 │   │   ├── layout/        # 레이아웃 컴포넌트 (Navbar)
-│   │   └── ui/            # shadcn/ui 기본 컴포넌트
+│   │   ├── ui/            # shadcn/ui 기본 컴포넌트 (Button, Card, Badge, Input)
+│   │   ├── theme-provider.tsx  # next-themes Provider
+│   │   └── theme-toggle.tsx    # 다크/라이트 모드 토글 버튼
 │   ├── constants/         # 애플리케이션 상수 (storage, cache, defaults)
 │   ├── hooks/             # 재사용 가능한 커스텀 훅
 │   │   ├── useSession.ts          # Supabase 세션 관리
@@ -71,6 +80,8 @@
 │   └── middleware.ts      # Supabase 세션 관리 미들웨어
 ├── QUERY.md             # 데이터베이스 스키마 (SQL)
 ├── ROADMAP.md           # 개발 로드맵 및 진행 현황
+├── DESIGN_SYSTEM.md     # 디자인 시스템 가이드
+├── RESPONSIVE_GUIDE.md  # 반응형 디자인 가이드
 └── README.md            # 프로젝트 문서
 ```
 
@@ -185,7 +196,57 @@ erDiagram
     }
 ```
 
-## 📌 업데이트 기록 (2025-10-21까지)
+## 📌 업데이트 기록 (2025-10-19까지)
+
+### v0.5.1
+
+- **브랜드 디자인 시스템 확립**: HeyVersus만의 통일된 디자인 언어를 구축하여 일관된 사용자 경험 제공.
+  - 브랜드 색상 정의: Gold (#FFD700), Orange (#FF8C00)
+  - 브랜드 키워드: 역동적, 대비되는, 활기찬
+  - 톤 앤 매너: 재미있고 참여형, 경쟁적이지만 친근한
+- **디자인 토큰 시스템 구축**: CSS 변수 기반의 체계적인 색상 관리로 개발 효율성 및 유지보수성 향상.
+  - HSL 기반 의미론적 색상: primary, accent, success, warning, info, destructive
+  - 라이트/다크 모드별 자동 색상 전환 (`globals.css`)
+  - 하드코딩 색상 제거, 토큰 기반 색상 시스템으로 전면 전환
+- **다크/라이트 모드 완전 지원**: next-themes 통합으로 사용자 선호도에 맞는 테마 제공.
+  - `ThemeProvider` 컴포넌트로 시스템 테마 자동 감지 및 적용
+  - `ThemeToggle` 버튼 (Sun/Moon 아이콘)으로 실시간 테마 전환
+  - Navbar에 테마 토글 버튼 배치
+  - 기본 테마: 다크 모드 (사용자 변경 가능)
+  - 모든 컴포넌트 라이트/다크 모드 대응
+- **배경 색상 재설계**:
+  - 다크 모드: #242424 (오프블랙) - 깔끔하고 모던한 검정 배경
+  - 라이트 모드: #FAF9F6 (모던 크림) - 눈에 부담 없는 부드러운 크림색
+  - 카드/팝오버 등 레이어별 색상 자동 조정
+- **그라디언트 버튼 시스템**: 모든 버튼에 45도 각도의 그라디언트 적용으로 시각적 매력도 향상.
+  - **default**: 주황색 그라디언트 (`#ff8c00 → #ff6b00`)
+  - **success**: 초록색 그라디언트 (`#38a169 → #2f855a`)
+  - **destructive**: 빨강색 그라디언트 (`#e53e3e → #c53030`)
+  - **warning**: 노란색 그라디언트 (`#f59e0b → #d97706`)
+  - **info**: 파란색 그라디언트 (`#3b82f6 → #2563eb`)
+  - **link**: 그라디언트 텍스트 (주황→금색)
+  - hover 시 그라디언트 색상 전환 애니메이션
+  - shadow 효과로 입체감 강화
+- **공통 UI 컴포넌트 리뉴얼**:
+  - **Button**: 7가지 variant, 그라디언트 배경, 부드러운 transition-all
+  - **Badge**: 모든 variant에 그라디언트 적용, 일관된 시각 언어
+  - **Card**: 디자인 토큰 기반 배경/전경색, 테마 자동 대응
+  - **Input**: 통일된 스타일, 접근성 향상
+  - **Navbar**: 인라인 스타일 제거, 브랜드 색상 클래스 사용
+- **애니메이션 개선**:
+  - `transition-colors` → `transition-all`로 더 부드러운 전환 효과
+  - 그라디언트 hover 애니메이션 추가
+  - 페이드 인, 슬라이드 인 애니메이션 정의
+- **문서화**:
+  - `DESIGN_SYSTEM.md`: 브랜드 정체성, 색상 시스템, 타이포그래피, 컴포넌트 사용 가이드 등 전체 디자인 시스템 문서화
+  - Tailwind 클래스 사용 가이드 및 베스트 프랙티스 제공
+  - 다크모드 설정 방법 및 컴포넌트 조합 예시
+- **접근성 강화**:
+  - 명확한 포커스 스타일 (ring-2, ring-offset-2)
+  - 적절한 색상 대비율 (WCAG 2.1 AA)
+  - 스크린 리더 지원 (sr-only 클래스)
+- **빌드 검증**: `npm run lint` (0 errors, 0 warnings), `npm run build` 성공 (14개 페이지).
+- **기술 스택**: next-themes, CSS Variables (HSL), Tailwind CSS, shadcn/ui.
 
 ### v0.5.0
 

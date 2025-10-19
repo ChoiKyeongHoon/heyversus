@@ -3,10 +3,79 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Brand Colors - HeyVersus */
+    --brand-gold: 45 100% 50%; /* #FFD700 */
+    --brand-orange: 29 100% 50%; /* #FF8C00 */
+
+    /* Semantic Colors - Light Mode */
+    --background: 60 29% 98%; /* #FAF9F6 - 모던 크림 */
+    --foreground: 0 0% 20%; /* 다크 그레이 텍스트 */
+    --card: 0 0% 100%; /* 순백색 카드 */
+    --card-foreground: 0 0% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+    --primary: 29 100% 50%; /* Brand Orange */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 90%;
+    --secondary-foreground: 0 0% 20%;
+    --muted: 0 0% 93%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 45 100% 50%; /* Brand Gold */
+    --accent-foreground: 0 0% 20%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 85%;
+    --input: 0 0% 90%;
+    --ring: 29 100% 50%; /* Brand Orange */
+    --radius: 0.5rem;
+
+    /* Extended Semantic Colors */
+    --success: 147 78% 44%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 20%;
+    --info: 214 95% 60%;
+    --info-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    /* Semantic Colors - Dark Mode */
+    --background: 0 0% 14%; /* #242424 - 오프블랙 */
+    --foreground: 0 0% 95%; /* 밝은 텍스트 */
+    --card: 0 0% 18%; /* 배경보다 약간 밝게 */
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 18%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 29 100% 60%; /* Lighter for dark mode */
+    --primary-foreground: 0 0% 10%;
+    --secondary: 0 0% 25%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 25%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 45 100% 60%; /* Lighter for dark mode */
+    --accent-foreground: 0 0% 10%;
+    --destructive: 0 62.8% 50.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 30%;
+    --input: 0 0% 25%;
+    --ring: 29 100% 60%;
+
+    /* Extended Semantic Colors */
+    --success: 147 78% 50%;
+    --success-foreground: 0 0% 10%;
+    --warning: 38 92% 60%;
+    --warning-foreground: 0 0% 10%;
+    --info: 214 95% 65%;
+    --info-foreground: 0 0% 10%;
+  }
+
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-text-primary;
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }

@@ -5,19 +5,20 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-gradient-to-br from-[#ff8c00] to-[#ff6b00] text-white hover:from-[#ff6b00] hover:to-[#ff5500] shadow-md",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-gradient-to-br from-[#e53e3e] to-[#c53030] text-white hover:from-[#c53030] hover:to-[#9b2c2c] shadow-md",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "border-2 border-input bg-background hover:bg-gradient-to-br hover:from-accent/10 hover:to-primary/10 hover:border-primary/50",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-gradient-to-br from-secondary to-secondary/80 text-secondary-foreground hover:from-secondary/90 hover:to-secondary/70 shadow-sm",
+        ghost: "hover:bg-gradient-to-br hover:from-accent/20 hover:to-primary/20",
+        link: "text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary underline-offset-4 hover:underline",
+        success: "bg-gradient-to-br from-[#38a169] to-[#2f855a] text-white hover:from-[#2f855a] hover:to-[#276749] shadow-md",
       },
       size: {
         default: "h-10 px-4 py-2",

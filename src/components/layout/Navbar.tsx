@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
@@ -36,46 +37,47 @@ export default function Navbar({ session, profile }: NavbarProps) {
           href="/"
           className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight hover:opacity-80 transition-opacity"
         >
-          <span style={{ color: "#FFD700" }}>Hey</span>
-          <span style={{ color: "#FF8C00" }}>Versus</span>
+          <span className="text-brand-gold">Hey</span>
+          <span className="text-brand-orange">Versus</span>
         </Link>
         <div className="flex items-center space-x-1.5 sm:space-x-2 md:space-x-4">
           <Link
             href="/"
-            className="text-xs sm:text-sm md:text-base text-gray-300 hover:text-white font-bold transition-colors"
+            className="text-xs sm:text-sm md:text-base text-muted-foreground hover:text-foreground font-bold transition-colors"
           >
             HOME
           </Link>
-          <span className="text-gray-500 text-xs hidden sm:inline">|</span>
+          <span className="text-muted-foreground text-xs hidden sm:inline">|</span>
           <Link
             href="/polls"
-            className="text-xs sm:text-sm md:text-base text-gray-300 hover:text-white font-bold transition-colors"
+            className="text-xs sm:text-sm md:text-base text-muted-foreground hover:text-foreground font-bold transition-colors"
           >
             POLLS
           </Link>
-          <span className="text-gray-500 text-xs hidden md:inline">|</span>
+          <span className="text-muted-foreground text-xs hidden md:inline">|</span>
           <Link
             href="/favorites"
-            className="hidden md:inline text-xs sm:text-sm md:text-base text-gray-300 hover:text-white font-bold transition-colors"
+            className="hidden md:inline text-xs sm:text-sm md:text-base text-muted-foreground hover:text-foreground font-bold transition-colors"
           >
             FAVORITES
           </Link>
-          <span className="text-gray-500 text-xs hidden lg:inline">|</span>
+          <span className="text-muted-foreground text-xs hidden lg:inline">|</span>
           <Link
             href="/score"
-            className="hidden lg:inline text-xs sm:text-sm md:text-base text-gray-300 hover:text-white font-bold transition-colors"
+            className="hidden lg:inline text-xs sm:text-sm md:text-base text-muted-foreground hover:text-foreground font-bold transition-colors"
           >
             SCORE
           </Link>
         </div>
       </div>
-      <div className="flex items-center">
+      <div className="flex items-center space-x-2">
+        <ThemeToggle />
         {session ? (
           <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
-            <span className="text-white text-xs md:text-sm lg:text-base hidden lg:block truncate max-w-[120px]">
+            <span className="text-foreground text-xs md:text-sm lg:text-base hidden lg:block truncate max-w-[120px]">
               {profile?.username ?? session.user.email}
             </span>
-            <span className="text-yellow-400 text-xs md:text-sm font-semibold hidden md:block">
+            <span className="text-accent text-xs md:text-sm font-semibold hidden md:block">
               {profile?.points ?? 0}XP
             </span>
             <Button
@@ -112,9 +114,9 @@ export default function Navbar({ session, profile }: NavbarProps) {
             </Button>
             <Button
               asChild
-              variant="default"
+              variant="success"
               size="sm"
-              className="bg-success hover:bg-success/90 text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
+              className="text-xs md:text-sm px-2 sm:px-3 md:px-4 py-1.5 md:py-2 min-h-[44px] md:min-h-0"
             >
               <Link href={`/signin?redirect=${pathname}`}>
                 <span className="hidden sm:inline">로그인</span>

@@ -21,6 +21,12 @@ const config = {
     },
     extend: {
       colors: {
+        /* Brand Colors */
+        brand: {
+          gold: "hsl(var(--brand-gold))",
+          orange: "hsl(var(--brand-orange))",
+        },
+        /* Semantic Colors */
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -54,26 +60,26 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Mockup colors added here
-        "background-light": "hsl(0, 0%, 9%)",
-        "background-subtle": "hsl(0, 0%, 10%)",
-        panel: "hsl(0, 0%, 9.5%)",
-        "panel-hover": "hsl(0, 0%, 12%)",
-        surface: "hsla(0, 0%, 100%, 0.03)",
-        "primary-hover": "hsl(244, 83%, 70%)",
-        "text-primary": "hsl(0, 0%, 98%)",
-        "text-secondary": "hsl(0, 0%, 78%)",
-        "text-tertiary": "hsl(0, 0%, 55%)",
-        "border-subtle": "hsl(0, 0%, 12%)",
-        success: "hsl(147, 78%, 44%)",
-        warning: "hsl(38, 92%, 55%)",
-        danger: "hsl(350, 89%, 60%)",
+        /* Extended Semantic Colors */
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
       },
       borderRadius: {
         sm: "0.25rem",
         md: "0.5rem",
         lg: "0.75rem",
         xl: "1rem",
+        "2xl": "1.25rem",
         DEFAULT: "var(--radius)",
       },
       fontFamily: {
@@ -93,11 +99,15 @@ const config = {
           "Noto Color Emoji",
         ],
       },
+      fontSize: {
+        "2xs": ["0.625rem", { lineHeight: "0.75rem" }],
+      },
       boxShadow: {
         sm: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
         md: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
         lg: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
         xl: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+        "2xl": "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
         inner: "inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)",
       },
       keyframes: {
@@ -109,10 +119,20 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "slide-in-from-bottom": {
+          from: { transform: "translateY(10px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fade-in 0.3s ease-out",
+        "slide-in": "slide-in-from-bottom 0.4s ease-out",
       },
       backgroundImage: {
         versus: "url('/versus.jpg')",

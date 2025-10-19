@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 
 import Navbar from "@/components/layout/Navbar";
+import { ThemeProvider } from "@/components/theme-provider";
 import { createClient } from "@/lib/supabase/server";
 import { QueryProvider } from "@/providers/QueryProvider";
 
@@ -39,17 +40,24 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} antialiased`}>
-        <QueryProvider>
-          <Navbar session={session} profile={profile} />
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tighter mb-2 text-center mt-4 md:mt-6 lg:mt-8 px-4">
-            <span style={{ color: "#FFD700" }}>Hey!</span>
-            <span style={{ color: "#FF8C00" }}> Vote Here!!</span>
-          </h1>
-          {children}
-          <Toaster position="bottom-center" />
-        </QueryProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <QueryProvider>
+            <Navbar session={session} profile={profile} />
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tighter mb-2 text-center mt-4 md:mt-6 lg:mt-8 px-4">
+              <span className="text-brand-gold">Hey!</span>
+              <span className="text-brand-orange"> Vote Here!!</span>
+            </h1>
+            {children}
+            <Toaster position="bottom-center" />
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
