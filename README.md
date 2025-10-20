@@ -1,6 +1,6 @@
 # Heyversus
 
-🔗 Production (Vercel): https://heyversus.vercel.app/
+🔗 Link : https://heyversus.vercel.app/
 
 **Heyversus**는 사용자가 직접 투표를 생성하고 참여할 수 있는 동적인 웹 애플리케이션입니다. Next.js와 Supabase를 기반으로 구축되어 있으며, 실시간 투표 결과와 사용자 인증, 포인트 시스템을 제공합니다.
 
@@ -204,7 +204,7 @@ erDiagram
     }
 ```
 
-## 📌 업데이트 기록 (2025-10-19까지)
+## 📌 업데이트 기록 (가이드의 쇼핑몰 프로젝트에 사용한 기술들을 분석하고 적용 계획을 수립해 0.1.1부터 0.6.0까지 패치함. 2025-10-21 기준 제출 내역)
 
 ### v0.6.0
 

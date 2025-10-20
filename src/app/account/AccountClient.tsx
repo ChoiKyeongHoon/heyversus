@@ -28,8 +28,8 @@ const profileSchema = z.object({
     .string()
     .min(3, "사용자명은 최소 3자 이상이어야 합니다")
     .regex(
-      /^[a-zA-Z0-9_-]+$/,
-      "사용자명은 영문, 숫자, _, - 만 사용 가능합니다"
+      /^[가-힣a-zA-Z0-9_-]+$/,
+      "사용자명은 한글, 영문, 숫자, _, - 만 사용 가능합니다"
     ),
   full_name: z.string().max(50, "이름은 최대 50자까지 가능합니다").optional(),
   bio: z.string().max(500, "소개는 최대 500자까지 가능합니다").optional(),
