@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  webpack: (config, { dev }) => {
+    if (dev) {
+      // 개발 중 PackFileCacheStrategy 경고를 막기 위해 Webpack 파일시스템 캐시를 끕니다.
+      config.cache = false;
+    }
+    return config;
+  },
 };
 
 // Sentry 설정 래퍼

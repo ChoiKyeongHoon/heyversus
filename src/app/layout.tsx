@@ -1,5 +1,6 @@
 import "@/app/globals.css";
 
+import { AuthApiError } from "@supabase/supabase-js";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 
@@ -24,9 +25,27 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  let session = null;
+  try {
+    const {
+      data: { session: currentSession },
+      error,
+    } = await supabase.auth.getSession();
+
+    if (error) {
+      throw error;
+    }
+
+    session = currentSession;
+  } catch (error) {
+    if (error instanceof AuthApiError && error.code === "refresh_token_not_found") {
+      // Supabase refresh 토큰 문제가 발생하면 세션을 초기화하고 쿠키를 비워 재시도를 유도한다.
+      session = null;
+      await supabase.auth.signOut().catch(() => undefined);
+    } else {
+      throw error;
+    }
+  }
 
   let profile = null;
   if (session) {

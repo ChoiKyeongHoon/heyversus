@@ -1,4 +1,5 @@
 import { type CookieOptions,createServerClient } from '@supabase/ssr'
+import { AuthApiError } from '@supabase/supabase-js'
 import { type NextRequest,NextResponse } from 'next/server'
 
 export async function middleware(request: NextRequest) {
@@ -54,7 +55,15 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  try {
+    await supabase.auth.getUser()
+  } catch (error) {
+    if (error instanceof AuthApiError && error.code === 'refresh_token_not_found') {
+      await supabase.auth.signOut().catch(() => undefined)
+    } else {
+      throw error
+    }
+  }
 
   return response
 }
