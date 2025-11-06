@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import type { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,22 +20,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { Profile } from "@/lib/services/profile";
-import { deleteAvatar, updateProfile, uploadAvatar } from "@/lib/services/profile";
+import { profileUpdateSchema } from "@/lib/validation/profile";
 
-// Zod 스키마 정의
-const profileSchema = z.object({
-  username: z
-    .string()
-    .min(3, "사용자명은 최소 3자 이상이어야 합니다")
-    .regex(
-      /^[가-힣a-zA-Z0-9_-]+$/,
-      "사용자명은 한글, 영문, 숫자, _, - 만 사용 가능합니다"
-    ),
-  full_name: z.string().max(50, "이름은 최대 50자까지 가능합니다").optional(),
-  bio: z.string().max(500, "소개는 최대 500자까지 가능합니다").optional(),
-});
-
-type ProfileFormData = z.infer<typeof profileSchema>;
+type ProfileFormData = z.input<typeof profileUpdateSchema>;
+type ProfileUpdateData = z.infer<typeof profileUpdateSchema>;
 
 interface AccountClientProps {
   initialProfile: Profile;
@@ -56,11 +44,11 @@ export default function AccountClient({ initialProfile }: AccountClientProps) {
     formState: { errors, isSubmitting },
     reset,
   } = useForm<ProfileFormData>({
-    resolver: zodResolver(profileSchema),
+    resolver: zodResolver(profileUpdateSchema),
     defaultValues: {
       username: profile.username,
-      full_name: profile.full_name || "",
-      bio: profile.bio || "",
+      full_name: profile.full_name ?? "",
+      bio: profile.bio ?? "",
     },
   });
 
@@ -110,58 +98,86 @@ export default function AccountClient({ initialProfile }: AccountClientProps) {
   };
 
   // 프로필 업데이트 제출
-  const onSubmit = async (data: ProfileFormData) => {
+  const onSubmit = async (formValues: ProfileFormData) => {
+    const parsed = profileUpdateSchema.safeParse(formValues);
+
+    if (!parsed.success) {
+      const message =
+        parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.";
+      setError(message);
+      return;
+    }
+
+    const sanitized: ProfileUpdateData = parsed.data;
+
     try {
       setError(null);
-      let newAvatarUrl = profile.avatar_url;
+      setIsUploading(true);
 
-      // 1. 새 아바타가 선택된 경우 업로드
+      const requestData = new FormData();
+      requestData.append("username", sanitized.username);
+      requestData.append("full_name", sanitized.full_name ?? "");
+      requestData.append("bio", sanitized.bio ?? "");
+
+      if (profile.avatar_url) {
+        requestData.append("current_avatar_url", profile.avatar_url);
+      }
+
       if (selectedFile) {
-        setIsUploading(true);
+        requestData.append("avatar", selectedFile);
+      }
 
-        // 기존 아바타 삭제 (있는 경우)
-        if (profile.avatar_url) {
-          await deleteAvatar(profile.avatar_url);
-        }
+      const response = await fetch("/api/account/profile", {
+        method: "PATCH",
+        body: requestData,
+      });
 
-        // 새 아바타 업로드
-        const { data: uploadData, error: uploadError } =
-          await uploadAvatar(selectedFile);
+      let result: {
+        data?: Profile;
+        error?: string;
+        warning?: string | null;
+      } | null = null;
 
-        if (uploadError || !uploadData) {
-          setError(uploadError?.message || "아바타 업로드에 실패했습니다.");
-          setIsUploading(false);
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError("세션이 만료되었습니다. 다시 로그인해 주세요.");
+          router.push("/signin?redirect=/account");
           return;
         }
 
-        newAvatarUrl = uploadData.url;
-        setIsUploading(false);
-      }
-
-      // 2. 프로필 정보 업데이트
-      const { data: updatedProfile, error: updateError } = await updateProfile({
-        username: data.username,
-        full_name: data.full_name || null,
-        bio: data.bio || null,
-        avatar_url: newAvatarUrl,
-      });
-
-      if (updateError || !updatedProfile) {
-        setError(updateError?.message || "프로필 업데이트에 실패했습니다.");
+        setError(result?.error ?? "프로필 업데이트에 실패했습니다.");
         return;
       }
 
-      // 3. 상태 업데이트
-      setProfile(updatedProfile);
-      setIsEditing(false);
-      setAvatarPreview(null);
-      setSelectedFile(null);
+      if (result?.warning) {
+        setError(result.warning);
+      } else {
+        setError(null);
+      }
 
-      // 4. 페이지 새로고침하여 서버 데이터 동기화
-      router.refresh();
+      if (result?.data) {
+        setProfile(result.data);
+        setIsEditing(false);
+        setAvatarPreview(null);
+        setSelectedFile(null);
+        reset({
+          username: result.data.username,
+          full_name: result.data.full_name ?? "",
+          bio: result.data.bio ?? "",
+        });
+        router.refresh();
+      }
     } catch (err) {
       console.error("Profile update error:", err);
       setError("프로필 업데이트 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploading(false);
     }
   };
 

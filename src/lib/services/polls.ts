@@ -196,6 +196,16 @@ export async function getFeaturedPolls() {
 export async function createPoll(params: CreatePollParams) {
   const supabase = await createClient();
 
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    const error = new Error("Not authenticated");
+    (error as Error & { code?: string }).code = "AUTH_REQUIRED";
+    return { data: null, error };
+  }
+
   const { data: pollId, error } = await supabase.rpc("create_new_poll", {
     question_text: params.question,
     option_texts: params.options,

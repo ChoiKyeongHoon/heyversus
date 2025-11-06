@@ -1,12 +1,68 @@
+import type { PostgrestError } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
   createPoll,
-  type CreatePollParams,
   getPolls,
   getPollsPaginated,
 } from "@/lib/services/polls";
 import type { GetPollsParams } from "@/lib/types";
+import {
+  type CreatePollPayload,
+  createPollSchema,
+} from "@/lib/validation/poll";
+
+const SUPABASE_VALIDATION_CODES = new Set([
+  "23505", // unique_violation
+  "23514", // check_violation
+  "22P02", // invalid_text_representation
+  "22007", // invalid_datetime_format
+  "PGRST302", // badly formed request
+  "PGRST303", // routing error / invalid input
+]);
+
+function mapPollCreationError(error: unknown) {
+  if (!error || !(error instanceof Error)) {
+    return {
+      status: 500,
+      message: "투표 생성 중 알 수 없는 오류가 발생했습니다.",
+    };
+  }
+
+  const postgrestError = error as PostgrestError;
+  const message =
+    error.message || "투표 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+  const normalized = message.toLowerCase();
+  const code = postgrestError.code || (error as { code?: string }).code;
+
+  if (code === "AUTH_REQUIRED" || normalized.includes("not authenticated")) {
+    return { status: 401, message: "로그인이 필요합니다. 다시 로그인해 주세요." };
+  }
+
+  if (normalized.includes("jwt") || normalized.includes("token is expired")) {
+    return { status: 401, message: "세션이 만료되었습니다. 다시 로그인해 주세요." };
+  }
+
+  if (normalized.includes("permission denied") || code === "42501") {
+    return {
+      status: 403,
+      message: "이 작업을 수행할 권한이 없습니다.",
+    };
+  }
+
+  if (code && SUPABASE_VALIDATION_CODES.has(code)) {
+    return { status: 422, message };
+  }
+
+  if (normalized.includes("violates") || normalized.includes("invalid")) {
+    return { status: 422, message };
+  }
+
+  return {
+    status: 500,
+    message: "투표 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+  };
+}
 
 /**
  * GET /api/polls
@@ -115,41 +171,33 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { question, options, isPublic, expiresAt } = body as CreatePollParams;
+    const parsed = createPollSchema.safeParse(body);
 
-    // 클라이언트 측 검증
-    if (!question || !question.trim()) {
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
       return NextResponse.json(
-        { error: "Question is required" },
-        { status: 400 }
+        {
+          error: issue?.message ?? "입력값이 올바르지 않습니다.",
+          details: parsed.error.flatten(),
+        },
+        { status: 422 }
       );
     }
 
-    if (!options || !Array.isArray(options) || options.length < 2) {
-      return NextResponse.json(
-        { error: "At least 2 options are required" },
-        { status: 400 }
-      );
-    }
-
-    if (options.some((opt) => !opt || !opt.trim())) {
-      return NextResponse.json(
-        { error: "All options must be non-empty" },
-        { status: 400 }
-      );
-    }
+    const payload: CreatePollPayload = parsed.data;
 
     const { data: pollId, error } = await createPoll({
-      question,
-      options,
-      isPublic: isPublic ?? true,
-      expiresAt: expiresAt || null,
+      question: payload.question,
+      options: payload.options,
+      isPublic: payload.isPublic ?? true,
+      expiresAt: payload.expiresAt ?? null,
     });
 
     if (error) {
+      const { status, message } = mapPollCreationError(error);
       return NextResponse.json(
-        { error: error.message || "Failed to create poll" },
-        { status: 500 }
+        { error: message },
+        { status }
       );
     }
 

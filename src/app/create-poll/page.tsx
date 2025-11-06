@@ -2,9 +2,10 @@
 
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useSupabase } from "@/hooks/useSupabase";
+import { type CreatePollInput, createPollSchema } from "@/lib/validation/poll";
 
 export default function CreatePollPage() {
   const router = useRouter();
@@ -108,38 +109,63 @@ export default function CreatePollPage() {
     e.preventDefault();
     setError(null);
 
-    if (!question.trim()) {
-      setError("질문을 입력해주세요.");
-      return;
-    }
-    if (options.some((opt) => !opt.trim())) {
-      setError("모든 선택지 내용을 채워주세요.");
-      return;
-    }
-    if (!expiresAt) {
-      setError("만료 시간을 설정해주세요.");
+    const payload: CreatePollInput = {
+      question,
+      options,
+      isPublic,
+      expiresAt: expiresAt || null,
+    };
+
+    const parsed = createPollSchema.safeParse(payload);
+
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      setError(issue?.message ?? "입력값을 확인해주세요.");
       return;
     }
 
     setIsLoading(true);
 
-    const { data: newPollId, error: rpcError } = await supabase.rpc(
-      "create_new_poll",
-      {
-        question_text: question,
-        option_texts: options,
-        is_public: isPublic,
-        expires_at_param: new Date(expiresAt).toISOString(),
-      }
-    );
+    try {
+      const response = await fetch("/api/polls", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(parsed.data),
+      });
 
-    if (rpcError) {
-      console.error("Error creating poll:", rpcError);
-      setError(`투표 생성 중 오류가 발생했습니다: ${rpcError.message}`);
+      let result: { pollId?: string; error?: string } | null = null;
+
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError("세션이 만료되었습니다. 다시 로그인해 주세요.");
+          router.push("/signin?redirect=/create-poll");
+          return;
+        }
+
+        setError(
+          result?.error || "투표 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        );
+        return;
+      }
+
+      if (result?.pollId) {
+        router.push(`/poll/${result.pollId}`);
+      } else {
+        router.push("/");
+      }
+    } catch (err) {
+      console.error("Error creating poll:", err);
+      setError("투표 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
       setIsLoading(false);
-    } else {
-      console.log("Successfully created poll with ID:", newPollId);
-      router.push(`/poll/${newPollId}`);
     }
   };
 

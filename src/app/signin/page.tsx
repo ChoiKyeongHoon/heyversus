@@ -14,6 +14,24 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const supabase = createClient();
 
+  const getSafeRedirectPath = (target: string | null) => {
+    if (typeof window === "undefined" || !target) {
+      return "/";
+    }
+
+    try {
+      const url = new URL(target, window.location.origin);
+
+      if (url.origin !== window.location.origin) {
+        return "/";
+      }
+
+      return `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      return target.startsWith("/") ? target : "/";
+    }
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -30,7 +48,7 @@ export default function LoginPage() {
       );
     } else {
       // 리디렉션 URL을 가져오거나 기본값으로 '/'를 사용합니다.
-      const redirectPath = searchParams.get('redirect') || '/';
+      const redirectPath = getSafeRedirectPath(searchParams.get("redirect"));
       // router.push() 대신 window.location.assign()을 사용하여 전체 페이지를 새로고침합니다.
       // 이렇게 하면 서버가 새로운 세션 쿠키를 확실하게 읽어들일 수 있습니다.
       window.location.assign(redirectPath);
