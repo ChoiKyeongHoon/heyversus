@@ -336,7 +336,11 @@ export default function PollsClientInfinite({
         })}
 
         {hasNextPage && (
-          <LoadMoreTrigger onLoadMore={() => fetchNextPage()} isLoading={isFetchingNextPage} />
+          <LoadMoreTrigger
+            onLoadMore={() => fetchNextPage()}
+            isLoading={isFetchingNextPage}
+            hasMore={Boolean(hasNextPage)}
+          />
         )}
       </div>
     );
