@@ -1,0 +1,53 @@
+"use client";
+
+import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
+
+interface PollsHeroProps {
+  stats: Array<{ label: string; value: string; helper?: string }>;
+}
+
+export function PollsHero({ stats }: PollsHeroProps) {
+  return (
+    <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-background to-background p-6 md:p-10">
+      <div className="space-y-4 md:space-y-6">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-text-tertiary">
+            Explore & Vote
+          </p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-text-primary sm:text-3xl md:text-4xl">
+            다양한 투표를 발견하고 <span className="text-primary">당신의 선택</span>을 보여주세요.
+          </h1>
+          <p className="mt-3 text-sm text-text-secondary md:text-base">
+            실시간으로 갱신되는 인기 투표와 마감 임박한 주제를 한눈에 확인하고, 단 한 번의 클릭으로 참여해 보세요.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-2xl border border-border bg-background/70 px-4 py-3"
+            >
+              <p className="text-xs text-text-tertiary">{stat.label}</p>
+              <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
+              {stat.helper ? (
+                <p className="text-xs text-text-secondary">{stat.helper}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button asChild size="lg" className="font-semibold">
+            <Link href="/create-poll">새 투표 만들기</Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="font-semibold">
+            <Link href="/favorites">즐겨찾기 보기</Link>
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
