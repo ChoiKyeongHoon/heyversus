@@ -360,6 +360,9 @@ export default function PollsClientInfinite({
               onSortByChange={(val) => updateUrlParams({ sortBy: val })}
               onSortOrderChange={(val) => updateUrlParams({ sortOrder: val })}
               onFilterStatusChange={(val) => updateUrlParams({ filterStatus: val })}
+              onSortChange={({ sortBy: nextSortBy, sortOrder: nextSortOrder }) =>
+                updateUrlParams({ sortBy: nextSortBy, sortOrder: nextSortOrder })
+              }
               totalCount={totalCount}
             />
           </div>

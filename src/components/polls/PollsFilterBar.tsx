@@ -9,6 +9,7 @@ interface PollsFilterBarProps {
   onSortByChange: (_value: SortBy) => void;
   onSortOrderChange: (_value: SortOrder) => void;
   onFilterStatusChange: (_value: FilterStatus) => void;
+  onSortChange?: (_value: { sortBy: SortBy; sortOrder: SortOrder }) => void;
   totalCount?: number;
 }
 
@@ -25,6 +26,7 @@ export function PollsFilterBar({
   onSortByChange,
   onSortOrderChange,
   onFilterStatusChange,
+  onSortChange,
   totalCount,
 }: PollsFilterBarProps) {
   // Combine sortBy and sortOrder into a single select for better mobile UX
@@ -32,8 +34,12 @@ export function PollsFilterBar({
 
   const handleSortChange = (value: string) => {
     const [newSortBy, newSortOrder] = value.split('-') as [SortBy, SortOrder];
-    onSortByChange(newSortBy);
-    onSortOrderChange(newSortOrder);
+    if (onSortChange) {
+      onSortChange({ sortBy: newSortBy, sortOrder: newSortOrder });
+    } else {
+      onSortByChange(newSortBy);
+      onSortOrderChange(newSortOrder);
+    }
   };
 
   return (
