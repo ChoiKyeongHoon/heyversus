@@ -8,7 +8,7 @@ const USERNAME_REGEX = /^[가-힣a-zA-Z0-9_-]+$/;
  */
 export const profileUpdateSchema = z.object({
   username: z
-    .string({ required_error: "사용자명을 입력해주세요." })
+    .string()
     .trim()
     .min(3, "사용자명은 최소 3자 이상이어야 합니다.")
     .max(30, "사용자명은 최대 30자까지 가능합니다.")
