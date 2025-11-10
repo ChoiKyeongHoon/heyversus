@@ -1,12 +1,12 @@
 "use client";
 
-import { useSearchParams } from 'next/navigation';
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
+import { GradientSpinner } from "@/components/ui/loader";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
-
+function SignInForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -122,5 +122,19 @@ export default function LoginPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center py-12">
+          <GradientSpinner />
+        </div>
+      }
+    >
+      <SignInForm />
+    </Suspense>
   );
 }
