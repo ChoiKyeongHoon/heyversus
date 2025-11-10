@@ -23,9 +23,7 @@ export const createPollSchema = z
         `질문은 최대 ${MAX_QUESTION_LENGTH}자까지 가능합니다.`
       ),
     options: z
-      .array(optionSchema, {
-        invalid_type_error: "선택지 형식이 올바르지 않습니다.",
-      })
+      .array(optionSchema)
       .min(MIN_OPTIONS, `선택지는 최소 ${MIN_OPTIONS}개 이상이어야 합니다.`)
       .max(MAX_OPTIONS, `선택지는 최대 ${MAX_OPTIONS}개까지 추가할 수 있습니다.`)
       .transform((opts) => opts.map((opt) => opt.trim()))
