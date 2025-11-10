@@ -207,6 +207,12 @@ erDiagram
 
 ## 📌 업데이트 기록
 
+### v0.6.4
+
+- **투표 상태 훅 안정화**: `useVoteStatus`가 전달받은 투표 ID 목록을 비교한 뒤에만 상태를 갱신하도록 수정해, CSR 환경에서 무한 업데이트가 발생하지 않도록 했습니다.
+- **대표 투표 카드 에러 수정**: `FeaturedPollClient`에서 제거된 `isStatusLoading` 변수를 계속 참조해 런타임 오류가 나던 문제를 해결하고, 카드가 즉시 투표/완료 상태를 표시하도록 단순화했습니다.
+- **문서 반영**: Roadmap과 PERFORMANCE_PLAN의 Step 14(3.4) 항목에 투표 상태 공통 훅/불필요 라우트 제거 작업을 완료로 기록했습니다.
+
 ### v0.6.3
 
 - **Poll 상세 CSR 전환**: `/poll/[id]` 페이지가 서버 세션 조회 대신 React Query 기반 클라이언트 패칭으로 동작합니다. `PollPageClient`가 `/api/polls/[id]`를 호출해 접근 제어를 유지하면서도 TTFB를 줄이고, 가시성 변화 시에는 쿼리만 무효화하여 최신 상태를 반영합니다.
@@ -214,6 +220,8 @@ erDiagram
 - **Polls 초기 데이터 프리패치**: `/polls` 서버 컴포넌트에서 기본 필터 값을 기준으로 `prefetchInfiniteQuery` + `HydrationBoundary`로 첫 페이지를 미리 주입해, 클라이언트 JS 로딩 전에 즉시 목록을 확인할 수 있습니다. 세션이 확인되면 자동으로 캐시를 무효화해 사용자별 상태를 새로고칩니다.
 - **Score 페이지 정적화**: 리더보드 데이터는 Supabase 익명 클라이언트로 가져오고 `revalidate = 120`을 적용해, 실시간성이 크게 필요하지 않은 통계를 CDN 캐시에서 빠르게 제공합니다.
 - **공용 Supabase 클라이언트 도입**: `getAnonServerClient()`를 추가해 세션이 필요 없는 쿼리는 쿠키에 의존하지 않고 호출할 수 있게 되었으며, Polls 프리패치·Score 페이지에서 재사용됩니다.
+- **투표 상태 공통 훅**: `useVoteStatus` 훅으로 Polls 목록/추천 카드의 투표 여부 계산을 일원화하여 중복된 localStorage 접근과 세션 감시 로직을 제거했습니다.
+- **개발 전용 페이지 정리**: 프로덕션 번들에서 불필요한 `/test-sentry` 라우트를 제거해 빌드 크기를 줄였습니다 (필요 시 로컬 브랜치에서만 사용).
 
 ### v0.6.2
 
@@ -401,7 +409,7 @@ erDiagram
 - **상수 중앙화**: `src/constants/` 디렉터리를 추가하고 `STORAGE_KEYS`, `CACHE_TAGS`, `CACHE_TIMES`, `DEFAULTS` 등 매직 스트링/넘버를 한 곳에서 관리. 코드 일관성 및 유지보수성 개선.
 - **컴포넌트 구조 개선**: `components/layout/` 디렉터리를 생성하고 Navbar 컴포넌트를 이동. App Router 컨벤션에 맞춰 `*Client.tsx` 컴포넌트는 해당 route 디렉터리에 유지.
 - **타입 안전성 강화**: `useLocalStorage<T>` 제네릭 훅으로 localStorage 사용 시 타입 안전성 보장. 다른 탭/윈도우 간 storage 이벤트 동기화 지원.
-- **Sentry 통합**: `@sentry/nextjs`를 도입하여 프로덕션 에러 모니터링, 성능 추적, 세션 리플레이 기능 추가. Error Boundary (`error.tsx`, `global-error.tsx`)로 에러 자동 캡처 및 사용자 친화적 UI 제공. `/test-sentry` 페이지로 통합 테스트 가능. (사용 여부 추후 결정)
+- **Sentry 통합**: `@sentry/nextjs`를 도입하여 프로덕션 에러 모니터링, 성능 추적, 세션 리플레이 기능 추가. Error Boundary (`error.tsx`, `global-error.tsx`)로 에러 자동 캡처 및 사용자 친화적 UI 제공.
 - **코드 품질**: `npm run lint` 및 `npm run build` 모두 통과. 런타임 에러 없이 모든 페이지 정상 작동 확인.
 
 ### v0.2.1

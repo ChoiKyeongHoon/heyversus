@@ -127,7 +127,7 @@
   - `src/app/error.tsx` - 페이지 레벨 에러 처리 (shadcn/ui 스타일)
   - `src/app/global-error.tsx` - 전역 에러 처리 (inline 스타일)
   - 자동 Sentry.captureException() 통합
-- ✅ **테스트 페이지**: `/test-sentry` 페이지 생성으로 5가지 에러 유형 테스트 가능
+- ✅ **테스트 페이지**: `/test-sentry` 페이지 생성으로 5가지 에러 유형 테스트 가능 *(현재는 개발 환경에서만 사용하며 프로덕션 번들에서는 제외됨)*
   - 클라이언트 에러, 비동기 에러, 수동 캡처, 메시지 전송, Error Boundary 트리거
 - ✅ **빌드 검증**: TypeScript 타입 에러 수정 (`jest.setup.ts`), `npm run lint` 및 `npm run build` 통과
 
@@ -547,6 +547,11 @@
 4. **데이터 패칭 전략 다변화** ✅  
    - `/poll/[id]` 페이지를 React Query 기반 CSR로 전환하여 SSR 시점의 쿠키 의존도를 제거하고, 투표 완료/탭 복귀 시 특정 쿼리만 무효화하도록 개선했습니다.  
    - `/polls` 서버 컴포넌트에서 Infinite Query 첫 페이지를 `HydrationBoundary`로 주입해 초기 로딩 시간을 절감하고, `/score` 페이지는 익명 Supabase 클라이언트 + `revalidate=120`으로 캐시 친화적으로 전환했습니다.
+
+5. **번들 & 개발 자산 정리** ✅  
+   - 투표 여부 계산을 `useVoteStatus` 훅 하나로 통합해 Polls 전반의 중복 localStorage/세션 로직을 제거하고 번들 크기를 줄였습니다.  
+   - 관련 런타임 오류(`useVoteStatus` 무한 업데이트, 대표 투표 카드 로딩 상태)를 함께 수정했습니다.  
+   - 프로덕션 번들에서 사용되지 않는 `/test-sentry` 개발용 페이지를 제거해 불필요한 라우트를 없앴습니다.
 
 ### 검증 및 후속 과제
 

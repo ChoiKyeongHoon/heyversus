@@ -11,11 +11,10 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { LoadMoreTrigger } from "@/components/polls/LoadMoreTrigger";
 import { PollsFilterBar } from "@/components/polls/PollsFilterBar";
 import { Button } from "@/components/ui/button";
-import { STORAGE_KEYS } from "@/constants/storage";
 import { useInfinitePolls } from "@/hooks/useInfinitePolls";
-import { useSession } from "@/hooks/useSession";
 import { useSupabase } from "@/hooks/useSupabase";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
+import { useVoteStatus } from "@/hooks/useVoteStatus";
 import type {
   FilterStatus,
   PollsResponse,
@@ -44,7 +43,6 @@ export default function PollsClientInfinite({
   const searchParams = useSearchParams();
   const supabase = useSupabase();
   const queryClient = useQueryClient();
-  const { session } = useSession();
 
   // Get filter/sort params from URL
   const sortBy = (searchParams.get('sortBy') as SortBy) || 'created_at';
@@ -66,8 +64,6 @@ export default function PollsClientInfinite({
     filterStatus,
   });
 
-  const [votedPolls, setVotedPolls] = useState<string[]>([]);
-  const [anonymousVotedPolls, setAnonymousVotedPolls] = useState<string[]>([]);
   const [selectedOptionIds, setSelectedOptionIds] = useState<
     Record<string, string | null>
   >({});
@@ -106,29 +102,17 @@ export default function PollsClientInfinite({
     [data?.pages]
   );
   const totalCount = data?.pages[0]?.pagination.total;
+  const serverVotedIds = useMemo(
+    () => polls.filter((p) => p.has_voted).map((p) => p.id),
+    [polls]
+  );
+  const { session, hasVoted, markVoted } = useVoteStatus(serverVotedIds);
 
   useEffect(() => {
     if (session) {
       queryClient.invalidateQueries({ queryKey: ['polls', 'infinite'] });
     }
   }, [session, queryClient]);
-
-  // Load anonymous votes from localStorage
-  useEffect(() => {
-    if (!session) {
-      const storedVotes = localStorage.getItem(STORAGE_KEYS.VOTED_POLLS);
-      if (storedVotes) {
-        setAnonymousVotedPolls(JSON.parse(storedVotes));
-      }
-    }
-  }, [session]);
-
-  // Extract voted polls from data
-  useEffect(() => {
-    if (polls.length > 0) {
-      setVotedPolls(polls.filter((p) => p.has_voted).map((p) => p.id));
-    }
-  }, [polls]);
 
   // URL param update helper
   const updateUrlParams = useCallback(
@@ -177,9 +161,7 @@ export default function PollsClientInfinite({
       return;
     }
 
-    const isAlreadyVoted = session
-      ? votedPolls.includes(pollId)
-      : anonymousVotedPolls.includes(pollId);
+    const isAlreadyVoted = hasVoted(pollId);
 
     if (isAlreadyVoted) {
       toast.warning("이미 이 투표에 참여했습니다.");
@@ -195,7 +177,7 @@ export default function PollsClientInfinite({
       console.error("Error voting:", error);
       if (error.message.includes("User has already voted")) {
         toast.warning("이미 이 투표에 참여했습니다.");
-        setVotedPolls((current) => [...current, pollId]);
+        markVoted(pollId);
       } else if (error.message.includes("Authentication required")) {
         toast.error("이 투표는 로그인이 필요합니다.");
       } else {
@@ -203,16 +185,7 @@ export default function PollsClientInfinite({
       }
     } else {
       // Record vote completion
-      if (session) {
-        setVotedPolls((current) => [...current, pollId]);
-      } else {
-        const updatedAnonymousVotes = [...anonymousVotedPolls, pollId];
-        setAnonymousVotedPolls(updatedAnonymousVotes);
-        localStorage.setItem(
-          STORAGE_KEYS.VOTED_POLLS,
-          JSON.stringify(updatedAnonymousVotes)
-        );
-      }
+      markVoted(pollId);
 
       setSelectedOptionIds((prev) => ({
         ...prev,
@@ -354,9 +327,7 @@ export default function PollsClientInfinite({
             0
           );
           const isPollClosed = poll.status === 'closed' || isPollExpired(poll.expires_at);
-          const hasVoted = session
-            ? votedPolls.includes(poll.id)
-            : anonymousVotedPolls.includes(poll.id);
+          const hasUserVoted = hasVoted(poll.id);
           const selectedOption = selectedOptionIds[poll.id];
 
           return (
@@ -398,7 +369,7 @@ export default function PollsClientInfinite({
                 </p>
 
                 {/* Poll Options */}
-                {!hasVoted && !isPollClosed && (
+                {!hasUserVoted && !isPollClosed && (
                   <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
                     {poll.poll_options.map((option) => (
                       <div
@@ -445,7 +416,7 @@ export default function PollsClientInfinite({
                       투표하기
                     </Button>
                   )}
-                  {hasVoted && !isPollClosed && (
+                  {hasUserVoted && !isPollClosed && (
                     <span className="text-success font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center">
                       ✓ 투표 완료
                     </span>
@@ -460,7 +431,7 @@ export default function PollsClientInfinite({
                 </div>
 
                 {/* Results Section */}
-                {(hasVoted || isPollClosed) && (
+                {(hasUserVoted || isPollClosed) && (
                   <div className="space-y-2 md:space-y-3">
                     <h4 className="text-base md:text-lg font-semibold text-text-primary">
                       투표 결과

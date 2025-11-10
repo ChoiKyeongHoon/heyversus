@@ -1,18 +1,17 @@
 "use client";
 
-import { Session } from "@supabase/supabase-js";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect,useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
-import { STORAGE_KEYS } from "@/constants/storage";
 import { useSupabase } from "@/hooks/useSupabase";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
+import { useVoteStatus } from "@/hooks/useVoteStatus";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate,isPollExpired } from "@/lib/utils";
 
@@ -38,13 +37,11 @@ export default function PollsClient({
   const pathname = usePathname();
   const supabase = useSupabase();
   const [polls, setPolls] = useState(serverPolls);
-  const [session, setSession] = useState<Session | null>(null);
-  // DB에 기록된, 로그인한 유저의 투표 기록
-  const [votedPolls, setVotedPolls] = useState<string[]>(() =>
-    serverPolls.filter((p) => p.has_voted).map((p) => p.id)
+  const serverVotedIds = useMemo(
+    () => polls.filter((p) => p.has_voted).map((p) => p.id),
+    [polls]
   );
-  // 로컬 스토리지에 기록된, 비로그인 유저의 투표 기록
-  const [anonymousVotedPolls, setAnonymousVotedPolls] = useState<string[]>([]);
+  const { session, hasVoted, markVoted } = useVoteStatus(serverVotedIds);
   const [selectedOptionIds, setSelectedOptionIds] = useState<
     Record<string, string | null>
   >({});
@@ -57,7 +54,6 @@ export default function PollsClient({
     // serverPolls prop이 변경될 때마다 내부 상태를 동기화합니다.
     // router.refresh() 등으로 부모 컴포넌트의 데이터가 갱신되면 이 부분이 실행됩니다.
     setPolls(serverPolls);
-    setVotedPolls(serverPolls.filter((p) => p.has_voted).map((p) => p.id));
     setSelectedOptionIds({});
   }, [serverPolls]);
 
@@ -65,33 +61,6 @@ export default function PollsClient({
   useVisibilityChange(() => {
     router.refresh();
   });
-
-  useEffect(() => {
-    // 세션 정보 가져오기 및 인증 상태 변경 감지
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [supabase]);
-
-  // 비로그인 사용자일 경우에만 로컬 스토리지에서 투표 기록을 불러옵니다.
-  useEffect(() => {
-    if (!session) {
-      const storedVotes = localStorage.getItem(STORAGE_KEYS.VOTED_POLLS);
-      if (storedVotes) {
-        setAnonymousVotedPolls(JSON.parse(storedVotes));
-      }
-    }
-  }, [session]);
 
   const getTimeRemaining = (expiresAt: string | null): string => {
     if (!expiresAt) return "";
@@ -126,9 +95,7 @@ export default function PollsClient({
       return;
     }
 
-    const isAlreadyVoted = session
-      ? votedPolls.includes(pollId)
-      : anonymousVotedPolls.includes(pollId);
+    const isAlreadyVoted = hasVoted(pollId);
 
     if (isAlreadyVoted) {
       toast.warning("이미 이 투표에 참여했습니다.");
@@ -144,7 +111,7 @@ export default function PollsClient({
       console.error("Error voting:", error);
       if (error.message.includes("User has already voted")) {
         toast.warning("이미 이 투표에 참여했습니다.");
-        setVotedPolls((current) => [...current, pollId]);
+        markVoted(pollId);
       } else if (error.message.includes("Authentication required")) {
         toast.error("이 투표는 로그인이 필요합니다.");
       } else {
@@ -167,17 +134,7 @@ export default function PollsClient({
         })
       );
 
-      // 투표 완료 상태를 기록합니다.
-      if (session) {
-        setVotedPolls((current) => [...current, pollId]);
-      } else {
-        const updatedAnonymousVotes = [...anonymousVotedPolls, pollId];
-        setAnonymousVotedPolls(updatedAnonymousVotes);
-        localStorage.setItem(
-          STORAGE_KEYS.VOTED_POLLS,
-          JSON.stringify(updatedAnonymousVotes)
-        );
-      }
+      markVoted(pollId);
 
       setSelectedOptionIds((prev) => ({
         ...prev,
@@ -210,10 +167,6 @@ export default function PollsClient({
             );
           });
           if (removeOnUnfavorite && !isFavorited) {
-            setVotedPolls((current) => current.filter((id) => id !== pollId));
-            setAnonymousVotedPolls((current) =>
-              current.filter((id) => id !== pollId)
-            );
             setSelectedOptionIds((prev) => {
               const rest = { ...prev };
               delete rest[pollId];
@@ -275,9 +228,7 @@ export default function PollsClient({
         ) : (
           polls.map((poll) => {
             // 로그인 상태에 따라 투표 여부를 확인합니다.
-            const isVoted = session
-              ? votedPolls.includes(poll.id)
-              : anonymousVotedPolls.includes(poll.id);
+          const isVoted = hasVoted(poll.id);
             const isFavorited = Boolean(poll.is_favorited);
 
             // 각 투표의 총 투표수를 계산합니다.

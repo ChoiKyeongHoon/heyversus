@@ -6,10 +6,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { STORAGE_KEYS } from "@/constants/storage";
-import { useSession } from "@/hooks/useSession";
 import { useSupabase } from "@/hooks/useSupabase";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
+import { useVoteStatus } from "@/hooks/useVoteStatus";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate } from "@/lib/utils";
 
@@ -23,9 +22,9 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error] = useState<string | null>(null);
 
-  const { session } = useSession();
-  const [hasVoted, setHasVoted] = useState(initialPoll.has_voted || false);
-  const [isStatusLoading, setIsStatusLoading] = useState(true);
+  const { hasVoted, markVoted } = useVoteStatus(
+    initialPoll.has_voted ? [initialPoll.id] : []
+  );
 
   const router = useRouter();
   const supabase = useSupabase();
@@ -36,37 +35,8 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
   });
 
   useEffect(() => {
-    // initialPoll prop이 변경될 때마다 내부 상태를 동기화합니다.
     setPoll(initialPoll);
-
-    if (session) {
-      setHasVoted(initialPoll.has_voted || false);
-    } else {
-      const votedPolls = JSON.parse(
-        localStorage.getItem(STORAGE_KEYS.VOTED_POLLS) || "[]"
-      );
-      setHasVoted(votedPolls.includes(initialPoll.id));
-    }
-  }, [initialPoll, session]);
-
-  useEffect(() => {
-    // 로그인 상태가 확정된 후 투표 상태를 결정
-    if (session) {
-      // 로그인 사용자는 서버에서 내려준 has_voted 값을 신뢰
-      setHasVoted(initialPoll.has_voted || false);
-    } else {
-      // 비로그인 사용자는 localStorage 확인
-      const votedPolls = JSON.parse(
-        localStorage.getItem(STORAGE_KEYS.VOTED_POLLS) || "[]"
-      );
-      if (votedPolls.includes(poll.id)) {
-        setHasVoted(true);
-      } else {
-        setHasVoted(false);
-      }
-    }
-    setIsStatusLoading(false);
-  }, [poll.id, initialPoll.has_voted, session]);
+  }, [initialPoll]);
 
   const getTimeRemaining = (expiresAt: string | null): string => {
     if (!expiresAt) return "기간 설정 없음";
@@ -110,20 +80,7 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
         throw new Error(rpcError.message);
       }
 
-      // 비로그인 사용자를 위해 로컬 스토리지에 기록
-      if (!session) {
-        const votedPolls = JSON.parse(
-          localStorage.getItem(STORAGE_KEYS.VOTED_POLLS) || "[]"
-        );
-        if (!votedPolls.includes(poll.id)) {
-          votedPolls.push(poll.id);
-          localStorage.setItem(
-            STORAGE_KEYS.VOTED_POLLS,
-            JSON.stringify(votedPolls)
-          );
-        }
-      }
-
+      markVoted(poll.id);
       toast.success("투표 성공! 결과 페이지로 이동합니다.");
       router.push(`/poll/${poll.id}`);
     } catch (e: unknown) {
@@ -146,6 +103,7 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
   const isPollClosed =
     poll.status === "closed" ||
     (poll.expires_at && new Date(poll.expires_at) < new Date());
+  const alreadyVoted = hasVoted(poll.id);
 
   return (
     <div
@@ -182,12 +140,12 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
                 key={option.id}
                 className="text-center"
                 onClick={() =>
-                  !isPollClosed && !hasVoted && handleSelectOption(option.id)
+                  !isPollClosed && !alreadyVoted && handleSelectOption(option.id)
                 }
               >
                 <div
                   className={`group transform transition-all duration-300 ${
-                    !isPollClosed && !hasVoted
+                    !isPollClosed && !alreadyVoted
                       ? "cursor-pointer hover:scale-105"
                       : "cursor-not-allowed"
                   }`}
@@ -214,7 +172,7 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
                       </div>
                     )}
                     <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-md text-xs md:text-sm">
-                      {hasVoted || isPollClosed
+                      {alreadyVoted || isPollClosed
                         ? `${option.votes} 표 (${percentage}%)`
                         : `${option.votes} 표`}
                     </div>
@@ -260,18 +218,11 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
           <p className="text-red-500 text-xs md:text-sm text-center mb-4">{error}</p>
         )}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-          {isStatusLoading ? (
-            <button
-              disabled
-              className="w-full sm:w-auto bg-gray-400 text-white font-semibold py-2.5 md:py-3 px-4 md:px-6 rounded-md transition-colors duration-200 text-sm md:text-base lg:text-lg cursor-not-allowed min-h-[44px]"
-            >
-              확인 중...
-            </button>
-          ) : isPollClosed ? (
+          {isPollClosed ? (
             <span className="text-text-secondary font-semibold py-2.5 md:py-3 px-4 md:px-6 flex items-center text-sm md:text-base">
               마감됨
             </span>
-          ) : hasVoted ? (
+          ) : alreadyVoted ? (
             <span className="text-green-600 font-semibold py-2.5 md:py-3 px-4 md:px-6 flex items-center text-sm md:text-base">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
