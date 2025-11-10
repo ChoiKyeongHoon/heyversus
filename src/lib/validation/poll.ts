@@ -7,7 +7,7 @@ const MAX_OPTION_LENGTH = 120;
 const MAX_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 const optionSchema = z
-  .string({ required_error: "선택지를 입력해주세요." })
+  .string()
   .trim()
   .min(1, "선택지는 최소 1자 이상이어야 합니다.")
   .max(MAX_OPTION_LENGTH, `선택지는 최대 ${MAX_OPTION_LENGTH}자까지 가능합니다.`);
@@ -15,7 +15,7 @@ const optionSchema = z
 export const createPollSchema = z
   .object({
     question: z
-      .string({ required_error: "질문을 입력해주세요." })
+      .string()
       .trim()
       .min(3, "질문은 최소 3자 이상이어야 합니다.")
       .max(
