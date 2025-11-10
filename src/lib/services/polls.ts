@@ -1,7 +1,9 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 
 import { DEFAULTS } from "@/constants/app";
 import { CACHE_TAGS, CACHE_TIMES } from "@/constants/cache";
+import { getAnonServerClient } from "@/lib/supabase/anon-server";
 import { createClient } from "@/lib/supabase/server";
 import type {
   FilterStatus,
@@ -68,8 +70,52 @@ export async function getPolls() {
  * @param params - 페이지네이션, 정렬, 필터링 파라미터
  * @returns 투표 목록과 페이지네이션 메타데이터
  */
+async function fetchPaginatedPolls(
+  supabase: SupabaseClient,
+  params: Required<GetPollsParams>
+): Promise<{ data: PollsResponse | null; error: Error | null }> {
+  const { limit, offset, sortBy, sortOrder, filterStatus } = params;
+
+  const { data, error } = await supabase.rpc("get_polls_paginated", {
+    p_limit: limit,
+    p_offset: offset,
+    p_sort_by: sortBy,
+    p_sort_order: sortOrder,
+    p_filter_status: filterStatus,
+  });
+
+  if (error) {
+    console.error("Error fetching paginated polls:", error);
+    return { data: null, error };
+  }
+
+  const polls = (data || []) as Array<PollWithOptions & { total_count: number }>;
+  const total = polls.length > 0 ? polls[0].total_count : 0;
+  const cleanedPolls: PollWithOptions[] = polls.map((poll) => {
+    const rest = { ...poll } as Record<string, unknown>;
+    delete rest.total_count;
+    return rest as PollWithOptions;
+  });
+  const hasNextPage = offset + limit < total;
+  const nextOffset = hasNextPage ? offset + limit : null;
+
+  const response: PollsResponse = {
+    data: cleanedPolls,
+    pagination: {
+      total,
+      limit,
+      offset,
+      hasNextPage,
+      nextOffset,
+    },
+  };
+
+  return { data: response, error: null };
+}
+
 export async function getPollsPaginated(
-  params: GetPollsParams = {}
+  params: GetPollsParams = {},
+  options?: { useAnonClient?: boolean }
 ): Promise<{ data: PollsResponse | null; error: Error | null }> {
   const {
     limit = 20,
@@ -80,48 +126,17 @@ export async function getPollsPaginated(
   } = params;
 
   try {
-    const supabase = await createClient();
+    const supabase = options?.useAnonClient
+      ? getAnonServerClient()
+      : await createClient();
 
-    const { data, error } = await supabase.rpc("get_polls_paginated", {
-      p_limit: limit,
-      p_offset: offset,
-      p_sort_by: sortBy,
-      p_sort_order: sortOrder,
-      p_filter_status: filterStatus,
+    return fetchPaginatedPolls(supabase, {
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      filterStatus,
     });
-
-    if (error) {
-      console.error("Error fetching paginated polls:", error);
-      return { data: null, error };
-    }
-
-    // Parse the response
-    // The RPC returns an array of rows, each with total_count
-    const polls = (data || []) as Array<PollWithOptions & { total_count: number }>;
-
-    // Extract total count from first row (all rows have same total_count)
-    const total = polls.length > 0 ? polls[0].total_count : 0;
-
-    // Remove total_count from poll objects using destructuring
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const cleanedPolls: PollWithOptions[] = polls.map(({ total_count: _, ...poll }) => poll);
-
-    // Calculate pagination metadata
-    const hasNextPage = offset + limit < total;
-    const nextOffset = hasNextPage ? offset + limit : null;
-
-    const response: PollsResponse = {
-      data: cleanedPolls,
-      pagination: {
-        total,
-        limit,
-        offset,
-        hasNextPage,
-        nextOffset,
-      },
-    };
-
-    return { data: response, error: null };
   } catch (error) {
     console.error("Unexpected error fetching paginated polls:", error);
     return { data: null, error: error as Error };

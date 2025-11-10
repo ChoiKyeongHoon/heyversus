@@ -1,10 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { getAnonServerClient } from "@/lib/supabase/anon-server";
 
-// Ensure server rendering executes on every request (dynamic data)
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
 
 async function getProfiles() {
-  const supabase = await createClient();
+  const supabase = getAnonServerClient();
   const { data, error } = await supabase
     .from("profiles")
     .select("username, points")

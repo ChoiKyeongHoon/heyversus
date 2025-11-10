@@ -107,6 +107,12 @@ export default function PollsClientInfinite({
   );
   const totalCount = data?.pages[0]?.pagination.total;
 
+  useEffect(() => {
+    if (session) {
+      queryClient.invalidateQueries({ queryKey: ['polls', 'infinite'] });
+    }
+  }, [session, queryClient]);
+
   // Load anonymous votes from localStorage
   useEffect(() => {
     if (!session) {

@@ -1,30 +1,33 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { STORAGE_KEYS } from "@/constants/storage";
 import { usePollVote } from "@/hooks/usePollVote";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import type { PollWithOptions } from "@/lib/types";
-import { formatExpiryDate,isPollExpired } from "@/lib/utils";
+import { formatExpiryDate, isPollExpired } from "@/lib/utils";
 
 interface PollClientProps {
   poll: PollWithOptions;
+  onRefresh?: () => void;
 }
 
-export default function PollClient({ poll }: PollClientProps) {
-  const router = useRouter();
-  const voteMutation = usePollVote();
+export default function PollClient({ poll, onRefresh }: PollClientProps) {
+  const voteMutation = usePollVote({
+    onSuccess: () => {
+      onRefresh?.();
+    },
+  });
   // `has_voted`는 서버에서 내려온, 로그인 사용자의 투표 여부입니다.
   const [isVoted, setIsVoted] = useState(poll.has_voted || false);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
 
   // 탭 전환 시 자동 새로고침
   useVisibilityChange(() => {
-    router.refresh();
+    onRefresh?.();
   });
 
   // poll prop이 변경될 때마다 내부 상태를 동기화합니다.
@@ -232,4 +235,3 @@ export default function PollClient({ poll }: PollClientProps) {
     </div>
   );
 }
-

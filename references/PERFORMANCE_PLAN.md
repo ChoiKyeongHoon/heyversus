@@ -31,11 +31,11 @@
 - ✅ 네비게이션은 클라이언트 훅(`useSession`, `useCurrentProfile`)으로 전환해 로그인 상태에 따라 필요한 데이터만 가져옴.
 
 ### 3.2 데이터 캐싱 전략 재구성
-1. `/poll/[id]`, `/score`에 `revalidate` 주기를 도입하고, 투표/포인트 변경 시 `revalidateTag` 활용.
+1. `/poll/[id]`, `/score`에 `revalidate` 주기를 도입하고, 투표/포인트 변경 시 `revalidateTag` 활용. *(진행 중 — `/score`는 `revalidate=120` 적용 완료, `/poll/[id]`는 CSR 전환으로 SSR 의존 제거)*
 2. `/` 대표 투표는 기본 데이터를 ISR로 제공하고, `has_voted` 같은 사용자 의존 정보는 클라이언트에서 병합.
 
 ### 3.3 클라이언트 패칭 최적화
-- ⏳ `PollsClientInfinite` 초기 결과를 서버에서 프리패치 후 React Query `dehydrate`로 전달.
+- ✅ `PollsClientInfinite` 초기 결과를 서버에서 프리패치 후 React Query `dehydrate`로 전달.
 - ✅ `router.refresh()` 호출 위치를 집약하고, 투표/즐겨찾기는 React Query 캐시 갱신 + `invalidateQueries`로 대체.
 
 ### 3.4 번들 및 공통 로직 정리

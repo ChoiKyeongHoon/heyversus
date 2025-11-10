@@ -1,7 +1,7 @@
 # Heyversus
 
 🔗 Link : https://heyversus.vercel.app/
-📦 Version : v0.6.1
+📦 Version : v0.6.3
 
 **Heyversus**는 사용자가 직접 투표를 생성하고 참여할 수 있는 동적인 웹 애플리케이션입니다. Next.js와 Supabase를 기반으로 구축되어 있으며, 실시간 투표 결과와 사용자 인증, 포인트 시스템을 제공합니다.
 
@@ -207,6 +207,14 @@ erDiagram
 
 ## 📌 업데이트 기록
 
+### v0.6.3
+
+- **Poll 상세 CSR 전환**: `/poll/[id]` 페이지가 서버 세션 조회 대신 React Query 기반 클라이언트 패칭으로 동작합니다. `PollPageClient`가 `/api/polls/[id]`를 호출해 접근 제어를 유지하면서도 TTFB를 줄이고, 가시성 변화 시에는 쿼리만 무효화하여 최신 상태를 반영합니다.
+- **투표 액션 연동 최적화**: `usePollVote`가 `router.refresh()` 의존 대신 콜백 방식으로 동작해, 투표 후 필요한 쿼리(`poll-detail`)만 invalidation 하도록 변경했습니다.
+- **Polls 초기 데이터 프리패치**: `/polls` 서버 컴포넌트에서 기본 필터 값을 기준으로 `prefetchInfiniteQuery` + `HydrationBoundary`로 첫 페이지를 미리 주입해, 클라이언트 JS 로딩 전에 즉시 목록을 확인할 수 있습니다. 세션이 확인되면 자동으로 캐시를 무효화해 사용자별 상태를 새로고칩니다.
+- **Score 페이지 정적화**: 리더보드 데이터는 Supabase 익명 클라이언트로 가져오고 `revalidate = 120`을 적용해, 실시간성이 크게 필요하지 않은 통계를 CDN 캐시에서 빠르게 제공합니다.
+- **공용 Supabase 클라이언트 도입**: `getAnonServerClient()`를 추가해 세션이 필요 없는 쿼리는 쿠키에 의존하지 않고 호출할 수 있게 되었으며, Polls 프리패치·Score 페이지에서 재사용됩니다.
+
 ### v0.6.2
 
 - **레이아웃 정적화 & 초기 렌더 최적화**: `src/app/layout.tsx`에서 Supabase 세션/프로필 조회를 제거하고 정적 레이아웃으로 복원해 CDN 캐시와 ISR 이점을 회복했습니다. HTML `lang`/메타데이터도 실제 서비스 정보로 갱신했습니다.
@@ -214,7 +222,6 @@ erDiagram
 - **React Query 기반 상태 동기화**: `PollsClientInfinite`가 투표/즐겨찾기 액션 후 `router.refresh()` 대신 React Query 캐시 패치 + `invalidateQueries`를 사용해 필요한 데이터만 다시 패칭합니다. 득표수/즐겨찾기 아이콘은 낙관적 업데이트로 즉시 반영됩니다.
 - **공통 프로필 훅 추가**: `src/hooks/useCurrentProfile.ts`를 도입해 어디서든 동일한 RPC(`get_profile`)로 프로필을 조회할 수 있게 했고, Navbar에서 중복된 Supabase 세션 처리 로직을 제거했습니다.
 - **문서 동기화**: `ROADMAP.md` Step 14 섹션과 `references/PERFORMANCE_PLAN.md`에 이번 성능 개선 사항을 기록하고, 다음 단계(디테일한 revalidate 전략, 초기 데이터 hydration 등)를 TODO로 남겼습니다.
-
 
 ### v0.6.1
 

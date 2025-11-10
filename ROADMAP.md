@@ -544,6 +544,10 @@
    - `src/hooks/useCurrentProfile.ts`를 추가해 프로필 RPC 호출을 표준화하고 어플리케이션 어디서나 재사용할 수 있게 했습니다.  
    - Navbar, PollsClient 등에서 Supabase 세션 구독 로직을 공유 훅으로 교체해 중복 코드를 삭제했습니다.
 
+4. **데이터 패칭 전략 다변화** ✅  
+   - `/poll/[id]` 페이지를 React Query 기반 CSR로 전환하여 SSR 시점의 쿠키 의존도를 제거하고, 투표 완료/탭 복귀 시 특정 쿼리만 무효화하도록 개선했습니다.  
+   - `/polls` 서버 컴포넌트에서 Infinite Query 첫 페이지를 `HydrationBoundary`로 주입해 초기 로딩 시간을 절감하고, `/score` 페이지는 익명 Supabase 클라이언트 + `revalidate=120`으로 캐시 친화적으로 전환했습니다.
+
 ### 검증 및 후속 과제
 
 - 레이아웃이 정적으로 전환된 환경에서 `/account`, `/create-poll` 등 보호 라우트가 정상적으로 리다이렉션되는지 수동 QA를 진행합니다.

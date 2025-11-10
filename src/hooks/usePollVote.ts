@@ -1,17 +1,19 @@
 import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { useSupabase } from "./useSupabase";
+
+interface UsePollVoteOptions {
+  onSuccess?: () => void;
+}
 
 interface VoteParams {
   pollId: string;
   optionId: string;
 }
 
-export function usePollVote() {
+export function usePollVote(options: UsePollVoteOptions = {}) {
   const supabase = useSupabase();
-  const router = useRouter();
 
   return useMutation({
     mutationFn: async ({ pollId, optionId }: VoteParams) => {
@@ -64,8 +66,7 @@ export function usePollVote() {
     },
     onSuccess: () => {
       toast.success("투표가 완료되었습니다!");
-      // 서버 컴포넌트를 새로고침하여 최신 데이터 가져오기
-      router.refresh();
+      options.onSuccess?.();
     },
   });
 }
