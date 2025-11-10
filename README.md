@@ -210,6 +210,7 @@ erDiagram
 ### v0.6.4
 
 - **투표 상태 훅 안정화**: `useVoteStatus`가 전달받은 투표 ID 목록을 비교한 뒤에만 상태를 갱신하도록 수정해, CSR 환경에서 무한 업데이트가 발생하지 않도록 했습니다.
+- **/create-poll 서버 가드**: 페이지를 서버 컴포넌트로 변환해 인증되지 않은 사용자는 SSR 단계에서 `/signin?redirect=/create-poll`로 즉시 리다이렉션되며, 클라이언트에서는 Supabase `onAuthStateChange` 이벤트로 세션 만료를 감지합니다.
 - **대표 투표 카드 에러 수정**: `FeaturedPollClient`에서 제거된 `isStatusLoading` 변수를 계속 참조해 런타임 오류가 나던 문제를 해결하고, 카드가 즉시 투표/완료 상태를 표시하도록 단순화했습니다.
 - **문서 반영**: Roadmap과 PERFORMANCE_PLAN의 Step 14(3.4) 항목에 투표 상태 공통 훅/불필요 라우트 제거 작업을 완료로 기록했습니다.
 

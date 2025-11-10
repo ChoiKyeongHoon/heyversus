@@ -43,8 +43,8 @@
 - ✅ 사용하지 않는 개발용 페이지(`/test-sentry`)를 프로덕션 번들에서 제거하고, 필요 시 로컬 디버깅 용도로만 유지합니다.
 
 ### 3.5 인증 흐름 개선
-1. `/create-poll` 같은 보호 페이지는 서버에서 바로 리다이렉트 처리하도록 전환.
-2. Supabase 세션 만료 시 전체 새로고침 대신 필요한 컴포넌트만 갱신하도록 `onAuthStateChange` 처리 개선.
+- ✅ `/create-poll`과 같은 보호 페이지는 서버 컴포넌트에서 세션을 검사해 비로그인 사용자를 즉시 `/signin?redirect=/create-poll`로 리다이렉트합니다.
+- ✅ Supabase `onAuthStateChange` 이벤트를 활용해 세션 만료 시 클라이언트에서 필요한 컴포넌트만 갱신(또는 리다이렉션)하도록 처리했습니다.
 
 ## 4. 추적 및 검증
 - 변경 후 Lighthouse 또는 Next.js `next build --profile`과 `next analyze`를 사용해 TTFB, FCP, 번들 크기 변화를 추적합니다.
