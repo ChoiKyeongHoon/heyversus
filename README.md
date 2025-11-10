@@ -66,9 +66,10 @@
 │   │   ├── score/         # 사용자 랭킹(스코어보드) 페이지
 │   │   └── globals.css    # 글로벌 스타일 및 디자인 토큰
 │   ├── components/        # 재사용 가능한 UI 컴포넌트
-│   │   ├── common/        # 공통 UI 컴포넌트 (Skeleton, ErrorState, EmptyState)
-│   │   ├── layout/        # 레이아웃 컴포넌트 (Navbar)
-│   │   ├── ui/            # shadcn/ui 기본 컴포넌트 (Button, Card, Badge, Input)
+│   │   ├── common/        # Skeleton, ErrorState, EmptyState 등 공용 컴포넌트
+│   │   ├── layout/        # Navbar 등 레이아웃 컴포넌트
+│   │   ├── polls/         # PollCard, PollsHero, PollCategoryTabs, LoadMoreTrigger
+│   │   ├── ui/            # Button, Card, Badge, Input, loader 등 기본 UI
 │   │   ├── theme-provider.tsx  # next-themes Provider
 │   │   └── theme-toggle.tsx    # 다크/라이트 모드 토글 버튼
 │   ├── constants/         # 애플리케이션 상수 (storage, cache, defaults)
@@ -213,6 +214,9 @@ erDiagram
 - **카테고리 탭**: `최신/인기/마감 임박` 탭이 URL 파라미터와 연동되어 정렬/필터 프리셋을 즉시 적용합니다.
 - **새 PollCard 컴포넌트**: 옵션 카드, 득표율 Progress, 즐겨찾기 버튼, 상태 배지를 통합한 카드 UI를 `@/components/polls/PollCard.tsx`로 분리해 재사용성과 접근성을 강화했습니다.
 - **필터바 & 통계 개선**: 필터 영역을 반투명 카드로 정리하고, 즐겨찾기 CTA/빠른 필터 안내를 추가해 탐색 → 참여 플로우를 단순화했습니다.
+- **스코어 보드 리디자인**: `/score` 페이지도 `PollsHero` 패턴을 사용해 지표/CTA를 정리하고, Top 3 카드 + 전체 랭킹 테이블을 토큰 스타일로 재구성해 브랜드 일관성을 맞췄습니다.
+- **상세 페이지 인사이트 섹션**: `/poll/[id]`에 총 투표 수, 상태, 남은 시간, 선두 옵션을 보여주는 요약 카드를 추가해 “자세히 보기” 버튼이 제공하는 정보 가치를 높였습니다.
+- **API & 로더 안정화**: 공용 `GradientSpinner` 로더를 도입해 로딩 UI를 통일했고, `/api/polls/[id]`가 `createClient()`를 직접 사용하도록 고쳐 `cookies()` 관련 오류를 방지했습니다.
 - **문서 업데이트**: ROADMAP Step 15과 타임라인을 "✅ 완료"로 갱신하고, README 버전을 v0.6.5로 올렸습니다.
 
 ### v0.6.4

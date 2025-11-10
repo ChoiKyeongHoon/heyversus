@@ -12,6 +12,7 @@ import { type PollCategoryKey,PollCategoryTabs } from "@/components/polls/PollCa
 import { PollsFilterBar } from "@/components/polls/PollsFilterBar";
 import { PollsHero } from "@/components/polls/PollsHero";
 import { Button } from "@/components/ui/button";
+import { GradientSpinner } from "@/components/ui/loader";
 import { useInfinitePolls } from "@/hooks/useInfinitePolls";
 import { useSupabase } from "@/hooks/useSupabase";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
@@ -277,7 +278,7 @@ export default function PollsClientInfinite({
     if (isLoading) {
       return (
         <div className="flex justify-center py-12">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
+          <GradientSpinner />
         </div>
       );
     }

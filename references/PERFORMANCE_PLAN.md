@@ -30,21 +30,21 @@
 - ✅ `layout.tsx`에서 세션/프로필 조회 제거 → 정적 세그먼트로 복원. (`v0.6.1`, Step 14)
 - ✅ 네비게이션은 클라이언트 훅(`useSession`, `useCurrentProfile`)으로 전환해 로그인 상태에 따라 필요한 데이터만 가져옴.
 
-### 3.2 데이터 캐싱 전략 재구성
-1. `/poll/[id]`, `/score`에 `revalidate` 주기를 도입하고, 투표/포인트 변경 시 `revalidateTag` 활용. *(진행 중 — `/score`는 `revalidate=120` 적용 완료, `/poll/[id]`는 CSR 전환으로 SSR 의존 제거)*
-2. `/` 대표 투표는 기본 데이터를 ISR로 제공하고, `has_voted` 같은 사용자 의존 정보는 클라이언트에서 병합.
-
-### 3.3 클라이언트 패칭 최적화
+### 3.2 클라이언트 패칭 최적화
 - ✅ `PollsClientInfinite` 초기 결과를 서버에서 프리패치 후 React Query `dehydrate`로 전달.
 - ✅ `router.refresh()` 호출 위치를 집약하고, 투표/즐겨찾기는 React Query 캐시 갱신 + `invalidateQueries`로 대체.
 
-### 3.4 번들 및 공통 로직 정리
+### 3.3 번들 및 공통 로직 정리
 - ✅ 중복 투표 상태 계산 로직을 `useVoteStatus` 훅으로 통합하여 Polls/Featured 컴포넌트의 localStorage·세션 처리 중복을 제거했습니다.
 - ✅ 사용하지 않는 개발용 페이지(`/test-sentry`)를 프로덕션 번들에서 제거하고, 필요 시 로컬 디버깅 용도로만 유지합니다.
 
-### 3.5 인증 흐름 개선
+### 3.4 인증 흐름 개선
 - ✅ `/create-poll`과 같은 보호 페이지는 서버 컴포넌트에서 세션을 검사해 비로그인 사용자를 즉시 `/signin?redirect=/create-poll`로 리다이렉트합니다.
 - ✅ Supabase `onAuthStateChange` 이벤트를 활용해 세션 만료 시 클라이언트에서 필요한 컴포넌트만 갱신(또는 리다이렉션)하도록 처리했습니다.
+
+### 3.5 데이터 캐싱 전략 재구성 *(검토 중)*
+1. `/poll/[id]`, `/score`에 `revalidate` 주기를 도입하고, 투표/포인트 변경 시 `revalidateTag` 활용. `/score`는 `revalidate=120` 적용 완료, `/poll/[id]`는 CSR 전환으로 SSR 의존을 제거한 상태입니다. `revalidateTag` 기반 자동 갱신은 후속 과제로 남겨둡니다.
+2. `/` 대표 투표는 기본 데이터를 ISR로 제공하고, `has_voted` 같은 사용자 의존 정보는 클라이언트에서 병합. 향후 캐시 태그/ISR 전략을 도입해 자동 재검증을 확대합니다.
 
 ## 4. 추적 및 검증
 - 변경 후 Lighthouse 또는 Next.js `next build --profile`과 `next analyze`를 사용해 TTFB, FCP, 번들 크기 변화를 추적합니다.

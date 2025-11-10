@@ -127,7 +127,7 @@
   - `src/app/error.tsx` - 페이지 레벨 에러 처리 (shadcn/ui 스타일)
   - `src/app/global-error.tsx` - 전역 에러 처리 (inline 스타일)
   - 자동 Sentry.captureException() 통합
-- ✅ **테스트 페이지**: `/test-sentry` 페이지 생성으로 5가지 에러 유형 테스트 가능 *(현재는 개발 환경에서만 사용하며 프로덕션 번들에서는 제외됨)*
+- ✅ **테스트 페이지**: `/test-sentry` 페이지 생성으로 5가지 에러 유형 테스트 가능 _(현재는 개발 환경에서만 사용하며 프로덕션 번들에서는 제외됨)_
   - 클라이언트 에러, 비동기 에러, 수동 캡처, 메시지 전송, Error Boundary 트리거
 - ✅ **빌드 검증**: TypeScript 타입 에러 수정 (`jest.setup.ts`), `npm run lint` 및 `npm run build` 통과
 
@@ -506,19 +506,22 @@
 
 ### 완료 내역
 
-1. **프로필 수정 서버 API 전환** ✅  
-   - `src/app/api/account/profile/route.ts`를 도입해 서버 전용 로직을 분리하고, 클라이언트(`AccountClient`)는 해당 엔드포인트만 호출하도록 재구성했습니다.  
+1. **프로필 수정 서버 API 전환** ✅
+
+   - `src/app/api/account/profile/route.ts`를 도입해 서버 전용 로직을 분리하고, 클라이언트(`AccountClient`)는 해당 엔드포인트만 호출하도록 재구성했습니다.
    - Supabase `cookies()` 접근 오류 가능성을 제거하고 `ProfileUpdatePayload` 타입을 공통으로 사용합니다.
 
-2. **공통 프로필 검증 스키마 도입** ✅  
-   - `src/lib/validation/profile.ts`에 `profileUpdateSchema`를 정의하고 API와 클라이언트 폼이 동일한 Zod 검증을 사용하도록 맞췄습니다.  
+2. **공통 프로필 검증 스키마 도입** ✅
+
+   - `src/lib/validation/profile.ts`에 `profileUpdateSchema`를 정의하고 API와 클라이언트 폼이 동일한 Zod 검증을 사용하도록 맞췄습니다.
    - 아바타 변경 시 새 업로드 성공을 확인한 뒤 기존 이미지를 삭제해 데이터 유실 위험을 낮췄습니다.
 
-3. **로그인 리디렉션 방어** ✅  
+3. **로그인 리디렉션 방어** ✅
+
    - `src/app/signin/page.tsx`의 `redirect` 파라미터를 동일 오리진 경로만 허용하도록 검증해 개방형 리디렉션 취약점을 차단했습니다.
 
-4. **투표 생성 검증 강화** ✅  
-   - `src/lib/validation/poll.ts`의 `createPollSchema`를 `/create-poll` 페이지와 `POST /api/polls` 엔드포인트에서 공유해 입력 검증을 일관화했습니다.  
+4. **투표 생성 검증 강화** ✅
+   - `src/lib/validation/poll.ts`의 `createPollSchema`를 `/create-poll` 페이지와 `POST /api/polls` 엔드포인트에서 공유해 입력 검증을 일관화했습니다.
    - Supabase 에러를 401/403/422 등 의미 있는 HTTP 응답으로 매핑하고, 클라이언트에 메시지를 노출합니다.
 
 ### 검증 및 후속 조치
@@ -532,30 +535,45 @@
 
 ### 완료 내역
 
-1. **레이아웃/네비게이션 정적화** ✅  
-   - `src/app/layout.tsx`에서 Supabase 세션/프로필 조회를 완전히 제거하고 정적 세그먼트로 되돌렸습니다.  
+1. **레이아웃/네비게이션 정적화** ✅
+
+   - `src/app/layout.tsx`에서 Supabase 세션/프로필 조회를 완전히 제거하고 정적 세그먼트로 되돌렸습니다.
    - `Navbar`는 `useSession` + 신규 `useCurrentProfile` 훅을 사용해 클라이언트에서만 인증 상태를 구독하여, 초기 SSR 시점의 쿠키 의존도를 없앴습니다.
 
-2. **React Query 기반 상태 동기화** ✅  
-   - `PollsClientInfinite`가 `router.refresh()` 대신 React Query `invalidateQueries` + 캐시 패치를 사용해 투표/즐겨찾기 변화를 즉시 반영합니다.  
+2. **React Query 기반 상태 동기화** ✅
+
+   - `PollsClientInfinite`가 `router.refresh()` 대신 React Query `invalidateQueries` + 캐시 패치를 사용해 투표/즐겨찾기 변화를 즉시 반영합니다.
    - 낙관적 갱신으로 옵션 득표수와 즐겨찾기 상태를 즉시 업데이트하고, 필요한 쿼리만 재검증하도록 최소화했습니다.
 
-3. **공통 훅 도입 및 재사용성 향상** ✅  
-   - `src/hooks/useCurrentProfile.ts`를 추가해 프로필 RPC 호출을 표준화하고 어플리케이션 어디서나 재사용할 수 있게 했습니다.  
+3. **공통 훅 도입 및 재사용성 향상** ✅
+
+   - `src/hooks/useCurrentProfile.ts`를 추가해 프로필 RPC 호출을 표준화하고 어플리케이션 어디서나 재사용할 수 있게 했습니다.
    - Navbar, PollsClient 등에서 Supabase 세션 구독 로직을 공유 훅으로 교체해 중복 코드를 삭제했습니다.
 
-4. **데이터 패칭 전략 다변화** ✅  
-   - `/poll/[id]` 페이지를 React Query 기반 CSR로 전환하여 SSR 시점의 쿠키 의존도를 제거하고, 투표 완료/탭 복귀 시 특정 쿼리만 무효화하도록 개선했습니다.  
+4. **데이터 패칭 전략 다변화** ✅
+
+   - `/poll/[id]` 페이지를 React Query 기반 CSR로 전환하여 SSR 시점의 쿠키 의존도를 제거하고, 투표 완료/탭 복귀 시 특정 쿼리만 무효화하도록 개선했습니다.
    - `/polls` 서버 컴포넌트에서 Infinite Query 첫 페이지를 `HydrationBoundary`로 주입해 초기 로딩 시간을 절감하고, `/score` 페이지는 익명 Supabase 클라이언트 + `revalidate=120`으로 캐시 친화적으로 전환했습니다.
 
-5. **번들 & 개발 자산 정리** ✅  
-   - 투표 여부 계산을 `useVoteStatus` 훅 하나로 통합해 Polls 전반의 중복 localStorage/세션 로직을 제거하고 번들 크기를 줄였습니다.  
-   - 관련 런타임 오류(`useVoteStatus` 무한 업데이트, 대표 투표 카드 로딩 상태)를 함께 수정했습니다.  
-   - 프로덕션 번들에서 사용되지 않는 `/test-sentry` 개발용 페이지를 제거해 불필요한 라우트를 없앴습니다.
+5. **번들 & 개발 자산 정리** ✅
 
-6. **인증 흐름 개선** ✅  
-   - `/create-poll` 페이지를 서버 컴포넌트로 전환해 비로그인 사용자는 SSR 단계에서 `/signin?redirect=/create-poll`로 즉시 리다이렉션됩니다.  
+   - 투표 여부 계산을 `useVoteStatus` 훅 하나로 통합해 Polls 전반의 중복 localStorage/세션 로직을 제거하고 번들 크기를 줄였습니다.
+   - 관련 런타임 오류(`useVoteStatus` 무한 업데이트, 대표 투표 카드 로딩 상태)를 함께 수정했습니다.
+   - 프로덕션 번들에서 사용되지 않는 `/test-sentry` 개발용 페이지를 제거해 불필요한 라우트를 없앱니다.
+
+6. **인증 흐름 개선** ✅
+
+   - `/create-poll` 페이지를 서버 컴포넌트로 전환해 비로그인 사용자는 SSR 단계에서 `/signin?redirect=/create-poll`로 즉시 리다이렉션됩니다.
    - 클라이언트에서는 Supabase `onAuthStateChange` 이벤트로 세션 만료를 감지해 필요한 컴포넌트만 갱신하거나 로그인 화면으로 안내합니다.
+
+7. **스코어 페이지 일관성 확보** ✅
+
+   - `/score` 상단 헤더를 Polls 리뉴얼과 동일한 `PollsHero` 패턴으로 교체하고, 상위 지표/CTA를 통해 플레이어가 포인트 목표를 쉽게 인지하도록 정비했습니다.
+   - Top 3 카드 + 전체 랭킹 테이블을 토큰 스타일로 재구성해 브랜드/타이포 일관성을 유지했습니다.
+
+8. **상세 페이지 인사이트 강화** ✅
+   - `/poll/[id]`에 총 투표 수, 상태, 남은 시간, 선두 옵션을 보여주는 요약 카드 섹션을 추가해 목록에서 볼 수 없는 정보를 제공했습니다.
+   - “자세히 보기” 버튼의 의미가 명확해지도록 상세 페이지에만 접근 가능한 데이터를 늘렸습니다.
 
 ### 검증 및 후속 과제
 
@@ -634,3 +652,5 @@
 19. **Step 18** – ⏳ 예정: 투표 이미지 업로드 기능.
 20. **Step 19** – ⏳ 예정: 비공개 투표 초대 기능.
 21. **Step 20** – ⏳ 예정: 관리자 운영 대시보드.
+
+- 💬 **CSR 전환 고려 사항**: 동적 세션 데이터를 많이 사용하는 페이지는 SSR/`cookies()` 의존을 제거하고 CSR로 전환하면 TTFB 향상, 캐시 제약 해소, React Query 재사용 등의 이점이 있습니다. SEO가 주요 목표가 아닌 페이지부터 단계적으로 적용을 검토합니다.

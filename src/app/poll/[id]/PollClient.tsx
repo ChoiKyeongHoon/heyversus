@@ -87,6 +87,16 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
     (acc, option) => acc + (option.votes || 0),
     0
   );
+  const leadingOption = poll.poll_options.reduce<{
+    text: string;
+    votes: number;
+  } | null>((best, option) => {
+    const votes = option.votes || 0;
+    if (!best || votes > best.votes) {
+      return { text: option.text, votes };
+    }
+    return best;
+  }, null);
   const isPollClosed = poll.status === 'closed' || isPollExpired(poll.expires_at);
 
   return (
@@ -102,7 +112,50 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
       </header>
 
       {/* Main Content */}
-      <main>
+      <main className="space-y-6">
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-border bg-background/70 px-4 py-3">
+            <p className="text-xs text-text-tertiary">총 투표 수</p>
+            <p className="text-2xl font-bold text-text-primary">
+              {totalVotes.toLocaleString()}표
+            </p>
+            <p className="text-xs text-text-secondary">
+              참여자가 많을수록 결과가 정확해집니다.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-background/70 px-4 py-3">
+            <p className="text-xs text-text-tertiary">현재 상태</p>
+            <p className={`text-2xl font-bold ${isPollClosed ? "text-destructive" : "text-primary"}`}>
+              {isPollClosed ? "마감됨" : "진행 중"}
+            </p>
+            <p className="text-xs text-text-secondary">
+              {isPollClosed ? "결과가 확정되었습니다." : "지금 참여해서 의견을 남겨보세요."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-background/70 px-4 py-3">
+            <p className="text-xs text-text-tertiary">남은 시간</p>
+            <p className="text-2xl font-bold text-text-primary">
+              {getTimeRemaining(poll.expires_at) || "기한 없음"}
+            </p>
+            <p className="text-xs text-text-secondary">
+              {poll.expires_at
+                ? new Date(poll.expires_at).toLocaleString("ko-KR")
+                : "영구적으로 진행"}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-background/70 px-4 py-3">
+            <p className="text-xs text-text-tertiary">선두 옵션</p>
+            <p className="text-2xl font-bold text-text-primary">
+              {leadingOption?.text ?? "-"}
+            </p>
+            <p className="text-xs text-text-secondary">
+              {leadingOption
+                ? `${leadingOption.votes.toLocaleString()}표 획득`
+                : "아직 결과가 없습니다."}
+            </p>
+          </div>
+        </section>
+
         <div className={`bg-panel border border-border rounded-lg shadow-lg overflow-hidden mb-6 md:mb-8 ${isPollClosed ? 'opacity-60' : ''}`}>
           <div className="p-4 md:p-6">
             <h3 className="text-lg md:text-xl font-semibold text-text-primary mb-2">

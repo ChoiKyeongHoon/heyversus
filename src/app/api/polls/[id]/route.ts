@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getPollById } from "@/lib/services/polls";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/polls/[id]
@@ -20,7 +20,10 @@ export async function GET(
       );
     }
 
-    const { data, error } = await getPollById(id);
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("get_poll_with_user_status", {
+      p_id: id,
+    });
 
     if (error) {
       return NextResponse.json(
@@ -29,11 +32,13 @@ export async function GET(
       );
     }
 
-    if (!data) {
+    const poll = Array.isArray(data) ? data[0] : data;
+
+    if (!poll) {
       return NextResponse.json({ error: "Poll not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ data }, { status: 200 });
+    return NextResponse.json({ data: poll }, { status: 200 });
   } catch (error) {
     console.error("Unexpected error in GET /api/polls/[id]:", error);
     return NextResponse.json(
