@@ -20,16 +20,14 @@ export const profileUpdateSchema = z.object({
     .string()
     .trim()
     .max(50, "이름은 최대 50자까지 가능합니다.")
-    .transform((value) => (value.length === 0 ? null : value))
     .optional()
-    .default(null),
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
   bio: z
     .string()
     .trim()
     .max(500, "소개는 최대 500자까지 가능합니다.")
-    .transform((value) => (value.length === 0 ? null : value))
     .optional()
-    .default(null),
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
 });
 
 export type ProfileUpdatePayload = z.infer<typeof profileUpdateSchema>;
