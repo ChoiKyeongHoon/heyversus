@@ -20,6 +20,17 @@ const getMaxExpiresAt = () => {
 
 const formatToDateTimeLocal = (date: Date) => date.toISOString().slice(0, 16);
 
+const EXPIRATION_PRESETS = [
+  { label: "1시간", value: "1h" },
+  { label: "6시간", value: "6h" },
+  { label: "12시간", value: "12h" },
+  { label: "1일", value: "1d" },
+  { label: "3일", value: "3d" },
+  { label: "7일", value: "7d" },
+] as const;
+
+type ExpirationPresetValue = typeof EXPIRATION_PRESETS[number]["value"];
+
 export default function CreatePollClient() {
   const router = useRouter();
   const supabase = useSupabase();
@@ -46,9 +57,7 @@ export default function CreatePollClient() {
     };
   }, [router, supabase.auth]);
 
-  const handlePresetClick = (
-    preset: "1h" | "6h" | "12h" | "1d" | "3d" | "7d"
-  ) => {
+  const handlePresetClick = (preset: ExpirationPresetValue) => {
     const now = new Date();
     switch (preset) {
       case "1h":
@@ -258,18 +267,11 @@ export default function CreatePollClient() {
                 만료 시간
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-3">
-                {[
-                  { label: "1시간", value: "1h" },
-                  { label: "6시간", value: "6h" },
-                  { label: "12시간", value: "12h" },
-                  { label: "1일", value: "1d" },
-                  { label: "3일", value: "3d" },
-                  { label: "7일", value: "7d" },
-                ].map((preset) => (
+                {EXPIRATION_PRESETS.map((preset) => (
                   <button
                     key={preset.value}
                     type="button"
-                    onClick={() => handlePresetClick(preset.value as typeof preset["value"])}
+                    onClick={() => handlePresetClick(preset.value)}
                     className={`text-xs sm:text-sm py-2 rounded-md border ${
                       activePreset === preset.value
                         ? "border-primary bg-primary/10 text-primary"
