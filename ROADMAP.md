@@ -590,8 +590,9 @@
 ## Step 16 – 랜덤 투표 기능 (예정)
 
 - ⏳ **랜덤 추천 슬롯 도입**: 홈과 `/polls` 상단에 “랜덤 투표” 영역을 추가해 신규/참여율 높은 투표를 무작위로 노출합니다. 사용자별 중복 노출을 방지하기 위해 localStorage + Supabase 세션 캐시 전략을 설계합니다.
-- ⏳ **Supabase RPC 추가**: `get_random_poll(p_user_id, p_exclude_ids)` 함수를 구현하여 비공개·이미 본 투표를 제외하고 1건을 반환하도록 합니다. 필요 시 참여 수 가중치(Weighted Random) 옵션을 지원합니다.
-- ⏳ **UI/UX 연동**: 랜덤 투표 카드 컴포넌트를 만들고 “다른 투표 보기” 버튼을 제공하고, 최대 3회까지 새 추천을 허용하는 Rate Limit를 설정합니다. 추천이 없을 때는 EmptyState와 CTA를 노출합니다.
+- ⏳ **Supabase RPC 추가**: `get_random_poll(p_user_id, p_exclude_ids)` 함수를 구현하여 비공개·이미 본 투표를 제외하고 1건을 반환하도록 합니다. 로그인 사용자는 RLS로 이미 투표한 항목을 제외하고, 비로그인 사용자는 localStorage의 exclude 목록을 활용합니다.
+- ⏳ **API/Rate Limit**: `/api/random-poll` Route Handler를 만들어 RPC 호출 + exclude ID 관리 + 최대 3회 재시도를 처리합니다. 요청마다 새 ID를 localStorage에 기록해 중복을 줄입니다.
+- ⏳ **UI/UX 연동**: `RandomPollCard` 컴포넌트를 만들어 PollsHero 아래에 배치하고, “다른 추천 보기” 버튼을 제공하며 추천이 없을 때는 EmptyState와 CTA를 노출합니다.
 - ⏳ **실험 및 로깅**: 노출/클릭/투표 전환 로그를 수집해 추천 품질을 분석하고, A/B 테스트 기반으로 알고리즘(최근 투표 우선, 인기 투표 우선 등)을 조정합니다.
 
 ## Step 17 – 점수 랭킹 시스템 개편 (예정)
