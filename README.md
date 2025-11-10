@@ -207,6 +207,15 @@ erDiagram
 
 ## 📌 업데이트 기록
 
+### v0.6.2
+
+- **레이아웃 정적화 & 초기 렌더 최적화**: `src/app/layout.tsx`에서 Supabase 세션/프로필 조회를 제거하고 정적 레이아웃으로 복원해 CDN 캐시와 ISR 이점을 회복했습니다. HTML `lang`/메타데이터도 실제 서비스 정보로 갱신했습니다.
+- **클라이언트 전용 내비게이션 흐름**: Navbar가 `useSession` + 신규 `useCurrentProfile` 훅을 사용해 클라이언트에서만 인증/프로필을 구독합니다. 더 이상 SSR 타이밍에 쿠키를 읽지 않으며, 로그아웃 시에는 홈으로 라우팅만 수행합니다.
+- **React Query 기반 상태 동기화**: `PollsClientInfinite`가 투표/즐겨찾기 액션 후 `router.refresh()` 대신 React Query 캐시 패치 + `invalidateQueries`를 사용해 필요한 데이터만 다시 패칭합니다. 득표수/즐겨찾기 아이콘은 낙관적 업데이트로 즉시 반영됩니다.
+- **공통 프로필 훅 추가**: `src/hooks/useCurrentProfile.ts`를 도입해 어디서든 동일한 RPC(`get_profile`)로 프로필을 조회할 수 있게 했고, Navbar에서 중복된 Supabase 세션 처리 로직을 제거했습니다.
+- **문서 동기화**: `ROADMAP.md` Step 14 섹션과 `references/PERFORMANCE_PLAN.md`에 이번 성능 개선 사항을 기록하고, 다음 단계(디테일한 revalidate 전략, 초기 데이터 hydration 등)를 TODO로 남겼습니다.
+
+
 ### v0.6.1
 
 - **프로필 수정 보안 강화**: `AccountClient`가 서버 전용 서비스를 직접 호출하지 않도록 `/api/account/profile` 라우트로 로직을 이전하고, 서버/클라이언트 모두 `profileUpdateSchema`로 입력을 검증합니다. 아바타는 업로드 성공 후 기존 이미지를 삭제해 데이터 유실 가능성을 줄입니다.

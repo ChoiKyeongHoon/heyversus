@@ -1,6 +1,5 @@
 "use client";
 
-import { Session } from "@supabase/supabase-js";
 import { ListChecks, Trophy, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -10,31 +9,24 @@ import { toast } from "sonner";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { useCurrentProfile } from "@/hooks/useCurrentProfile";
+import { useSession } from "@/hooks/useSession";
 import { createClient } from "@/lib/supabase/client";
 
-interface Profile {
-  username: string | null;
-  points: number;
-  avatar_url?: string | null;
-}
-
-interface NavbarProps {
-  session: Session | null;
-  profile: Profile | null;
-}
-
-export default function Navbar({ session, profile }: NavbarProps) {
+export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { session } = useSession();
+  const { data: profile } = useCurrentProfile(session?.user.id);
   const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("로그아웃되었습니다.");
-    router.refresh(); // 세션이 변경되었으므로 페이지를 새로고침하여 서버 데이터를 다시 가져옵니다.
     setProfileMenuOpen(false);
+    router.push("/");
   };
 
   useEffect(() => {

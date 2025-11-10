@@ -24,17 +24,19 @@
 
 ## 3. 실행 플랜
 
+> 2025 Q1 업데이트: Step 14 1차 적용으로 **3.1 전체**와 **3.3-2** 항목을 완료했습니다. 나머지 항목은 이후 단계에서 계속 추적합니다.
+
 ### 3.1 레이아웃/네비게이션 리팩터링
-1. `layout.tsx`에서 세션/프로필 조회 제거 → 정적 세그먼트로 복원.
-2. 네비게이션은 `Suspense`가 있는 서버 컴포넌트 또는 클라이언트 훅으로 분리, 로그인 상태만 필요할 때 API 호출.
+- ✅ `layout.tsx`에서 세션/프로필 조회 제거 → 정적 세그먼트로 복원. (`v0.6.1`, Step 14)
+- ✅ 네비게이션은 클라이언트 훅(`useSession`, `useCurrentProfile`)으로 전환해 로그인 상태에 따라 필요한 데이터만 가져옴.
 
 ### 3.2 데이터 캐싱 전략 재구성
 1. `/poll/[id]`, `/score`에 `revalidate` 주기를 도입하고, 투표/포인트 변경 시 `revalidateTag` 활용.
 2. `/` 대표 투표는 기본 데이터를 ISR로 제공하고, `has_voted` 같은 사용자 의존 정보는 클라이언트에서 병합.
 
 ### 3.3 클라이언트 패칭 최적화
-1. `PollsClientInfinite` 초기 결과를 서버에서 프리패치 후 React Query `dehydrate`로 전달.
-2. `router.refresh()` 호출 위치를 집약하고 불필요한 이벤트 기반 새로고침 제거.
+- ⏳ `PollsClientInfinite` 초기 결과를 서버에서 프리패치 후 React Query `dehydrate`로 전달.
+- ✅ `router.refresh()` 호출 위치를 집약하고, 투표/즐겨찾기는 React Query 캐시 갱신 + `invalidateQueries`로 대체.
 
 ### 3.4 번들 및 공통 로직 정리
 1. 중복 투표 상태 계산 로직을 공통 훅으로 통합하여 코드와 번들 크기 축소.

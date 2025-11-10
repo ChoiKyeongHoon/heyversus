@@ -1,6 +1,6 @@
 "use client";
 
-import { Session } from "@supabase/supabase-js";
+import { InfiniteData, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -13,9 +13,16 @@ import { PollsFilterBar } from "@/components/polls/PollsFilterBar";
 import { Button } from "@/components/ui/button";
 import { STORAGE_KEYS } from "@/constants/storage";
 import { useInfinitePolls } from "@/hooks/useInfinitePolls";
+import { useSession } from "@/hooks/useSession";
 import { useSupabase } from "@/hooks/useSupabase";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
-import type { FilterStatus, SortBy, SortOrder } from "@/lib/types";
+import type {
+  FilterStatus,
+  PollsResponse,
+  PollWithOptions,
+  SortBy,
+  SortOrder,
+} from "@/lib/types";
 import { formatExpiryDate, isPollExpired } from "@/lib/utils";
 
 type PollsClientInfiniteProps = {
@@ -36,6 +43,8 @@ export default function PollsClientInfinite({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const supabase = useSupabase();
+  const queryClient = useQueryClient();
+  const { session } = useSession();
 
   // Get filter/sort params from URL
   const sortBy = (searchParams.get('sortBy') as SortBy) || 'created_at';
@@ -57,7 +66,6 @@ export default function PollsClientInfinite({
     filterStatus,
   });
 
-  const [session, setSession] = useState<Session | null>(null);
   const [votedPolls, setVotedPolls] = useState<string[]>([]);
   const [anonymousVotedPolls, setAnonymousVotedPolls] = useState<string[]>([]);
   const [selectedOptionIds, setSelectedOptionIds] = useState<
@@ -65,6 +73,32 @@ export default function PollsClientInfinite({
   >({});
   const toggleFavoriteMutation = useToggleFavorite();
   const [favoritePendingId, setFavoritePendingId] = useState<string | null>(null);
+  const updateCachedPoll = useCallback(
+    (
+      pollId: string,
+      updater: (_poll: PollWithOptions) => PollWithOptions
+    ) => {
+      queryClient.setQueriesData<InfiniteData<PollsResponse>>(
+        { queryKey: ['polls', 'infinite'] },
+        (oldData) => {
+          if (!oldData) {
+            return oldData;
+          }
+
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page) => ({
+              ...page,
+              data: page.data.map((poll) =>
+                poll.id === pollId ? updater(poll) : poll
+              ),
+            })),
+          };
+        }
+      );
+    },
+    [queryClient]
+  );
 
   // Flatten pages into single array of polls (memoized to prevent re-renders)
   const polls = useMemo(
@@ -72,23 +106,6 @@ export default function PollsClientInfinite({
     [data?.pages]
   );
   const totalCount = data?.pages[0]?.pagination.total;
-
-  useEffect(() => {
-    // Get session info and listen for auth changes
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [supabase]);
 
   // Load anonymous votes from localStorage
   useEffect(() => {
@@ -196,8 +213,18 @@ export default function PollsClientInfinite({
         [pollId]: null,
       }));
 
+      updateCachedPoll(pollId, (poll) => ({
+        ...poll,
+        has_voted: true,
+        poll_options: poll.poll_options.map((option) =>
+          option.id === optionId
+            ? { ...option, votes: (option.votes ?? 0) + 1 }
+            : option
+        ),
+      }));
+
       toast.success("투표가 완료되었습니다!");
-      router.refresh();
+      queryClient.invalidateQueries({ queryKey: ['polls', 'infinite'] });
     }
   };
 
@@ -219,7 +246,11 @@ export default function PollsClientInfinite({
               ? "즐겨찾기에 추가했습니다."
               : "즐겨찾기에서 제거했습니다."
           );
-          router.refresh();
+          updateCachedPoll(pollId, (poll) => ({
+            ...poll,
+            is_favorited: isFavorited,
+          }));
+          queryClient.invalidateQueries({ queryKey: ['polls', 'infinite'] });
         },
         onError: (error: unknown) => {
           console.error("Error toggling favorite:", error);

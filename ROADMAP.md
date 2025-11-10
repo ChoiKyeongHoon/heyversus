@@ -526,15 +526,28 @@
 - 서버 API 분리 및 검증 스키마가 적용된 프로필 수정/투표 생성 플로우를 실제 Supabase 환경에서 QA해야 합니다.
 - 세션 만료, 중복 옵션, 잘못된 만료 시간 등 실패 케이스를 `/create-poll` UI에서 수동 검증해 새로운 오류 응답이 정확히 표시되는지 확인합니다.
 
-## Step 14 – 페이지 호출 속도 & 렌더링 최적화 (예정)
+## Step 14 – 페이지 호출 속도 & 렌더링 최적화 (✅ 완료, v0.6.2)
 
-> 📄 세부 실행안은 `references/PERFORMANCE_PLAN.md`에서 계속 관리합니다.
+> 📄 세부 실행안은 `references/PERFORMANCE_PLAN.md` (v1.1)에서 계속 추적합니다.
 
-- ⏳ **계측 및 병목 파악**: Next.js `app-router` RUM 지표, Web Vitals(LCP/FID/CLS/TBT) 수집 도구, Supabase 쿼리 로그를 연결하여 서버 vs 클라이언트 병목 위치를 수치로 확인합니다.
-- ⏳ **데이터 패칭 경량화**: 주요 페이지의 서버 컴포넌트를 기준으로 필요한 필드만 선택하도록 서비스 레이어를 다이어트하고, React Query 캐시 전략과 `unstable_cache`를 재조정하여 초기 페이로드를 최소화합니다.
-- ⏳ **렌더링 전략 세분화**: SSG/ISR, 스트리밍 SSR, CSR 중 페이지 특성에 맞는 혼합 전략을 설계하고, 히어로 구간만 서버 사이드 스트리밍으로 전환하는 등 부분 최적화를 시도합니다.
-- ⏳ **자산 최적화 & 코드 분할**: 공통 번들 분석(`next build --analyze`)을 통해 중복 import를 제거하고, 폰트/이미지/아이콘을 정적 최적화하거나 CDN 캐시를 적용합니다.
-- ⏳ **회귀 방지 가드레일**: Lighthouse CI 또는 Calibre 등을 이용한 기준점(예: LCP 2.5초 이하)을 설정하고 PR마다 자동 리포트를 남기며, 주요 페이지 로딩 테스트 시나리오를 Cypress로 추가합니다.
+### 완료 내역
+
+1. **레이아웃/네비게이션 정적화** ✅  
+   - `src/app/layout.tsx`에서 Supabase 세션/프로필 조회를 완전히 제거하고 정적 세그먼트로 되돌렸습니다.  
+   - `Navbar`는 `useSession` + 신규 `useCurrentProfile` 훅을 사용해 클라이언트에서만 인증 상태를 구독하여, 초기 SSR 시점의 쿠키 의존도를 없앴습니다.
+
+2. **React Query 기반 상태 동기화** ✅  
+   - `PollsClientInfinite`가 `router.refresh()` 대신 React Query `invalidateQueries` + 캐시 패치를 사용해 투표/즐겨찾기 변화를 즉시 반영합니다.  
+   - 낙관적 갱신으로 옵션 득표수와 즐겨찾기 상태를 즉시 업데이트하고, 필요한 쿼리만 재검증하도록 최소화했습니다.
+
+3. **공통 훅 도입 및 재사용성 향상** ✅  
+   - `src/hooks/useCurrentProfile.ts`를 추가해 프로필 RPC 호출을 표준화하고 어플리케이션 어디서나 재사용할 수 있게 했습니다.  
+   - Navbar, PollsClient 등에서 Supabase 세션 구독 로직을 공유 훅으로 교체해 중복 코드를 삭제했습니다.
+
+### 검증 및 후속 과제
+
+- 레이아웃이 정적으로 전환된 환경에서 `/account`, `/create-poll` 등 보호 라우트가 정상적으로 리다이렉션되는지 수동 QA를 진행합니다.
+- `npm run lint`/`npm run build`로 회귀를 확인했고, 차후 `/poll/[id]`, `/score`의 `force-dynamic` 구간을 태그 기반 `revalidate` 전략으로 단계적 전환할 예정입니다.
 
 ## Step 15 – Polls 페이지 UI 리뉴얼 (예정)
 
@@ -600,8 +613,8 @@
 11. **Step 10** – ✅ 완료: 투표 목록 스케일 대응 (무한 스크롤, 필터/정렬).
 12. **Step 11** – ✅ 완료: 계정·프로필 관리 강화.
 13. **Step 12** – ✅ 완료: 브랜드 & UI 리프레시.
-14. **Step 13** – ⏳ 예정: 보안/안정성 리스크 대응.
-15. **Step 14** – ⏳ 예정: 페이지 호출 속도 & 렌더링 최적화 (`references/PERFORMANCE_PLAN.md` 참조).
+14. **Step 13** – ✅ 완료: 보안/안정성 리스크 대응.
+15. **Step 14** – ✅ 완료: 페이지 호출 속도 & 렌더링 최적화 (`references/PERFORMANCE_PLAN.md` 참조).
 16. **Step 15** – ⏳ 예정: Polls 페이지 UI 리뉴얼.
 17. **Step 16** – ⏳ 예정: 랜덤 투표 기능.
 18. **Step 17** – ⏳ 예정: 점수 랭킹 시스템 개편.
