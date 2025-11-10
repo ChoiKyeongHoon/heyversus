@@ -89,13 +89,15 @@ async function fetchPaginatedPolls(
     return { data: null, error };
   }
 
-  const polls = (data || []) as Array<PollWithOptions & { total_count: number }>;
+  type RawPoll = PollWithOptions & { total_count: number };
+  const polls = (data || []) as RawPoll[];
   const total = polls.length > 0 ? polls[0].total_count : 0;
-  const cleanedPolls: PollWithOptions[] = polls.map((poll) => {
-    const rest = { ...poll } as Record<string, unknown>;
-    delete rest.total_count;
-    return rest as PollWithOptions;
-  });
+  const cleanedPolls: PollWithOptions[] = polls.map(
+    ({ total_count, ...pollWithoutCount }) => {
+      void total_count;
+      return pollWithoutCount;
+    }
+  );
   const hasNextPage = offset + limit < total;
   const nextOffset = hasNextPage ? offset + limit : null;
 
