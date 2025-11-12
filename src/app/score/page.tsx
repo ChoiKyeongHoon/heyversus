@@ -51,20 +51,22 @@ export default async function ScorePage() {
 
   return (
     <div className="space-y-6 px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
-      <PollsHero
-        stats={stats}
-        eyebrowText="Leaderboard"
-        titlePrefix="랭킹 보드에서"
-        titleHighlight="당신의 위치"
-        titleSuffix="를 확인하고 도전하세요."
-        description="상위 플레이어의 포인트 변화를 추적하고 목표를 세워보세요."
-        primaryAction={{ label: "투표 참여하기", href: "/polls" }}
-        secondaryAction={{
-          label: "내 즐겨찾기",
-          href: "/favorites",
-          variant: "outline",
-        }}
-      />
+      <div className="container mx-auto">
+        <PollsHero
+          stats={stats}
+          eyebrowText="Leaderboard"
+          titlePrefix="랭킹 보드에서"
+          titleHighlight="당신의 위치"
+          titleSuffix="를 확인하고 도전하세요."
+          description="상위 플레이어의 포인트 변화를 추적하고 목표를 세워보세요."
+          primaryAction={{ label: "투표 참여하기", href: "/polls" }}
+          secondaryAction={{
+            label: "내 즐겨찾기",
+            href: "/favorites",
+            variant: "outline",
+          }}
+        />
+      </div>
 
       <div className="container mx-auto space-y-6">
         <section className="rounded-3xl border border-border bg-panel/70 p-6 shadow-inner">

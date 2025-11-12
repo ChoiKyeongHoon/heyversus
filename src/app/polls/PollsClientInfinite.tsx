@@ -348,7 +348,9 @@ export default function PollsClientInfinite({
 
   return (
     <div className="space-y-6 px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
-      <PollsHero stats={stats} />
+      <div className="container mx-auto">
+        <PollsHero stats={stats} />
+      </div>
 
       <div className="container mx-auto space-y-6">
         <div className="rounded-3xl border border-border bg-panel/60 p-4 shadow-inner">
