@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { STORAGE_KEYS } from "@/constants/storage";
 import { useSession } from "@/hooks/useSession";
+import { useSupabase } from "@/hooks/useSupabase";
+
+interface UseVoteStatusOptions {
+  pollIds?: string[];
+}
 
 const readAnonymousVotes = (): string[] => {
   if (typeof window === "undefined") {
@@ -19,8 +24,12 @@ const readAnonymousVotes = (): string[] => {
   }
 };
 
-export function useVoteStatus(initialServerVotedIds: string[] = []) {
+export function useVoteStatus(
+  initialServerVotedIds: string[] = [],
+  options: UseVoteStatusOptions = {}
+) {
   const { session } = useSession();
+  const supabase = useSupabase();
   const [serverVotedIds, setServerVotedIds] = useState(initialServerVotedIds);
   const [anonymousVotedIds, setAnonymousVotedIds] = useState<string[]>([]);
 
@@ -49,6 +58,45 @@ export function useVoteStatus(initialServerVotedIds: string[] = []) {
       setAnonymousVotedIds(readAnonymousVotes());
     }
   }, [session]);
+
+  useEffect(() => {
+    if (!session || !options.pollIds || options.pollIds.length === 0) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchServerVoteStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("user_votes")
+          .select("poll_id")
+          .in("poll_id", options.pollIds)
+          .eq("user_id", session.user.id);
+
+        if (error) {
+          console.error("Failed to fetch vote status:", error);
+          return;
+        }
+
+        const ids = (data ?? []).map((row) => row.poll_id);
+
+        if (isMounted) {
+          setServerVotedIds((prev) =>
+            areArraysEqual(prev, ids) ? prev : ids
+          );
+        }
+      } catch (error) {
+        console.error("Unexpected error while loading vote status", error);
+      }
+    };
+
+    fetchServerVoteStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session, supabase, options.pollIds, areArraysEqual]);
 
   const votedPolls = useMemo(
     () => (session ? serverVotedIds : anonymousVotedIds),

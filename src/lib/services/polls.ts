@@ -177,32 +177,43 @@ export async function getPollById(pollId: string) {
   )();
 }
 
+export interface GetFeaturedPollsOptions {
+  /** 익명 클라이언트를 사용해 정적 캐시를 활용할지 여부 */
+  useAnonClient?: boolean;
+}
+
 /**
  * 대표 투표 목록을 가져옵니다.
  * @returns 대표 투표 목록과 오류 정보
  */
-export async function getFeaturedPolls() {
-  return unstable_cache(
-    async () => {
-      const supabase = await createClient();
+export async function getFeaturedPolls(
+  options: GetFeaturedPollsOptions = {}
+) {
+  const fetchFeaturedPolls = async () => {
+    const supabase = options.useAnonClient
+      ? getAnonServerClient()
+      : await createClient();
 
-      const { data, error } = await supabase.rpc(
-        "get_featured_polls_with_user_status"
-      );
+    const { data, error } = await supabase.rpc(
+      "get_featured_polls_with_user_status"
+    );
 
-      if (error) {
-        console.error("Error fetching featured polls:", error);
-        return { data: null, error };
-      }
-
-      return { data: data as PollWithOptions[], error: null };
-    },
-    [CACHE_TAGS.FEATURED_POLLS], // 캐시 키
-    {
-      tags: [CACHE_TAGS.FEATURED_POLLS, CACHE_TAGS.POLLS], // 캐시 태그
-      revalidate: CACHE_TIMES.FEATURED_POLLS, // 120초(2분)마다 재검증
+    if (error) {
+      console.error("Error fetching featured polls:", error);
+      return { data: null, error };
     }
-  )();
+
+    return { data: data as PollWithOptions[], error: null };
+  };
+
+  if (options.useAnonClient) {
+    return unstable_cache(fetchFeaturedPolls, [CACHE_TAGS.FEATURED_POLLS], {
+      tags: [CACHE_TAGS.FEATURED_POLLS, CACHE_TAGS.POLLS],
+      revalidate: CACHE_TIMES.FEATURED_POLLS,
+    })();
+  }
+
+  return fetchFeaturedPolls();
 }
 
 /**

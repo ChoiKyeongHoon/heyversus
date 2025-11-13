@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
@@ -14,24 +14,17 @@ import { formatExpiryDate } from "@/lib/utils";
 
 interface PollCardProps {
   poll: PollWithOptions;
+  hasVoted: (_pollId: string) => boolean;
+  markVoted: (_pollId: string) => void;
 }
 
-function PollCard({ poll: initialPoll }: PollCardProps) {
+function PollCard({ poll: initialPoll, hasVoted, markVoted }: PollCardProps) {
   const [poll, setPoll] = useState(initialPoll);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error] = useState<string | null>(null);
 
-  const { hasVoted, markVoted } = useVoteStatus(
-    initialPoll.has_voted ? [initialPoll.id] : []
-  );
-
   const router = useRouter();
-
-  // 탭 전환 시 자동 새로고침
-  useVisibilityChange(() => {
-    router.refresh();
-  });
 
   useEffect(() => {
     setPoll(initialPoll);
@@ -268,6 +261,23 @@ interface FeaturedPollClientProps {
 }
 
 export default function FeaturedPollClient({ polls }: FeaturedPollClientProps) {
+  const router = useRouter();
+
+  // 탭 전환 시 데이터 최신화
+  useVisibilityChange(() => {
+    router.refresh();
+  });
+
+  const pollIds = useMemo(() => polls.map((poll) => poll.id), [polls]);
+  const serverVotedIds = useMemo(
+    () => polls.filter((poll) => poll.has_voted).map((poll) => poll.id),
+    [polls]
+  );
+
+  const { hasVoted, markVoted } = useVoteStatus(serverVotedIds, {
+    pollIds,
+  });
+
   if (!polls || polls.length === 0) {
     return (
       <div className="text-center py-10 px-4 border-2 border-dashed border-border rounded-lg">
@@ -284,7 +294,12 @@ export default function FeaturedPollClient({ polls }: FeaturedPollClientProps) {
   return (
     <div className="space-y-8">
       {polls.map((poll) => (
-        <PollCard key={poll.id} poll={poll} />
+        <PollCard
+          key={poll.id}
+          poll={poll}
+          hasVoted={hasVoted}
+          markVoted={markVoted}
+        />
       ))}
     </div>
   );

@@ -1,29 +1,21 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/server";
-import { PollWithUserStatus } from "@/lib/types";
+import { CACHE_TIMES } from "@/constants/cache";
+import { getFeaturedPolls } from "@/lib/services/polls";
 
 import FeaturedPollClient from "./FeaturedPollClient"; // 데이터를 표시할 클라이언트 컴포넌트
 
-// 이 페이지는 동적으로 렌더링됩니다.
-// export const revalidate = 3600; // cookies()와 함께 사용할 수 없습니다.
+export const revalidate = CACHE_TIMES.FEATURED_POLLS;
 
-async function getFeaturedPolls(): Promise<PollWithUserStatus[]> {
-  const supabase = await createClient();
-  const { data: polls, error } = await supabase.rpc(
-    "get_featured_polls_with_user_status"
-  );
+export default async function LandingPage() {
+  const { data, error } = await getFeaturedPolls({ useAnonClient: true });
 
   if (error) {
     console.error("Error fetching featured polls:", error);
-    return [];
   }
-  return polls;
-}
 
-export default async function LandingPage() {
-  const featuredPolls = await getFeaturedPolls();
+  const featuredPolls = data ?? [];
 
   return (
     <div className="container mx-auto px-4 md:px-6 lg:px-8">
