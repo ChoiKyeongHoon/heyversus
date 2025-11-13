@@ -301,24 +301,106 @@ focus-visible:ring-offset-2
 
 ## 반응형 디자인
 
-### 브레이크포인트
+### 브레이크포인트 & 명명 규칙
 
-| 이름 | 크기 | 용도 |
-|------|------|------|
-| `sm` | 640px | 작은 태블릿 |
-| `md` | 768px | 태블릿 |
-| `lg` | 1024px | 데스크톱 |
-| `xl` | 1280px | 큰 데스크톱 |
-| `2xl` | 1536px | 초대형 화면 |
+| 범위 | 이름 | Tailwind Prefix | 설명 |
+|------|------|-----------------|------|
+| ≤639px | Mobile Small | (default) | 최소 지원 해상도 (360px) |
+| ≥640px | Small | `sm:` | 큰 모바일 기기 |
+| ≥768px | Medium | `md:` | 태블릿 세로 |
+| ≥1024px | Large | `lg:` | 태블릿 가로 · 작은 데스크톱 |
+| ≥1280px | XLarge | `xl:` | 표준 데스크톱 |
+| ≥1536px | 2XLarge | `2xl:` | 대형 데스크톱 |
 
-### Mobile-First 전략
-
-기본 스타일은 모바일, 점진적 확장:
+모든 스타일은 모바일을 기준으로 작성하고 상위 해상도에서 확장합니다.
 
 ```jsx
-<div className="p-4 md:p-6 lg:p-8">
-  <!-- 모바일: 16px → 태블릿: 24px → 데스크톱: 32px -->
+// Mobile-first
+<div className="text-base md:text-xl lg:text-2xl">
+  컨텐츠
 </div>
+```
+
+### 컨테이너 & 레이아웃
+
+| 패턴 | 클래스 | 용도 |
+|-------|--------|------|
+| 기본 컨테이너 | `container mx-auto px-4 md:px-6 lg:px-8` | 페이지 전역 레이아웃 |
+| 전체 폭 | `w-full px-4 md:px-6 lg:px-8` | 히어로, 배너 |
+| 좁은 영역 | `max-w-2xl mx-auto px-4 md:px-6` | 폼, 글 콘텐츠 |
+| 넓은 영역 | `max-w-4xl mx-auto px-4 md:px-6 lg:px-8` | 대시보드, 리스트 |
+
+```jsx
+<section className="container mx-auto px-4 md:px-6 lg:px-8 py-8">
+  ...
+</section>
+```
+
+### 카드 & 옵션 그리드
+
+```jsx
+// 투표 카드 (모바일 1열 → 데스크톱 3열)
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8" />
+
+// 2-way 옵션 (모바일 1열 → 데스크톱 2열)
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8" />
+
+// 3-way 옵션 (모바일 1열 → 태블릿 2열 → 데스크톱 3열)
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8" />
+```
+
+### 반응형 타이포그래피 패턴
+
+```jsx
+// 페이지 메인 제목
+<h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight" />
+
+// 섹션 제목
+<h2 className="text-xl md:text-2xl lg:text-3xl font-semibold" />
+
+// 본문 텍스트
+<p className="text-sm md:text-base text-text-secondary" />
+
+// 캡션/메타
+<p className="text-xs md:text-sm text-text-tertiary" />
+```
+
+### 간격 시스템 (Spacing)
+
+```jsx
+// 패딩
+className="p-4 md:p-6 lg:p-8"
+
+// 섹션 여백
+className="my-8 md:my-12 lg:my-16"
+
+// 요소 간격
+className="mb-4 md:mb-6 lg:mb-8"
+
+// 수평/수직 스택
+className="flex space-x-2 md:space-x-4"
+className="flex flex-col space-y-3 md:space-y-4 lg:space-y-6"
+```
+
+### 컴포넌트 레이아웃 예시
+
+```jsx
+// Navbar
+<nav className="p-4 flex items-center justify-between">
+  <div className="text-xl md:text-2xl lg:text-3xl font-bold">HeyVersus</div>
+  <div className="hidden md:flex gap-4 text-sm md:text-base">
+    <Link href="/polls">투표</Link>
+    <Link href="/favorites">즐겨찾기</Link>
+  </div>
+  <Button size="sm" className="md:h-10">CTA</Button>
+</nav>
+
+// 메인 컨텐츠 섹션
+<section className="w-full px-4 md:px-6 lg:px-8 py-6 md:py-8 lg:py-12">
+  <div className="grid gap-6 md:grid-cols-2">
+    ...
+  </div>
+</section>
 ```
 
 ## 사용 가이드
@@ -362,4 +444,3 @@ import { Card, CardContent } from "@/components/ui/card"
 - [Tailwind CSS](https://tailwindcss.com)
 - [shadcn/ui](https://ui.shadcn.com)
 - [next-themes](https://github.com/pacocoursey/next-themes)
-- [RESPONSIVE_GUIDE.md](./RESPONSIVE_GUIDE.md) - 반응형 가이드

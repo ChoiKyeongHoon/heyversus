@@ -178,7 +178,7 @@
 
    - 지원 해상도 정의: Mobile (≤767px), Tablet (768px-1023px), Desktop (≥1024px)
    - 접근성 기준: WCAG 2.1 AA, 최소 터치 영역 44x44px
-   - `references/RESPONSIVE_GUIDE.md` 문서 생성 - 브레이크포인트, 그리드, 타이포, 간격 시스템 가이드 포함
+   - `references/DESIGN_SYSTEM.md`에 반응형 브레이크포인트, 그리드, 타이포, 간격 시스템 가이드를 통합
 
 2. **글로벌 레이아웃 리팩터링** ✅
 
@@ -239,7 +239,7 @@
 
 1. **데이터베이스 계층** ✅
 
-   - `get_polls_paginated` RPC 함수 생성 (`references/PAGINATION_SQL.md`)
+   - `get_polls_paginated` RPC 함수 생성 (`references/SCALE_DESIGN.md` Appendix A)
    - 페이지네이션 파라미터 지원: `limit`, `offset`, `sortBy`, `sortOrder`, `filterStatus`
    - 성능 최적화 인덱스 추가 (created_at, expires_at, status, public_creator, votes)
    - Total count 메타데이터 포함
@@ -294,19 +294,17 @@
    - 44px 최소 터치 영역
 
 10. **문서화** ✅
-    - `references/SCALE_DESIGN.md`: 설계 문서 (아키텍처, API, UI/UX 패턴)
-    - `references/PAGINATION_SQL.md`: 데이터베이스 SQL 명령
-    - `references/POLL_LIST_SCALE_IMPLEMENTATION.md`: 구현 요약 및 배포 가이드
+    - `references/SCALE_DESIGN.md`: 아키텍처 · 구현 요약 · SQL Appendix를 통합 관리
 
 ### 알려진 제약사항
 
-- **SQL 실행 필요**: `references/PAGINATION_SQL.md`의 SQL을 Supabase SQL Editor에서 수동 실행해야 프로덕션에서 작동
+- **SQL 실행 필요**: `references/SCALE_DESIGN.md` Appendix의 SQL을 Supabase SQL Editor에서 수동 실행해야 프로덕션에서 작동
 - **Favorites 페이지 미업데이트**: 기존 `PollsClient` 사용 (작은 데이터셋이므로 허용)
 - **Sort by Votes**: 실시간 집계 필요 (향후 `total_votes` 컬럼 추가 고려)
 
 ### 다음 단계
 
-1. Supabase SQL Editor에서 `references/PAGINATION_SQL.md` 실행
+1. Supabase SQL Editor에서 `references/SCALE_DESIGN.md` Appendix 실행
 2. 100+ 투표로 성능 테스트
 3. 모바일 UX 검증
 4. 프로덕션 배포

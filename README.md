@@ -382,16 +382,15 @@ erDiagram
   - 필터/정렬 변경: 전체 리로드 → 클라이언트 사이드 즉시 반응
 - **접근성 유지**: WCAG 2.1 AA 준수, 키보드 네비게이션, 스크린 리더 지원, 44px 터치 영역.
 - **문서화**:
-  - `references/SCALE_DESIGN.md`: 아키텍처 설계 문서
+  - `references/SCALE_DESIGN.md`: 아키텍처 설계 + 구현 요약 + SQL Appendix
   - `QUERY.md`: Supabase SQL 실행 스크립트 및 가이드
-  - `references/POLL_LIST_SCALE_IMPLEMENTATION.md`: 구현 요약 및 배포 체크리스트
 - **번들 크기**: +15KB (+7.6%) - React Query 통합으로 인한 증가지만 성능 이득이 훨씬 큼.
 - **빌드 검증**: `npm run lint` (0 warnings), `npm run build` 성공 (14개 페이지).
 
 ### v0.4.0
 
 - **Mobile-First 반응형 디자인 전면 적용**: 모든 페이지와 컴포넌트를 Mobile-First 전략으로 리팩터링하여 360px부터 1920px까지 모든 해상도에서 최적화된 UI 제공.
-- **반응형 디자인 가이드 문서화**: `references/RESPONSIVE_GUIDE.md` 생성 - 브레이크포인트, 그리드 시스템, 타이포그래피, 간격 시스템 등 반응형 디자인 표준 정의.
+- **반응형 디자인 가이드 문서화**: `references/DESIGN_SYSTEM.md`에 브레이크포인트, 그리드 시스템, 타이포그래피, 간격 시스템 등 Mobile-First 표준을 통합했습니다.
 - **접근성 표준 준수**: WCAG 2.1 AA 기준 적용, 모든 터치 가능 요소에 최소 44x44px 터치 영역 보장, 키보드 네비게이션 지원.
 - **글로벌 레이아웃 개선**:
   - Navbar: 메뉴 링크 선택적 숨김 (화면 크기별), 모바일 버튼 텍스트 축약 ("투표 생성" → "+")
