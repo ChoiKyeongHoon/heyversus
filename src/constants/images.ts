@@ -1,0 +1,6 @@
+/**
+ * Base64-encoded lightweight gradient placeholder used for hero/thumbnail LQIP.
+ * Helps render an immediate low-res preview while the real image streams in.
+ */
+export const LOW_RES_PLACEHOLDER =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJhZGlhbEdyYWRpZW50IGlkPSJhIiBjeDE9IjAiIGN5MT0iMCIgY3gyPSIxIiBjeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgY29sb3I9IiM0NDQ2NTYiLz48c3RvcCBvZmZzZXQ9IjEiIGNvbG9yPSIjMjIyNTM2Ii8+PC9yYWRpYWxHcmFkaWVudD48cmVjdCBmaWxsPSJ1cmwoI2EpIiB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgLz48L3N2Zz4=";

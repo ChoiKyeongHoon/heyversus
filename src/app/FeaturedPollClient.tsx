@@ -3,9 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { LOW_RES_PLACEHOLDER } from "@/constants/images";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import { useVoteStatus } from "@/hooks/useVoteStatus";
 import { submitVoteRequest } from "@/lib/api/vote";
@@ -16,19 +17,32 @@ interface PollCardProps {
   poll: PollWithOptions;
   hasVoted: (_pollId: string) => boolean;
   markVoted: (_pollId: string) => void;
+  isHero: boolean;
 }
 
-function PollCard({ poll: initialPoll, hasVoted, markVoted }: PollCardProps) {
+function PollCard({
+  poll: initialPoll,
+  hasVoted,
+  markVoted,
+  isHero,
+}: PollCardProps) {
   const [poll, setPoll] = useState(initialPoll);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error] = useState<string | null>(null);
+  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
 
   const router = useRouter();
 
   useEffect(() => {
     setPoll(initialPoll);
   }, [initialPoll]);
+
+  const handleImageLoaded = useCallback((optionId: string) => {
+    setLoadedImages((prev) =>
+      prev[optionId] ? prev : { ...prev, [optionId]: true }
+    );
+  }, []);
 
   const getTimeRemaining = (expiresAt: string | null): string => {
     if (!expiresAt) return "기간 설정 없음";
@@ -115,11 +129,13 @@ function PollCard({ poll: initialPoll, hasVoted, markVoted }: PollCardProps) {
               : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
           } items-center`}
         >
-          {poll.poll_options.map((option) => {
+          {poll.poll_options.map((option, optionIndex) => {
             const percentage =
               totalVotes > 0
                 ? Math.round((option.votes / totalVotes) * 100)
                 : 0;
+            const isHeroImage = isHero && optionIndex === 0;
+            const imageHasLoaded = Boolean(loadedImages[option.id]);
             return (
               <div
                 key={option.id}
@@ -143,12 +159,30 @@ function PollCard({ poll: initialPoll, hasVoted, markVoted }: PollCardProps) {
                     }`}
                   >
                     {option.image_url ? (
-                      <Image
-                        src={option.image_url}
-                        alt={option.text || ""}
-                        fill
-                        className="object-cover"
-                      />
+                      <>
+                        {!imageHasLoaded && (
+                          <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-700/40 to-slate-600/20" />
+                        )}
+                        <Image
+                          src={option.image_url}
+                          alt={option.text || ""}
+                          fill
+                          priority={isHeroImage}
+                          fetchPriority={isHeroImage ? "high" : "auto"}
+                          loading={isHeroImage ? undefined : "lazy"}
+                          sizes={
+                            isHeroImage
+                              ? "(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 560px"
+                              : "(max-width: 768px) 50vw, 320px"
+                          }
+                          placeholder="blur"
+                          blurDataURL={LOW_RES_PLACEHOLDER}
+                          className={`object-cover transition-opacity duration-300 ${
+                            imageHasLoaded ? "opacity-100" : "opacity-0"
+                          }`}
+                          onLoadingComplete={() => handleImageLoaded(option.id)}
+                        />
+                      </>
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
                         <span className="text-4xl font-bold text-primary">
@@ -293,12 +327,13 @@ export default function FeaturedPollClient({ polls }: FeaturedPollClientProps) {
 
   return (
     <div className="space-y-8">
-      {polls.map((poll) => (
+      {polls.map((poll, index) => (
         <PollCard
           key={poll.id}
           poll={poll}
           hasVoted={hasVoted}
           markVoted={markVoted}
+          isHero={index === 0}
         />
       ))}
     </div>

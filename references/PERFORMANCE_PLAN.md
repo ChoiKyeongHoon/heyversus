@@ -56,9 +56,9 @@
 
 ## 4. 히어로 & Above-the-Fold 최적화
 
-- [ ] 랜딩 히어로 이미지(`alt="안현민"`)를 서버에서 바로 렌더하고 `next/image`의 `priority`/`fetchPriority="high"`를 지정해 LCP 지연을 제거합니다. `loading="lazy"`를 제거하고 `sizes="100vw"`로 초기 뷰포트 전체를 커버합니다.
-- [ ] 히어로 배경/CTA 영역에 필요 이상의 클라이언트 로직이 없도록 정리하고, 텍스트·버튼을 SSR HTML로 먼저 출력합니다. 애니메이션이나 그래디언트는 하이드레이션 이후에만 적용해 초기 페인트를 빠르게 유지합니다.
-- [ ] PollsHero와 Featured Poll 카드 위쪽에 가벼운 skeleton 또는 저해상도 이미지 프리뷰(LQIP)를 넣어 사용자가 1초 이내에 시각적 피드백을 받도록 합니다.
+- [x] 랜딩 히어로 이미지(`alt="안현민"`)를 서버에서 바로 렌더하고 `next/image`의 `priority`/`fetchPriority="high"`를 지정해 LCP 지연을 제거합니다. `LandingHero` 컴포넌트가 첫 번째 대표 투표 이미지를 우선 로드하며 `sizes="100vw"`/LQIP를 적용합니다.
+- [x] 히어로 배경/CTA 영역에 필요 이상의 클라이언트 로직이 없도록 정리하고, 텍스트·버튼을 SSR HTML로 먼저 출력합니다. Landing page는 순수 서버 컴포넌트 기반 히어로로 전환해 초기 페인트를 가볍게 유지합니다.
+- [x] PollsHero와 Featured Poll 카드 위쪽에 가벼운 skeleton 또는 저해상도 이미지 프리뷰(LQIP)를 넣어 사용자가 1초 이내에 시각적 피드백을 받도록 합니다. Featured 카드 이미지에 blur placeholder와 로딩 skeleton을 추가했습니다.
 
 ## 5. 번들 및 스크립트 경량화
 
