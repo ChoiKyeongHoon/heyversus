@@ -1,6 +1,7 @@
-import { revalidatePath } from "next/cache";
+import { revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
+import { CACHE_TAGS } from "@/constants/cache";
 import { voteOnPoll } from "@/lib/services/polls";
 
 /**
@@ -40,10 +41,11 @@ export async function POST(
       );
     }
 
-    // 투표 성공 후 관련 페이지 재검증
-    revalidatePath(`/poll/${pollId}`);
-    revalidatePath("/polls");
-    revalidatePath("/");
+    // 투표 성공 후 관련 태그 재검증
+    revalidateTag(CACHE_TAGS.POLL(pollId));
+    revalidateTag(CACHE_TAGS.POLLS);
+    revalidateTag(CACHE_TAGS.FEATURED_POLLS);
+    revalidateTag(CACHE_TAGS.LEADERBOARD);
 
     return NextResponse.json(
       { message: "Vote recorded successfully" },

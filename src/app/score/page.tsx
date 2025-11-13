@@ -2,26 +2,18 @@ import Link from "next/link";
 
 import { PollsHero } from "@/components/polls/PollsHero";
 import { Button } from "@/components/ui/button";
-import { getAnonServerClient } from "@/lib/supabase/anon-server";
+import { getLeaderboard } from "@/lib/services/polls";
 
 export const revalidate = 120;
 
-async function getProfiles() {
-  const supabase = getAnonServerClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("username, points")
-    .order("points", { ascending: false });
+export default async function ScorePage() {
+  const { data, error } = await getLeaderboard({ limit: null });
 
   if (error) {
     console.error("Error fetching profiles:", error);
-    return [];
   }
-  return data;
-}
 
-export default async function ScorePage() {
-  const profiles = await getProfiles();
+  const profiles = data ?? [];
 
   const topThree = profiles.slice(0, 3);
 

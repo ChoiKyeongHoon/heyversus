@@ -8,12 +8,12 @@ import { toast } from "sonner";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
-import { useSupabase } from "@/hooks/useSupabase";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import { useVoteStatus } from "@/hooks/useVoteStatus";
+import { submitVoteRequest } from "@/lib/api/vote";
 import type { PollWithOptions } from "@/lib/types";
-import { formatExpiryDate,isPollExpired } from "@/lib/utils";
+import { formatExpiryDate, isPollExpired } from "@/lib/utils";
 
 type PollsClientProps = {
   serverPolls: PollWithOptions[];
@@ -35,7 +35,6 @@ export default function PollsClient({
 }: PollsClientProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = useSupabase();
   const [polls, setPolls] = useState(serverPolls);
   const serverVotedIds = useMemo(
     () => polls.filter((p) => p.has_voted).map((p) => p.id),
@@ -102,45 +101,48 @@ export default function PollsClient({
       return;
     }
 
-    const { error } = await supabase.rpc("increment_vote", {
-      option_id_to_update: optionId,
-      poll_id_for_vote: pollId,
-    });
+    try {
+      await submitVoteRequest({ pollId, optionId });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "투표 중 오류가 발생했습니다.";
 
-    if (error) {
       console.error("Error voting:", error);
-      if (error.message.includes("User has already voted")) {
+
+      if (message.includes("User has already voted")) {
         toast.warning("이미 이 투표에 참여했습니다.");
         markVoted(pollId);
-      } else if (error.message.includes("Authentication required")) {
+      } else if (message.includes("Authentication required")) {
         toast.error("이 투표는 로그인이 필요합니다.");
       } else {
-        toast.error("투표 중 오류가 발생했습니다.");
+        toast.error(message);
       }
-    } else {
-      // 투표 성공 시 UI를 즉시 업데이트합니다.
-      setPolls((currentPolls) =>
-        currentPolls.map((poll) => {
-          if (poll.id === pollId) {
-            const updatedOptions = poll.poll_options.map((option) => {
-              if (option.id === optionId) {
-                return { ...option, votes: option.votes + 1 };
-              }
-              return option;
-            });
-            return { ...poll, poll_options: updatedOptions };
-          }
-          return poll;
-        })
-      );
 
-      markVoted(pollId);
-
-      setSelectedOptionIds((prev) => ({
-        ...prev,
-        [pollId]: null,
-      }));
+      return;
     }
+
+    // 투표 성공 시 UI를 즉시 업데이트합니다.
+    setPolls((currentPolls) =>
+      currentPolls.map((poll) => {
+        if (poll.id === pollId) {
+          const updatedOptions = poll.poll_options.map((option) => {
+            if (option.id === optionId) {
+              return { ...option, votes: option.votes + 1 };
+            }
+            return option;
+          });
+          return { ...poll, poll_options: updatedOptions };
+        }
+        return poll;
+      })
+    );
+
+    markVoted(pollId);
+
+    setSelectedOptionIds((prev) => ({
+      ...prev,
+      [pollId]: null,
+    }));
   };
 
   const handleToggleFavorite = (pollId: string) => {

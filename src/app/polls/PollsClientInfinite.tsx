@@ -8,15 +8,15 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LoadMoreTrigger } from "@/components/polls/LoadMoreTrigger";
 import { PollCard } from "@/components/polls/PollCard";
-import { type PollCategoryKey,PollCategoryTabs } from "@/components/polls/PollCategoryTabs";
+import { type PollCategoryKey, PollCategoryTabs } from "@/components/polls/PollCategoryTabs";
 import { PollsFilterBar } from "@/components/polls/PollsFilterBar";
 import { PollsHero } from "@/components/polls/PollsHero";
 import { Button } from "@/components/ui/button";
 import { GradientSpinner } from "@/components/ui/loader";
 import { useInfinitePolls } from "@/hooks/useInfinitePolls";
-import { useSupabase } from "@/hooks/useSupabase";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { useVoteStatus } from "@/hooks/useVoteStatus";
+import { submitVoteRequest } from "@/lib/api/vote";
 import type {
   FilterStatus,
   PollsResponse,
@@ -49,7 +49,6 @@ export default function PollsClientInfinite({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const supabase = useSupabase();
   const queryClient = useQueryClient();
 
   const categoryParam = (searchParams.get("category") as PollCategoryKey) || "latest";
@@ -188,21 +187,23 @@ export default function PollsClientInfinite({
       return;
     }
 
-    const { error } = await supabase.rpc("increment_vote", {
-      option_id_to_update: optionId,
-      poll_id_for_vote: pollId,
-    });
+    try {
+      await submitVoteRequest({ pollId, optionId });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "투표 중 오류가 발생했습니다.";
 
-    if (error) {
       console.error("Error voting:", error);
-      if (error.message.includes("User has already voted")) {
+
+      if (message.includes("User has already voted")) {
         toast.warning("이미 이 투표에 참여했습니다.");
         markVoted(pollId);
-      } else if (error.message.includes("Authentication required")) {
+      } else if (message.includes("Authentication required")) {
         toast.error("이 투표는 로그인이 필요합니다.");
       } else {
-        toast.error("투표 중 오류가 발생했습니다.");
+        toast.error(message);
       }
+
       return;
     }
 

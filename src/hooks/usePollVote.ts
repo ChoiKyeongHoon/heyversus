@@ -1,6 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { submitVoteRequest } from "@/lib/api/vote";
+
 import { useSupabase } from "./useSupabase";
 
 interface UsePollVoteOptions {
@@ -16,18 +18,8 @@ export function usePollVote(options: UsePollVoteOptions = {}) {
   const supabase = useSupabase();
 
   return useMutation({
-    mutationFn: async ({ pollId, optionId }: VoteParams) => {
-      const { data, error } = await supabase.rpc("increment_vote", {
-        option_id_to_update: optionId,
-        poll_id_for_vote: pollId,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      return data;
-    },
+    mutationFn: async ({ pollId, optionId }: VoteParams) =>
+      submitVoteRequest({ pollId, optionId }),
     onMutate: async ({ pollId }) => {
       // 비로그인 사용자인 경우 로컬 스토리지에 기록
       const {

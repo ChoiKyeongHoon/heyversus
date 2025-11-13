@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { useSupabase } from "@/hooks/useSupabase";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import { useVoteStatus } from "@/hooks/useVoteStatus";
+import { submitVoteRequest } from "@/lib/api/vote";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate } from "@/lib/utils";
 
@@ -27,7 +27,6 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
   );
 
   const router = useRouter();
-  const supabase = useSupabase();
 
   // 탭 전환 시 자동 새로고침
   useVisibilityChange(() => {
@@ -71,14 +70,7 @@ function PollCard({ poll: initialPoll }: PollCardProps) {
     setIsSubmitting(true);
 
     try {
-      const { error: rpcError } = await supabase.rpc("increment_vote", {
-        option_id_to_update: selectedOption,
-        poll_id_for_vote: poll.id,
-      });
-
-      if (rpcError) {
-        throw new Error(rpcError.message);
-      }
+      await submitVoteRequest({ pollId: poll.id, optionId: selectedOption });
 
       markVoted(poll.id);
       toast.success("투표 성공! 결과 페이지로 이동합니다.");
