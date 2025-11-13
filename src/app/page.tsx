@@ -87,7 +87,7 @@ export default async function LandingPage() {
             가장 인기 있는 토픽을 바로 만나보세요.
           </p>
         </div>
-        <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
           {heroStats.map((stat) => (
             <div
               key={stat.label}
