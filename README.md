@@ -218,6 +218,7 @@ erDiagram
 - **상세 페이지 인사이트 섹션**: `/poll/[id]`에 총 투표 수, 상태, 남은 시간, 선두 옵션을 보여주는 요약 카드를 추가해 “자세히 보기” 버튼이 제공하는 정보 가치를 높였습니다.
 - **API & 로더 안정화**: 공용 `GradientSpinner` 로더를 도입해 로딩 UI를 통일했고, `/api/polls/[id]`가 `createClient()`를 직접 사용하도록 고쳐 `cookies()` 관련 오류를 방지했습니다.
 - **문서 업데이트**: ROADMAP Step 15과 타임라인을 "✅ 완료"로 갱신하고, README 버전을 v0.6.5로 올렸습니다.
+- **대표 투표 UX 보완**: `FeaturedPollClient`가 최신 `next/image` API(`onLoad`)를 사용하도록 정리하고, `useVoteStatus` 초기 동기화 방식을 고쳐 로그인 사용자도 즉시 “투표 완료” 상태를 확인할 수 있게 했습니다.
 
 ### v0.6.4
 
