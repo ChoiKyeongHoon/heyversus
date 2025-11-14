@@ -180,7 +180,7 @@ function PollCard({
                           className={`object-cover transition-opacity duration-300 ${
                             imageHasLoaded ? "opacity-100" : "opacity-0"
                           }`}
-                          onLoadingComplete={() => handleImageLoaded(option.id)}
+                          onLoad={() => handleImageLoaded(option.id)}
                         />
                       </>
                     ) : (

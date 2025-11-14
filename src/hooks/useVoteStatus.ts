@@ -46,10 +46,10 @@ export function useVoteStatus(
   }, []);
 
   useEffect(() => {
-    if (!areArraysEqual(serverVotedIds, initialServerVotedIds)) {
-      setServerVotedIds(initialServerVotedIds);
-    }
-  }, [initialServerVotedIds, areArraysEqual, serverVotedIds]);
+    setServerVotedIds((prev) =>
+      areArraysEqual(prev, initialServerVotedIds) ? prev : initialServerVotedIds
+    );
+  }, [initialServerVotedIds, areArraysEqual]);
 
   useEffect(() => {
     if (session) {
