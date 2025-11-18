@@ -7,6 +7,8 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 const baseConfig: NextConfig = {
   images: {
+    formats: ["image/avif", "image/webp"],
+    qualities: [70],
     remotePatterns: [
       {
         protocol: "https",

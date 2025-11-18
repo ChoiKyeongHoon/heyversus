@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "HOSTNAME=127.0.0.1 PORT=4000 next dev",
     "build": "next build",
     "analyze": "ANALYZE=true next build",
     "start": "next start",

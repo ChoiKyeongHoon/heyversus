@@ -316,6 +316,8 @@ export default function PollsClient({
                                   src={option.image_url}
                                   alt={option.text}
                                   fill
+                                  quality={70}
+                                  formats={["image/avif", "image/webp"]}
                                   sizes="(max-width: 768px) 40px, 48px"
                                   style={{ objectFit: "cover" }}
                                 />

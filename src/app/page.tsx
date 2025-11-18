@@ -106,7 +106,7 @@ export default async function LandingPage() {
       </main>
 
       <footer className="border-t border-gray-700 py-4 text-center md:py-6">
-        <p className="text-sm text-gray-400 md:text-base">
+        <p className="text-sm text-text-secondary md:text-base">
           더 많은 투표를 보고 직접 만들어보세요.
         </p>
         <div className="mt-4">

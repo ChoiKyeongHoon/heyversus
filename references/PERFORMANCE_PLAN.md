@@ -62,10 +62,10 @@
 
 ## 5. 네트워크·스타일·접근성 보강
 
-- [ ] Supabase/외부 이미지에 대해 `next/image`의 `quality`·`formats`(AVIF/WebP) 옵션을 조정하고, 필요 시 썸네일 버전을 만들어 네트워크 페이로드를 412KiB 이하로 유지합니다.
-- [ ] `https://images.vercel.com`, Supabase Storage 등 주요 외부 호스트에 `<link rel="preconnect">`/`dns-prefetch`를 추가해 첫 네트워크 왕복을 줄입니다.
-- [ ] 웹폰트(`e4af272ccee01ff0-s.p.woff2`)에 `font-display: swap`을 적용하고, 렌더 차단 스크립트는 `next/script strategy="afterInteractive"`로 미룹니다. 핵심 CSS는 가능한 한 인라인화합니다.
-- [ ] “VS” 배지와 푸터 텍스트의 색 대비를 WCAG AA 기준으로 조정하고, DOM 중첩을 줄여 총 요소 수(98개) 경고를 완화합니다.
+- [x] Supabase/외부 이미지에 대해 `next/image`의 `quality`·`formats`(AVIF/WebP) 옵션을 조정하고, 필요 시 썸네일 버전을 만들어 네트워크 페이로드를 412KiB 이하로 유지합니다.
+- [x] `https://images.vercel.com`, Supabase Storage 등 주요 외부 호스트에 `<link rel="preconnect">`/`dns-prefetch`를 추가해 첫 네트워크 왕복을 줄입니다.
+- [x] 웹폰트(`Inter`)에 `font-display: swap`을 적용하고, 렌더 차단 스크립트가 없도록 확인했습니다. 핵심 CSS는 기존 글로벌 스타일만 사용하여 최소화합니다.
+- [x] “VS” 배지와 푸터 텍스트의 색 대비를 WCAG AA 기준으로 조정하고, DOM 중첩을 줄여 총 요소 수(98개) 경고를 완화합니다.
 
 ## 6. 번들 및 스크립트 경량화
 

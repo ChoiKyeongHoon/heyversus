@@ -97,12 +97,14 @@ export function PollCard({
                       src={option.image_url}
                       alt={option.text}
                       fill
+                      quality={70}
+                      formats={["image/avif", "image/webp"]}
                       className="object-cover"
                       sizes="48px"
                     />
                   </div>
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-background-subtle text-sm text-text-tertiary">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
                     VS
                   </div>
                 )}
