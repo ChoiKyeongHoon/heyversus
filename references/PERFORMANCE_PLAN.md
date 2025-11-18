@@ -69,11 +69,11 @@
 
 ## 6. 번들 및 스크립트 경량화
 
-- [x] 롤업된 117/52774a7f Sentry 청크를 제거하여 초기 공용 번들을 축소합니다.
-- [x] `browserslist`와 Next.js `target`을 최신 크롬/사파리 중심으로 좁혀 불필요한 Legacy 폴리필을 빌드에서 제외합니다.
-- [~] `next build --analyze`로 `_next/static/chunks/117-60ec0d4eaa7cc599.js`, `52774a7f-5449a2939f6e8b6e.js`, `559-9b01b5c12a237053.js`가 어떤 컴포넌트에서 생성되는지 파악하고 145KiB의 사용하지 않는 JS를 제거합니다. _(일부 수행: Sentry 관련 117/52774a7f 제거 완료, @supabase/ssr 포함 559 청크는 안전성 이슈로 보류)_
-- [x] 사용 빈도가 낮은 UI(예: Score 보드, 통계 위젯, 실험적 컴포넌트 등)는 `next/dynamic` + `ssr: false`로 분리하여 모바일 초기 JS를 70KiB 이하로 낮춥니다. _(현재는 적용하지 않기로 결정)_
-- [x] 메인 스레드에서 200ms 이상 걸리는 청크(webpack chunk 204ms, `_next/static/chunks/4bd1b696-564fac3563aee7ee.js` 62ms)를 프로파일링하여 계산 로직을 메모이제이션하거나 Web Worker/지연 로드로 이동합니다. _(현재는 적용하지 않기로 결정)_
+- ✅ 롤업된 117/52774a7f Sentry 청크를 제거하여 초기 공용 번들을 축소합니다.
+- ✅ `browserslist`와 Next.js `target`을 최신 크롬/사파리 중심으로 좁혀 불필요한 Legacy 폴리필을 빌드에서 제외합니다.
+- ⚠️ `next build --analyze`로 `_next/static/chunks/117-60ec0d4eaa7cc599.js`, `52774a7f-5449a2939f6e8b6e.js`, `559-9b01b5c12a237053.js`가 어떤 컴포넌트에서 생성되는지 파악하고 145KiB의 사용하지 않는 JS를 제거합니다. _(일부 수행: Sentry 관련 117/52774a7f 제거 완료, @supabase/ssr 포함 559 청크는 안전성 이슈로 보류)_
+- ❌ 사용 빈도가 낮은 UI(예: Score 보드, 통계 위젯, 실험적 컴포넌트 등)는 `next/dynamic` + `ssr: false`로 분리하여 모바일 초기 JS를 70KiB 이하로 낮춥니다. _(현재는 적용하지 않기로 결정)_
+- ❌ 메인 스레드에서 200ms 이상 걸리는 청크(webpack chunk 204ms, `_next/static/chunks/4bd1b696-564fac3563aee7ee.js` 62ms)를 프로파일링하여 계산 로직을 메모이제이션하거나 Web Worker/지연 로드로 이동합니다. _(현재는 적용하지 않기로 결정)_
 
 ## 7. 추적 및 검증
 
