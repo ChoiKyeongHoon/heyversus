@@ -35,18 +35,20 @@ export function LandingHero({
         <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-primary/40 via-primary/10 to-transparent blur-3xl" />
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[32px] border border-border/80 bg-gradient-to-br from-slate-800/60 to-slate-600/30 shadow-2xl">
           {heroImageUrl ? (
-            <Image
-              src={heroImageUrl}
-              alt={heroImageAlt}
-              fill
-              priority
-              fetchPriority="high"
-              quality={70}
-              sizes="(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 640px"
-              placeholder="blur"
-              blurDataURL={LOW_RES_PLACEHOLDER}
-              className="object-cover"
-            />
+            <div className="relative h-full w-full">
+              <Image
+                src={heroImageUrl}
+                alt={heroImageAlt}
+                fill
+                priority
+                fetchPriority="high"
+                quality={70}
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 640px"
+                placeholder="blur"
+                blurDataURL={LOW_RES_PLACEHOLDER}
+                className="object-cover"
+              />
+            </div>
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-600/50 to-slate-800/60 text-text-secondary">
               <span className="text-sm font-semibold">대표 이미지 준비 중</span>
