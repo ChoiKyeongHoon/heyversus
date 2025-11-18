@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest --passWithNoTests",
@@ -14,7 +15,6 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-slot": "^1.2.3",
-    "@sentry/nextjs": "^8",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
     "@tanstack/react-query": "^5.90.5",
@@ -43,6 +43,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@next/bundle-analyzer": "^15.5.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "eslint-plugin-import": "^2.30.0",
@@ -56,6 +57,19 @@
     "tsx": "^4.19.2",
     "typescript": "^5",
     "vercel": "^47.0.6"
+  },
+  "browserslist": {
+    "production": [
+      "Chrome >= 120",
+      "Edge >= 120",
+      "Safari >= 17",
+      "iOS >= 17"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": "next lint --fix --file"

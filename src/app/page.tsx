@@ -1,13 +1,12 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { CACHE_TIMES } from "@/constants/cache";
 import { getFeaturedPolls } from "@/lib/services/polls";
 
 import FeaturedPollClient from "./FeaturedPollClient"; // 데이터를 표시할 클라이언트 컴포넌트
 import { LandingHero } from "./LandingHero";
 
-export const revalidate = CACHE_TIMES.FEATURED_POLLS;
+export const revalidate = 3600;
 
 export default async function LandingPage() {
   const { data, error } = await getFeaturedPolls({ useAnonClient: true });
