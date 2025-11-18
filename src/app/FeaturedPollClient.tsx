@@ -128,70 +128,70 @@ function PollCard({
         <div
           className={`grid gap-6 md:gap-8 ${
             poll.poll_options.length === 2
-              ? "grid-cols-1 md:grid-cols-2"
-              : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-          } items-center`}
-        >
-          {poll.poll_options.map((option, optionIndex) => {
+                ? "grid-cols-1 md:grid-cols-2"
+                : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+            } items-center`}
+          >
+            {poll.poll_options.map((option, optionIndex) => {
             const percentage =
               totalVotes > 0
                 ? Math.round((option.votes / totalVotes) * 100)
                 : 0;
             const isHeroImage = isHero && optionIndex === 0;
             const imageHasLoaded = Boolean(loadedImages[option.id]);
-            return (
-              <div
-                key={option.id}
-                className="text-center"
-                onClick={() =>
-                  !isPollClosed && !alreadyVoted && handleSelectOption(option.id)
-                }
-              >
+              return (
                 <div
-                  className={`group transform transition-all duration-300 ${
-                    !isPollClosed && !alreadyVoted
-                      ? "cursor-pointer hover:scale-105"
-                      : "cursor-not-allowed"
-                  }`}
+                  key={option.id}
+                  className="text-center"
+                  onClick={() =>
+                    !isPollClosed && !alreadyVoted && handleSelectOption(option.id)
+                  }
                 >
                   <div
-                    className={`relative w-full h-40 md:h-48 lg:h-56 mb-3 md:mb-4 rounded-lg overflow-hidden shadow-lg border-4 transition-colors ${
-                      selectedOption === option.id
-                        ? "border-orange-500"
-                        : "border-transparent"
+                    className={`group transform transition-all duration-300 ${
+                      !isPollClosed && !alreadyVoted
+                        ? "cursor-pointer hover:scale-105"
+                        : "cursor-not-allowed"
                     }`}
                   >
-                    {option.image_url ? (
-                      <>
-                        {!imageHasLoaded && (
-                          <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-700/40 to-slate-600/20" />
-                        )}
-                        <Image
-                          src={option.image_url}
-                          alt={option.text || ""}
-                          fill
-                          priority={isHeroImage}
-                          fetchPriority={isHeroImage ? "high" : "auto"}
-                          loading={isHeroImage ? undefined : "lazy"}
-                          quality={70}
-                          sizes={
-                            isHeroImage
-                              ? "(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 560px"
-                              : "(max-width: 768px) 50vw, 320px"
-                          }
-                          placeholder="blur"
-                          blurDataURL={LOW_RES_PLACEHOLDER}
-                          className={`object-cover transition-opacity duration-300 ${
-                            imageHasLoaded ? "opacity-100" : "opacity-0"
-                          }`}
-                          onLoad={() => handleImageLoaded(option.id)}
-                        />
-                      </>
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                        <span className="text-4xl font-bold text-primary">
-                          ?
-                        </span>
+                    <div
+                      className={`relative w-full h-40 md:h-48 lg:h-56 mb-3 md:mb-4 rounded-lg overflow-hidden shadow-lg border-4 transition-colors ${
+                        selectedOption === option.id
+                          ? "border-orange-500"
+                          : "border-transparent"
+                      }`}
+                    >
+                      {option.image_url ? (
+                        <div className="relative w-full h-full">
+                          {!imageHasLoaded && (
+                            <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-700/40 to-slate-600/20" />
+                          )}
+                          <Image
+                            src={option.image_url}
+                            alt={option.text || ""}
+                            fill
+                            priority={isHeroImage}
+                            fetchPriority={isHeroImage ? "high" : "auto"}
+                            loading={isHeroImage ? undefined : "lazy"}
+                            quality={70}
+                            sizes={
+                              isHeroImage
+                                ? "(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 560px"
+                                : "(max-width: 768px) 50vw, 320px"
+                            }
+                            placeholder="blur"
+                            blurDataURL={LOW_RES_PLACEHOLDER}
+                            className={`object-cover transition-opacity duration-300 ${
+                              imageHasLoaded ? "opacity-100" : "opacity-0"
+                            }`}
+                            onLoad={() => handleImageLoaded(option.id)}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+                          <span className="text-4xl font-bold text-primary">
+                            ?
+                          </span>
                       </div>
                     )}
                     <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-md text-xs md:text-sm">

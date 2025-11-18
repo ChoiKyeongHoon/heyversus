@@ -92,15 +92,17 @@ export function PollCard({
                 }`}
               >
                 {option.image_url ? (
-                  <div className="relative h-12 w-12 overflow-hidden rounded-lg">
-                    <Image
-                      src={option.image_url}
-                      alt={option.text}
-                      fill
-                      quality={70}
-                      className="object-cover"
-                      sizes="48px"
-                    />
+                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg">
+                    <div className="relative h-full w-full">
+                      <Image
+                        src={option.image_url}
+                        alt={option.text}
+                        fill
+                        quality={70}
+                        className="object-cover"
+                        sizes="48px"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
