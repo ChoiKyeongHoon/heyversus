@@ -3,7 +3,6 @@
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { LoadMoreTrigger } from "@/components/polls/LoadMoreTrigger";
@@ -17,6 +16,7 @@ import { useInfinitePolls } from "@/hooks/useInfinitePolls";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { useVoteStatus } from "@/hooks/useVoteStatus";
 import { submitVoteRequest } from "@/lib/api/vote";
+import { getToast } from "@/lib/toast";
 import type {
   FilterStatus,
   PollsResponse,
@@ -175,6 +175,7 @@ export default function PollsClientInfinite({
   };
 
   const handleVote = async (pollId: string) => {
+    const toast = await getToast();
     const optionId = selectedOptionIds[pollId];
 
     if (!optionId) {
@@ -227,7 +228,8 @@ export default function PollsClientInfinite({
     queryClient.invalidateQueries({ queryKey: ["polls", "infinite"] });
   };
 
-  const handleToggleFavorite = (pollId: string) => {
+  const handleToggleFavorite = async (pollId: string) => {
+    const toast = await getToast();
     if (!session) {
       toast.error("즐겨찾기는 로그인 후 이용할 수 있습니다.");
       router.push(`/signin?redirect=${encodeURIComponent(pathname)}`);
@@ -239,8 +241,9 @@ export default function PollsClientInfinite({
     toggleFavoriteMutation.mutate(
       { pollId },
       {
-        onSuccess: ({ isFavorited }) => {
-          toast.success(
+        onSuccess: async ({ isFavorited }) => {
+          const toastInstance = await getToast();
+          toastInstance.success(
             isFavorited ? "즐겨찾기에 추가했습니다." : "즐겨찾기에서 제거했습니다."
           );
           updateCachedPoll(pollId, (poll) => ({
@@ -249,9 +252,10 @@ export default function PollsClientInfinite({
           }));
           queryClient.invalidateQueries({ queryKey: ["polls", "infinite"] });
         },
-        onError: (err: unknown) => {
+        onError: async (err: unknown) => {
           console.error("Error toggling favorite:", err);
-          toast.error("즐겨찾기 처리 중 오류가 발생했습니다.");
+          const toastInstance = await getToast();
+          toastInstance.error("즐겨찾기 처리 중 오류가 발생했습니다.");
         },
         onSettled: () => setFavoritePendingId(null),
       }

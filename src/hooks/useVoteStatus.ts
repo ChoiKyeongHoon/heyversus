@@ -28,6 +28,7 @@ export function useVoteStatus(
   initialServerVotedIds: string[] = [],
   options: UseVoteStatusOptions = {}
 ) {
+  const pollIds = useMemo(() => options.pollIds ?? [], [options.pollIds]);
   const { session } = useSession();
   const supabase = useSupabase();
   const [serverVotedIds, setServerVotedIds] = useState(initialServerVotedIds);
@@ -60,7 +61,7 @@ export function useVoteStatus(
   }, [session]);
 
   useEffect(() => {
-    if (!session || !options.pollIds || options.pollIds.length === 0) {
+    if (!session || pollIds.length === 0) {
       return;
     }
 
@@ -71,7 +72,7 @@ export function useVoteStatus(
         const { data, error } = await supabase
           .from("user_votes")
           .select("poll_id")
-          .in("poll_id", options.pollIds)
+          .in("poll_id", pollIds)
           .eq("user_id", session.user.id);
 
         if (error) {
@@ -96,7 +97,7 @@ export function useVoteStatus(
     return () => {
       isMounted = false;
     };
-  }, [session, supabase, options.pollIds, areArraysEqual]);
+  }, [session, supabase, pollIds, areArraysEqual]);
 
   const votedPolls = useMemo(
     () => (session ? serverVotedIds : anonymousVotedIds),

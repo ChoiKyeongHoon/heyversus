@@ -5,13 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useSession } from "@/hooks/useSession";
 import { createClient } from "@/lib/supabase/client";
+import { getToast } from "@/lib/toast";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -24,6 +24,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    const toast = await getToast();
     toast.success("로그아웃되었습니다.");
     setProfileMenuOpen(false);
     router.push("/");

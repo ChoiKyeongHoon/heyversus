@@ -1,6 +1,5 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 /**
@@ -21,10 +20,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Sentry에 에러 리포트
-    if (Sentry.getCurrentHub().getClient()) {
-      Sentry.captureException(error);
-    }
+    console.error("Global error boundary hit:", error);
   }, [error]);
 
   return (

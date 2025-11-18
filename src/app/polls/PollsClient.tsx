@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import { useVoteStatus } from "@/hooks/useVoteStatus";
 import { submitVoteRequest } from "@/lib/api/vote";
+import { getToast } from "@/lib/toast";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate, isPollExpired } from "@/lib/utils";
 
@@ -90,6 +90,7 @@ export default function PollsClient({
     const optionId = selectedOptionIds[pollId];
 
     if (!optionId) {
+      const toast = await getToast();
       toast.warning("투표할 옵션을 선택해주세요.");
       return;
     }
@@ -97,6 +98,7 @@ export default function PollsClient({
     const isAlreadyVoted = hasVoted(pollId);
 
     if (isAlreadyVoted) {
+      const toast = await getToast();
       toast.warning("이미 이 투표에 참여했습니다.");
       return;
     }
@@ -108,6 +110,7 @@ export default function PollsClient({
         error instanceof Error ? error.message : "투표 중 오류가 발생했습니다.";
 
       console.error("Error voting:", error);
+      const toast = await getToast();
 
       if (message.includes("User has already voted")) {
         toast.warning("이미 이 투표에 참여했습니다.");
@@ -145,8 +148,9 @@ export default function PollsClient({
     }));
   };
 
-  const handleToggleFavorite = (pollId: string) => {
+  const handleToggleFavorite = async (pollId: string) => {
     if (!session) {
+      const toast = await getToast();
       toast.error("즐겨찾기는 로그인 후 이용할 수 있습니다.");
       router.push(`/signin?redirect=${encodeURIComponent(pathname)}`);
       return;
@@ -157,7 +161,7 @@ export default function PollsClient({
     toggleFavoriteMutation.mutate(
       { pollId },
       {
-        onSuccess: ({ isFavorited }) => {
+        onSuccess: async ({ isFavorited }) => {
           setPolls((currentPolls) => {
             if (removeOnUnfavorite && !isFavorited) {
               return currentPolls.filter((poll) => poll.id !== pollId);
@@ -175,6 +179,7 @@ export default function PollsClient({
               return rest;
             });
           }
+          const toast = await getToast();
           toast.success(
             isFavorited
               ? "즐겨찾기에 추가했습니다."
@@ -182,7 +187,7 @@ export default function PollsClient({
           );
           router.refresh();
         },
-        onError: (error: unknown) => {
+        onError: async (error: unknown) => {
           console.error("Error toggling favorite:", error);
           const message =
             typeof error === "object" &&
@@ -191,6 +196,8 @@ export default function PollsClient({
             typeof (error as { message?: string }).message === "string"
               ? (error as { message: string }).message
               : "";
+
+          const toast = await getToast();
 
           if (message.includes("Authentication required")) {
             toast.error("다시 로그인한 후 즐겨찾기를 사용할 수 있습니다.");
