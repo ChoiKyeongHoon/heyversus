@@ -98,7 +98,6 @@ export function PollCard({
                       alt={option.text}
                       fill
                       quality={70}
-                      formats={["image/avif", "image/webp"]}
                       className="object-cover"
                       sizes="48px"
                     />
