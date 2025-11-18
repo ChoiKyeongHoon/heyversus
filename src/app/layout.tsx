@@ -1,10 +1,10 @@
 import "@/app/globals.css";
 
 import { Inter } from "next/font/google";
-import { Toaster } from "sonner";
 
 import Navbar from "@/components/layout/Navbar";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ToasterClient } from "@/components/ToasterClient";
 import { QueryProvider } from "@/providers/QueryProvider";
 
 const inter = Inter({
@@ -38,7 +38,7 @@ export default function RootLayout({
               <span className="text-brand-orange"> Vote Here!!</span>
             </h1>
             {children}
-            <Toaster position="bottom-center" />
+            <ToasterClient />
           </QueryProvider>
         </ThemeProvider>
       </body>

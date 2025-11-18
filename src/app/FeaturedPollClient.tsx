@@ -4,12 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import { LOW_RES_PLACEHOLDER } from "@/constants/images";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import { useVoteStatus } from "@/hooks/useVoteStatus";
 import { submitVoteRequest } from "@/lib/api/vote";
+import { getToast } from "@/lib/toast";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate } from "@/lib/utils";
 
@@ -71,6 +71,7 @@ function PollCard({
 
   const handleVote = async () => {
     if (!selectedOption) {
+      const toast = await getToast();
       toast.error("투표할 항목을 선택해주세요.");
       return;
     }
@@ -80,11 +81,13 @@ function PollCard({
       await submitVoteRequest({ pollId: poll.id, optionId: selectedOption });
 
       markVoted(poll.id);
+      const toast = await getToast();
       toast.success("투표 성공! 결과 페이지로 이동합니다.");
       router.push(`/poll/${poll.id}`);
     } catch (e: unknown) {
       const errorMessage =
         e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.";
+      const toast = await getToast();
       if (errorMessage.includes("User has already voted")) {
         toast.warning("이미 이 투표에 참여했습니다.");
       } else {

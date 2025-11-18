@@ -1,6 +1,5 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -21,10 +20,8 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Sentry에 에러 리포트
-    if (Sentry.getCurrentHub().getClient()) {
-      Sentry.captureException(error);
-    }
+    // 클라이언트 에러 로그를 남기는 자리입니다. (Sentry 제거)
+    console.error("Client error boundary hit:", error);
   }, [error]);
 
   return (

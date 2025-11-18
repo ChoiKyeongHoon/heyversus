@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { STORAGE_KEYS } from "@/constants/storage";
 import { usePollVote } from "@/hooks/usePollVote";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
+import { getToast } from "@/lib/toast";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate, isPollExpired } from "@/lib/utils";
 
@@ -219,17 +219,17 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
               )}
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   const pollUrl = window.location.href;
-                  navigator.clipboard
-                    .writeText(pollUrl)
-                    .then(() => {
-                      toast.success("투표 링크가 클립보드에 복사되었습니다!");
-                    })
-                    .catch((err) => {
-                      console.error("Failed to copy link:", err);
-                      toast.error("링크 복사에 실패했습니다.");
-                    });
+                  try {
+                    await navigator.clipboard.writeText(pollUrl);
+                    const toast = await getToast();
+                    toast.success("투표 링크가 클립보드에 복사되었습니다!");
+                  } catch (err) {
+                    console.error("Failed to copy link:", err);
+                    const toast = await getToast();
+                    toast.error("링크 복사에 실패했습니다.");
+                  }
                 }}
                 className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base text-center min-h-[44px] flex items-center justify-center"
               >

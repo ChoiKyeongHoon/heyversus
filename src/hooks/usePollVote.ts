@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 import { submitVoteRequest } from "@/lib/api/vote";
+import { getToast } from "@/lib/toast";
 
 import { useSupabase } from "./useSupabase";
 
@@ -45,8 +45,9 @@ export function usePollVote(options: UsePollVoteOptions = {}) {
       // 여기서는 단순히 UI 상태만 낙관적으로 업데이트합니다.
       return { previousData: null };
     },
-    onError: (error: Error) => {
+    onError: async (error: Error) => {
       console.error("Error voting:", error);
+      const toast = await getToast();
 
       if (error.message?.includes("User has already voted")) {
         toast.warning("이미 이 투표에 참여했습니다.");
@@ -56,7 +57,8 @@ export function usePollVote(options: UsePollVoteOptions = {}) {
         toast.error("투표 중 오류가 발생했습니다.");
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      const toast = await getToast();
       toast.success("투표가 완료되었습니다!");
       options.onSuccess?.();
     },
