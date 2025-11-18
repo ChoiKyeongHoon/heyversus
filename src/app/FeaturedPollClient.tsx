@@ -174,7 +174,6 @@ function PollCard({
                           fetchPriority={isHeroImage ? "high" : "auto"}
                           loading={isHeroImage ? undefined : "lazy"}
                           quality={70}
-                          formats={["image/avif", "image/webp"]}
                           sizes={
                             isHeroImage
                               ? "(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 560px"

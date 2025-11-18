@@ -42,7 +42,6 @@ export function LandingHero({
               priority
               fetchPriority="high"
               quality={70}
-              formats={["image/avif", "image/webp"]}
               sizes="(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 640px"
               placeholder="blur"
               blurDataURL={LOW_RES_PLACEHOLDER}
