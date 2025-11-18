@@ -1,7 +1,7 @@
 # Heyversus
 
 🔗 Link : https://heyversus.vercel.app/
-📦 Version : v0.6.5
+📦 Version : v0.6.6
 
 **Heyversus**는 사용자가 직접 투표를 생성하고 참여할 수 있는 동적인 웹 애플리케이션입니다. Next.js와 Supabase를 기반으로 구축되어 있으며, 실시간 투표 결과와 사용자 인증, 포인트 시스템을 제공합니다.
 
@@ -207,6 +207,13 @@ erDiagram
 ```
 
 ## 📌 업데이트 기록
+
+### v0.6.6
+
+- **이미지 최적화**: `next/image` 기본 포맷을 AVIF/WebP로 지정하고 품질을 70으로 낮춰 네트워크 페이로드를 절감했습니다.
+- **네트워크 티닝**: Supabase Storage 및 images.vercel.com에 `preconnect`/`dns-prefetch`를 추가해 초기 연결 지연을 줄였습니다.
+- **접근성/스타일**: 이미지 없는 VS 배지 대비 강화, 푸터 텍스트 대비 개선.
+- **정리**: Sentry 의존성을 제거하고 번들 분석 스크립트(`npm run analyze`)를 추가했습니다.
 
 ### v0.6.5
 
