@@ -24,6 +24,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" suppressHydrationWarning>
+      <head>
+        <link
+          rel="preconnect"
+          href="https://nsdezyvsxkyjnfnqprhe.supabase.co"
+        />
+        <link
+          rel="dns-prefetch"
+          href="https://nsdezyvsxkyjnfnqprhe.supabase.co"
+        />
+        <link rel="preconnect" href="https://images.vercel.com" />
+        <link rel="dns-prefetch" href="https://images.vercel.com" />
+      </head>
       <body className={`${inter.className} antialiased`}>
         <ThemeProvider
           attribute="class"
