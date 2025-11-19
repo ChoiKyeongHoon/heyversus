@@ -52,6 +52,11 @@ const config = {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        panel: "hsl(var(--panel))",
+        "panel-hover": "hsl(var(--panel-hover))",
+        surface: "hsl(var(--surface))",
+        "background-light": "hsl(var(--background-light))",
+        "background-subtle": "hsl(var(--background-subtle))",
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
@@ -60,6 +65,13 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        text: {
+          primary: "hsl(var(--text-primary))",
+          secondary: "hsl(var(--text-secondary))",
+          tertiary: "hsl(var(--text-tertiary))",
+        },
+        "border-subtle": "hsl(var(--border-subtle))",
+        danger: "hsl(var(--danger))",
         /* Extended Semantic Colors */
         success: {
           DEFAULT: "hsl(var(--success))",
