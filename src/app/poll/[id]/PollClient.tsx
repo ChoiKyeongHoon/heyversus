@@ -1,10 +1,13 @@
 "use client";
 
+import { Star } from "lucide-react";
 import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { STORAGE_KEYS } from "@/constants/storage";
 import { usePollVote } from "@/hooks/usePollVote";
+import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import { getToast } from "@/lib/toast";
 import type { PollWithOptions } from "@/lib/types";
@@ -16,13 +19,17 @@ interface PollClientProps {
 }
 
 export default function PollClient({ poll, onRefresh }: PollClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const voteMutation = usePollVote({
     onSuccess: () => {
       onRefresh?.();
     },
   });
+  const toggleFavoriteMutation = useToggleFavorite();
   // `has_voted`는 서버에서 내려온, 로그인 사용자의 투표 여부입니다.
   const [isVoted, setIsVoted] = useState(poll.has_voted || false);
+  const [isFavorited, setIsFavorited] = useState(Boolean(poll.is_favorited));
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [isRouletteOpen, setIsRouletteOpen] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -44,6 +51,7 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
 
   // poll prop이 변경될 때마다 내부 상태를 동기화합니다.
   useEffect(() => {
+    setIsFavorited(Boolean(poll.is_favorited));
     // 서버에서 이미 투표했다고 알려주면, 그 값을 최우선으로 신뢰합니다.
     if (poll.has_voted) {
       setIsVoted(true);
@@ -90,6 +98,41 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
         onError: () => {
           // 에러 발생 시 롤백
           setIsVoted(false);
+        },
+      }
+    );
+  };
+
+  const handleFavoriteToggle = () => {
+    if (toggleFavoriteMutation.isPending) return;
+    const currentPath = pathname || `/poll/${poll.id}`;
+
+    toggleFavoriteMutation.mutate(
+      { pollId: poll.id },
+      {
+        onSuccess: async ({ isFavorited }) => {
+          setIsFavorited(isFavorited);
+          const toast = await getToast();
+          toast.success(
+            isFavorited
+              ? "즐겨찾기에 추가되었습니다."
+              : "즐겨찾기에서 제거했습니다."
+          );
+        },
+        onError: async (error) => {
+          const toast = await getToast();
+          const message =
+            error instanceof Error
+              ? error.message
+              : typeof error === "string"
+                ? error
+                : "";
+          if (message.includes("Authentication required")) {
+            toast.error("다시 로그인한 후 즐겨찾기를 사용할 수 있습니다.");
+            router.push(`/signin?redirect=${encodeURIComponent(currentPath)}`);
+          } else {
+            toast.error("즐겨찾기 처리 중 오류가 발생했습니다.");
+          }
         },
       }
     );
@@ -219,6 +262,8 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
   }, [cooldownUntil]);
 
   const hasRouletteResult = Boolean(rouletteResultOptionId);
+  const showResultsView = isVoted || isPollClosed;
+  const timeRemainingLabel = getTimeRemaining(poll.expires_at);
   const showVoteButton = !isVoted && !isPollClosed && !voteMutation.isPending;
   const showVoteComplete = isVoted && !isPollClosed;
   const showVotingState = voteMutation.isPending;
@@ -287,72 +332,144 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
         </section>
 
         <div
-          className={`bg-panel border border-border rounded-lg shadow-lg overflow-hidden mb-6 md:mb-8 ${
+          className={`rounded-3xl border border-border bg-panel/60 shadow-inner ${
             isPollClosed ? "opacity-60" : ""
           }`}
         >
-          <div className="p-4 md:p-6">
-            <h3 className="text-lg md:text-xl font-semibold text-text-primary mb-2">
-              {poll.question}
-            </h3>
-            <p className="text-sm md:text-base text-text-secondary mb-4 md:mb-6">
-              {isPollClosed ? "결과를 확인하세요." : "이 투표에 참여해보세요."}
-            </p>
+          <div className="flex flex-wrap items-center justify-between border-b border-border-subtle px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary sm:text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                {poll.is_public ? "공개" : "비공개"}
+              </span>
+              {isPollClosed ? (
+                <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-destructive">
+                  마감됨
+                </span>
+              ) : (
+                <span className="rounded-full bg-accent/10 px-2 py-0.5 text-accent">
+                  {timeRemainingLabel || "진행 중"}
+                </span>
+              )}
+            </div>
+            <div className="text-text-secondary text-[11px] sm:text-xs">
+              총 {totalVotes.toLocaleString()}표
+            </div>
+          </div>
 
-            {/* Poll Options - Always show results if poll is closed */}
-            {!isVoted && !isPollClosed && (
-              <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
-                {rouletteResultOption && (
-                  <div className="flex items-center gap-2 rounded-md bg-primary/5 px-3 py-2 text-sm text-primary">
-                    <span className="font-semibold">돌림판 결과</span>
-                    <span className="truncate">
-                      {rouletteResultOption.text} (자동 선택됨)
-                    </span>
-                  </div>
-                )}
-                {poll.poll_options.map((option) => (
-                  <div
-                    key={option.id}
-                    className={`flex items-center justify-between bg-surface p-2.5 md:p-3 rounded-md border cursor-pointer hover:bg-panel-hover min-h-[44px] ${
-                      selectedOptionId === option.id
-                        ? "border-primary shadow-[0_0_0_1px_rgba(99,102,241,0.35)]"
-                        : "border-border-subtle"
-                    } ${
-                      rouletteResultOptionId === option.id ? "bg-primary/5" : ""
-                    }`}
-                    onClick={() => {
-                      setSelectedOptionId(option.id);
-                      if (
-                        rouletteResultOptionId &&
-                        rouletteResultOptionId !== option.id
-                      ) {
-                        setRouletteResultOptionId(null);
-                      }
-                    }}
-                  >
-                    <div className="flex items-center min-w-0 flex-1">
-                      {option.image_url && (
-                        <div className="relative w-10 h-10 md:w-12 md:h-12 mr-3 md:mr-4 rounded-md overflow-hidden flex-shrink-0">
+          <div className="p-4 md:p-6 space-y-6">
+            <header className="space-y-2">
+              <h3 className="text-xl font-semibold text-text-primary md:text-2xl">
+                {poll.question}
+              </h3>
+              <p className="text-sm md:text-base text-text-secondary">
+                {isPollClosed ? "결과를 확인하세요." : "이 투표에 참여해보세요."}
+              </p>
+            </header>
+
+            {/* Poll Options / Results */}
+            <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
+              {!showResultsView && rouletteResultOption && (
+                <div className="flex items-center gap-2 rounded-md bg-primary/5 px-3 py-2 text-sm text-primary">
+                  <span className="font-semibold">돌림판 결과</span>
+                  <span className="truncate">
+                    {rouletteResultOption.text} (자동 선택됨)
+                  </span>
+                </div>
+              )}
+              <div className="space-y-2">
+                {poll.poll_options.map((option) => {
+                  const isSelected = selectedOptionId === option.id;
+                  const isRouletteHighlight =
+                    !showResultsView && rouletteResultOptionId === option.id;
+                  const votePercentage =
+                    totalVotes > 0
+                      ? Math.round(((option.votes || 0) / totalVotes) * 100)
+                      : 0;
+
+                  const baseClasses = showResultsView
+                    ? "border-transparent bg-background-subtle cursor-default"
+                    : isSelected
+                      ? "border-primary bg-primary/10"
+                      : "border-border-subtle hover:border-primary/60";
+
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      disabled={showResultsView}
+                      onClick={() => {
+                        if (showResultsView) return;
+                        setSelectedOptionId(option.id);
+                        if (
+                          rouletteResultOptionId &&
+                          rouletteResultOptionId !== option.id
+                        ) {
+                          setRouletteResultOptionId(null);
+                        }
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${baseClasses} ${
+                        isRouletteHighlight ? "ring-1 ring-primary/40" : ""
+                      }`}
+                    >
+                      {option.image_url ? (
+                        <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg">
                           <Image
                             src={option.image_url}
                             alt={option.text || "Poll option"}
                             fill
-                            sizes="(max-width: 768px) 40px, 48px"
-                            style={{ objectFit: "cover" }}
+                            sizes="48px"
+                            className="object-cover"
                           />
                         </div>
+                      ) : (
+                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
+                          VS
+                        </div>
                       )}
-                      <span className="text-sm md:text-base text-text-primary truncate">
-                        {option.text}
-                      </span>
-                    </div>
-                    <span className="text-xs md:text-sm text-text-tertiary ml-2 flex-shrink-0">
-                      {option.votes || 0}
-                    </span>
-                  </div>
-                ))}
+                      <div className="flex flex-1 flex-col min-w-0">
+                        <span className="text-sm md:text-base font-semibold text-text-primary truncate">
+                          {option.text}
+                        </span>
+                        {showResultsView ? (
+                          <div className="mt-2">
+                            <div className="flex items-center justify-between text-xs text-text-tertiary">
+                              <span>{votePercentage}%</span>
+                              <span>{(option.votes || 0).toLocaleString()}표</span>
+                            </div>
+                            <div className="mt-1 h-2 rounded-full bg-border/50">
+                              <div
+                                className="h-full rounded-full bg-primary"
+                                style={{ width: `${votePercentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-text-secondary">
+                            선택하려면 누르세요
+                          </span>
+                        )}
+                      </div>
+                      {!showResultsView && (
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                            isSelected
+                              ? "border-primary text-primary"
+                              : "border-border text-text-tertiary"
+                          }`}
+                        >
+                          선택
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-            )}
+              {isVoted && !isPollClosed && (
+                <p className="text-center text-success text-sm font-semibold">
+                  투표에 참여해주셔서 감사합니다!
+                </p>
+              )}
+            </div>
 
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-center gap-2 sm:gap-4 text-center">
@@ -374,11 +491,21 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
               >
                 링크 공유
               </button>
+              {showVoteComplete && (
+                <button
+                  type="button"
+                  onClick={() => router.push("/polls")}
+                  className="border-2 border-transparent bg-gradient-to-r from-brand-orange to-brand-gold text-transparent bg-clip-text font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] flex items-center justify-center"
+                  style={{ borderImage: "linear-gradient(to right, var(--brand-orange), var(--brand-gold)) 1" }}
+                >
+                  다른 투표들
+                </button>
+              )}
               {showRouletteTrigger && (
                 <button
                   type="button"
                   onClick={handleRouletteOpen}
-                  className="bg-brand-gold text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:brightness-95 disabled:opacity-70"
+                  className="bg-gradient-to-br from-brand-gold/90 via-brand-gold to-brand-gold/80 text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:brightness-95 disabled:opacity-70"
                   disabled={isSpinning}
                 >
                   랜덤 투표
@@ -387,7 +514,7 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
               {showVoteButton && (
                 <button
                   onClick={() => handleVote(selectedOptionId!)}
-                  className="bg-primary hover:bg-primary-hover text-white font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base min-h-[44px]"
+                  className="bg-gradient-to-br from-[#ff8c00] to-[#ff6b00] text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:from-[#ff6b00] hover:to-[#ff5500] disabled:opacity-60"
                   disabled={!selectedOptionId}
                 >
                   투표하기
@@ -405,63 +532,34 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
               )}
             </div>
 
-            {/* Results Section - Always visible */}
-            <div className="mt-4 md:mt-6 space-y-2 md:space-y-3">
-              <h3 className="text-base md:text-lg font-semibold text-text-primary mb-3 md:mb-4">
-                투표 결과
-              </h3>
-              {poll.poll_options.map((option) => {
-                const votePercentage =
-                  totalVotes > 0
-                    ? ((option.votes || 0) / totalVotes) * 100
-                    : 0;
-                const isHighlighted = rouletteResultOptionId === option.id;
-                return (
-                  <div key={option.id} className="space-y-2">
-                    <div
-                      className={`flex justify-between text-sm ${
-                        isHighlighted
-                          ? "text-primary font-semibold"
-                          : "text-text-primary"
-                      }`}
-                    >
-                      <span className="truncate">{option.text}</span>
-                      <span className="text-text-tertiary">
-                        {option.votes || 0}표 ({votePercentage.toFixed(1)}%)
-                      </span>
-                    </div>
-                    <div
-                      className={`w-full rounded-full h-2 ${
-                        isHighlighted
-                          ? "bg-primary/20 ring-1 ring-primary/50"
-                          : "bg-background-subtle"
-                      }`}
-                    >
-                      <div
-                        className={`h-2 rounded-full transition-all duration-500 ${
-                          isHighlighted ? "bg-primary" : "bg-primary"
-                        }`}
-                        style={{ width: `${votePercentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
-              {isVoted && !isPollClosed && (
-                <p className="text-center text-success mt-4 font-semibold">
-                  투표에 참여해주셔서 감사합니다!
-                </p>
-              )}
-            </div>
           </div>
-          <div className="bg-background-subtle px-4 md:px-6 py-2.5 md:py-3 border-t border-border">
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-4">
-              <p className="text-xs md:text-sm text-text-tertiary">
-                {getTimeRemaining(poll.expires_at)}
-              </p>
-              <p className="text-xs md:text-sm text-text-tertiary">
-                (마감: {formatExpiryDate(poll.expires_at)})
-              </p>
+          <div className="border-t border-border-subtle px-4 md:px-6 py-3 text-xs sm:text-[13px]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 text-text-tertiary">
+                <span>
+                  {timeRemainingLabel ? `남은 시간: ${timeRemainingLabel}` : "기한 없음"}
+                </span>
+                {poll.expires_at && (
+                  <span>마감: {formatExpiryDate(poll.expires_at)}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleFavoriteToggle}
+                disabled={toggleFavoriteMutation.isPending}
+                aria-pressed={isFavorited}
+                className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                  isFavorited
+                    ? "border-brand-gold text-brand-gold"
+                    : "border-border text-text-secondary hover:text-text-primary"
+                } ${toggleFavoriteMutation.isPending ? "opacity-60 cursor-not-allowed" : ""}`}
+              >
+                <Star
+                  className="h-3.5 w-3.5"
+                  fill={isFavorited ? "currentColor" : "none"}
+                />
+                {isFavorited ? "즐겨찾기" : "즐겨찾기 추가"}
+              </button>
             </div>
           </div>
         </div>
