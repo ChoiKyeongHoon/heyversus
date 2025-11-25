@@ -15,7 +15,6 @@ import { GradientSpinner } from "@/components/ui/loader";
 import { useInfinitePolls } from "@/hooks/useInfinitePolls";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { useVoteStatus } from "@/hooks/useVoteStatus";
-import { submitVoteRequest } from "@/lib/api/vote";
 import { getToast } from "@/lib/toast";
 import type {
   FilterStatus,
@@ -72,7 +71,6 @@ export default function PollsClientInfinite({
     filterStatus,
   });
 
-  const [selectedOptionIds, setSelectedOptionIds] = useState<Record<string, string | null>>({});
   const toggleFavoriteMutation = useToggleFavorite();
   const [favoritePendingId, setFavoritePendingId] = useState<string | null>(null);
 
@@ -109,7 +107,7 @@ export default function PollsClientInfinite({
     () => polls.filter((p) => p.has_voted).map((p) => p.id),
     [polls]
   );
-  const { session, hasVoted, markVoted } = useVoteStatus(serverVotedIds);
+  const { session, hasVoted } = useVoteStatus(serverVotedIds);
 
   useEffect(() => {
     if (session) {
@@ -165,67 +163,6 @@ export default function PollsClientInfinite({
 
     const minutes = Math.floor(diff / (1000 * 60));
     return `${minutes}분 남음`;
-  };
-
-  const handleOptionSelect = (pollId: string, optionId: string) => {
-    setSelectedOptionIds((prev) => ({
-      ...prev,
-      [pollId]: optionId,
-    }));
-  };
-
-  const handleVote = async (pollId: string) => {
-    const toast = await getToast();
-    const optionId = selectedOptionIds[pollId];
-
-    if (!optionId) {
-      toast.warning("투표할 옵션을 선택해주세요.");
-      return;
-    }
-
-    if (hasVoted(pollId)) {
-      toast.warning("이미 이 투표에 참여했습니다.");
-      return;
-    }
-
-    try {
-      await submitVoteRequest({ pollId, optionId });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "투표 중 오류가 발생했습니다.";
-
-      console.error("Error voting:", error);
-
-      if (message.includes("User has already voted")) {
-        toast.warning("이미 이 투표에 참여했습니다.");
-        markVoted(pollId);
-      } else if (message.includes("Authentication required")) {
-        toast.error("이 투표는 로그인이 필요합니다.");
-      } else {
-        toast.error(message);
-      }
-
-      return;
-    }
-
-    markVoted(pollId);
-    setSelectedOptionIds((prev) => ({
-      ...prev,
-      [pollId]: null,
-    }));
-
-    updateCachedPoll(pollId, (poll) => ({
-      ...poll,
-      has_voted: true,
-      poll_options: poll.poll_options.map((option) =>
-        option.id === optionId
-          ? { ...option, votes: (option.votes ?? 0) + 1 }
-          : option
-      ),
-    }));
-
-    toast.success("투표가 완료되었습니다!");
-    queryClient.invalidateQueries({ queryKey: ["polls", "infinite"] });
   };
 
   const handleToggleFavorite = async (pollId: string) => {
@@ -319,8 +256,6 @@ export default function PollsClientInfinite({
           );
           const isPollClosed = poll.status === "closed" || isPollExpired(poll.expires_at);
           const userHasVoted = hasVoted(poll.id);
-          const selectedOption = selectedOptionIds[poll.id] ?? null;
-
           return (
             <PollCard
               key={poll.id}
@@ -328,14 +263,12 @@ export default function PollsClientInfinite({
               totalVotes={totalVotes}
               isPollClosed={isPollClosed}
               hasVoted={userHasVoted}
-              selectedOptionId={selectedOption}
-              onSelectOption={(optionId) => handleOptionSelect(poll.id, optionId)}
-              onVote={() => handleVote(poll.id)}
               onToggleFavorite={session ? () => handleToggleFavorite(poll.id) : undefined}
               favoritePending={favoritePendingId === poll.id}
               canFavorite={Boolean(session)}
               isFavorited={poll.is_favorited}
               timeRemaining={getTimeRemaining(poll.expires_at)}
+              interactive={false}
             />
           );
         })}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Star } from "lucide-react";
+import { Link, Sparkles, Star } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -487,8 +487,9 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
                     toast.error("링크 복사에 실패했습니다.");
                   }
                 }}
-                className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base text-center min-h-[44px] flex items-center justify-center"
+                className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base text-center min-h-[44px] flex items-center justify-center gap-2"
               >
+                <Link className="h-4 w-4" />
                 링크 공유
               </button>
               {showVoteComplete && (
@@ -505,16 +506,17 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
                 <button
                   type="button"
                   onClick={handleRouletteOpen}
-                  className="bg-gradient-to-br from-brand-gold/90 via-brand-gold to-brand-gold/80 text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:brightness-95 disabled:opacity-70"
+                  className="bg-gradient-to-br from-brand-gold/90 via-brand-gold to-brand-gold/80 text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:brightness-95 disabled:opacity-70 flex items-center justify-center gap-2"
                   disabled={isSpinning}
                 >
+                  <Sparkles className="h-4 w-4" />
                   랜덤 투표
                 </button>
               )}
               {showVoteButton && (
                 <button
                   onClick={() => handleVote(selectedOptionId!)}
-                  className="bg-gradient-to-br from-[#ff8c00] to-[#ff6b00] text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:from-[#ff6b00] hover:to-[#ff5500] disabled:opacity-60"
+                  className="bg-gradient-to-br from-[#ff8c00] to-[#ff6b00] text-white font-semibold py-2.5 px-5 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:from-[#ff6b00] hover:to-[#ff5500] disabled:opacity-60 sm:min-w-[160px]"
                   disabled={!selectedOptionId}
                 >
                   투표하기

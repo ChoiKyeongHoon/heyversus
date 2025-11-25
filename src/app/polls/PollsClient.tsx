@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import { useVoteStatus } from "@/hooks/useVoteStatus";
-import { submitVoteRequest } from "@/lib/api/vote";
 import { getToast } from "@/lib/toast";
 import type { PollWithOptions } from "@/lib/types";
 import { formatExpiryDate, isPollExpired } from "@/lib/utils";
@@ -40,10 +39,7 @@ export default function PollsClient({
     () => polls.filter((p) => p.has_voted).map((p) => p.id),
     [polls]
   );
-  const { session, hasVoted, markVoted } = useVoteStatus(serverVotedIds);
-  const [selectedOptionIds, setSelectedOptionIds] = useState<
-    Record<string, string | null>
-  >({});
+  const { session, hasVoted } = useVoteStatus(serverVotedIds);
   const toggleFavoriteMutation = useToggleFavorite();
   const [favoritePendingId, setFavoritePendingId] = useState<string | null>(
     null
@@ -53,7 +49,6 @@ export default function PollsClient({
     // serverPolls prop이 변경될 때마다 내부 상태를 동기화합니다.
     // router.refresh() 등으로 부모 컴포넌트의 데이터가 갱신되면 이 부분이 실행됩니다.
     setPolls(serverPolls);
-    setSelectedOptionIds({});
   }, [serverPolls]);
 
   // 탭 전환 시 자동 새로고침
@@ -77,75 +72,6 @@ export default function PollsClient({
 
     const minutes = Math.floor(diff / (1000 * 60));
     return `${minutes}분 남음`;
-  };
-
-  const handleOptionSelect = (pollId: string, optionId: string) => {
-    setSelectedOptionIds((prev) => ({
-      ...prev,
-      [pollId]: optionId,
-    }));
-  };
-
-  const handleVote = async (pollId: string) => {
-    const optionId = selectedOptionIds[pollId];
-
-    if (!optionId) {
-      const toast = await getToast();
-      toast.warning("투표할 옵션을 선택해주세요.");
-      return;
-    }
-
-    const isAlreadyVoted = hasVoted(pollId);
-
-    if (isAlreadyVoted) {
-      const toast = await getToast();
-      toast.warning("이미 이 투표에 참여했습니다.");
-      return;
-    }
-
-    try {
-      await submitVoteRequest({ pollId, optionId });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "투표 중 오류가 발생했습니다.";
-
-      console.error("Error voting:", error);
-      const toast = await getToast();
-
-      if (message.includes("User has already voted")) {
-        toast.warning("이미 이 투표에 참여했습니다.");
-        markVoted(pollId);
-      } else if (message.includes("Authentication required")) {
-        toast.error("이 투표는 로그인이 필요합니다.");
-      } else {
-        toast.error(message);
-      }
-
-      return;
-    }
-
-    // 투표 성공 시 UI를 즉시 업데이트합니다.
-    setPolls((currentPolls) =>
-      currentPolls.map((poll) => {
-        if (poll.id === pollId) {
-          const updatedOptions = poll.poll_options.map((option) => {
-            if (option.id === optionId) {
-              return { ...option, votes: option.votes + 1 };
-            }
-            return option;
-          });
-          return { ...poll, poll_options: updatedOptions };
-        }
-        return poll;
-      })
-    );
-
-    markVoted(pollId);
-
-    setSelectedOptionIds((prev) => ({
-      ...prev,
-      [pollId]: null,
-    }));
   };
 
   const handleToggleFavorite = async (pollId: string) => {
@@ -172,13 +98,6 @@ export default function PollsClient({
                 : poll
             );
           });
-          if (removeOnUnfavorite && !isFavorited) {
-            setSelectedOptionIds((prev) => {
-              const rest = { ...prev };
-              delete rest[pollId];
-              return rest;
-            });
-          }
           const toast = await getToast();
           toast.success(
             isFavorited
@@ -247,7 +166,7 @@ export default function PollsClient({
             );
             const isPollClosed =
               poll.status === "closed" || isPollExpired(poll.expires_at);
-            const selectedOptionIdForPoll = selectedOptionIds[poll.id];
+            const showResults = isVoted || isPollClosed;
 
             return (
               <div
@@ -279,7 +198,9 @@ export default function PollsClient({
                     </Button>
                   </div>
                   <p className="text-sm md:text-base text-text-secondary mb-4 md:mb-6">
-                    이 투표에 참여해보세요.
+                    {isVoted
+                      ? "이미 참여한 투표입니다."
+                      : "상세 페이지에서 투표를 진행할 수 있어요."}
                   </p>
 
                   {/* Poll Options */}
@@ -294,20 +215,7 @@ export default function PollsClient({
                       return (
                         <div
                           key={option.id}
-                          className={`flex items-center justify-between bg-surface p-2.5 md:p-3 rounded-md border min-h-[44px] ${
-                            isVoted || isPollClosed
-                              ? "cursor-not-allowed"
-                              : "cursor-pointer hover:bg-panel-hover"
-                          } ${
-                            selectedOptionIdForPoll === option.id
-                              ? "border-primary"
-                              : "border-border-subtle"
-                          }`}
-                          onClick={() =>
-                            !isVoted &&
-                            !isPollClosed &&
-                            handleOptionSelect(poll.id, option.id)
-                          }
+                          className="flex items-center justify-between bg-surface p-2.5 md:p-3 rounded-md border min-h-[44px] border-border-subtle"
                         >
                           <div className="flex items-center min-w-0 flex-1">
                             {option.image_url && (
@@ -325,7 +233,7 @@ export default function PollsClient({
                             <h3 className="text-sm md:text-base text-text-primary truncate">{option.text}</h3>
                           </div>
                           <span className="text-xs md:text-sm text-text-tertiary ml-2 flex-shrink-0">
-                            {isVoted || isPollClosed
+                            {showResults
                               ? `${option.votes} (${percentage}%)`
                               : `${option.votes}`}
                           </span>
@@ -336,15 +244,6 @@ export default function PollsClient({
 
                   {/* Buttons */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-                    {!isVoted && !isPollClosed && (
-                      <button
-                        onClick={() => handleVote(poll.id)}
-                        className="bg-primary hover:bg-primary-hover text-white font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base min-h-[44px]"
-                        disabled={!selectedOptionIdForPoll} // Disable if no option is selected
-                      >
-                        투표하기
-                      </button>
-                    )}
                     {isVoted && !isPollClosed && (
                       <span className="text-success font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center">
                         ✓ 투표 완료
@@ -354,7 +253,7 @@ export default function PollsClient({
                       href={`/poll/${poll.id}`}
                       className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base text-center min-h-[44px] flex items-center justify-center"
                     >
-                      결과 보기
+                      {isPollClosed || isVoted ? "결과 보기" : "투표하러 가기"}
                     </Link>
                   </div>
                 </div>
