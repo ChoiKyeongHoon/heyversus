@@ -290,8 +290,6 @@ CREATE OR REPLACE FUNCTION public.increment_vote(
 )
 RETURNS void -- 이 함수는 어떤 값도 반환하지 않습니다.
 LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
 AS
 $$
 
@@ -339,13 +337,8 @@ SELECT is_public, expires_at, status INTO target_poll FROM public.polls WHERE id
 
     -- 3. 모든 검사를 통과하면, 선택지의 투표 수를 1 증가시킵니다.
     UPDATE public.poll_options
-    SET votes = COALESCE(votes, 0) + 1
-    WHERE id = option_id_to_update
-    AND poll_id = poll_id_for_vote;
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Option not found for this poll.';
-    END IF;
+    SET votes = votes + 1
+    WHERE id = option_id_to_update;
 
 END;
 

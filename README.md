@@ -1,7 +1,7 @@
 # Heyversus
 
 🔗 Link : https://heyversus.vercel.app/
-📦 Version : v0.6.6
+📦 Version : v0.6.7
 
 **Heyversus**는 사용자가 직접 투표를 생성하고 참여할 수 있는 동적인 웹 애플리케이션입니다. Next.js와 Supabase를 기반으로 구축되어 있으며, 실시간 투표 결과와 사용자 인증, 포인트 시스템을 제공합니다.
 
@@ -207,6 +207,12 @@ erDiagram
 ```
 
 ## 📌 업데이트 기록
+
+### v0.6.7
+
+- **투표 플로우 단일화**: `/polls`, `/favorites` 등 리스트 화면에서는 투표/옵션 선택을 제거하고 결과·상태만 노출, 실제 투표는 상세 `/poll/[id]`에서만 진행하도록 변경.
+- **상세 투표 UX 강화**: `usePollVote`가 React Query 캐시를 낙관적으로 갱신 후 실패 시 롤백하도록 개선해 투표 반영 속도와 안정성을 높였습니다.
+- **Supabase RPC 보강**: `increment_vote`를 `SECURITY DEFINER` + `COALESCE(votes, 0)` + 옵션/투표 불일치 시 예외 처리로 수정해 익명 투표에서도 표 수가 안전하게 반영됩니다. (`references/QUERY.md`)
 
 ### v0.6.6
 

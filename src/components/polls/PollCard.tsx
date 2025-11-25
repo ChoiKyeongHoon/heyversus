@@ -12,14 +12,16 @@ interface PollCardProps {
   isPollClosed: boolean;
   hasVoted: boolean;
   totalVotes: number;
-  selectedOptionId: string | null;
-  onSelectOption: (_optionId: string) => void;
-  onVote: () => void;
+  selectedOptionId?: string | null;
+  onSelectOption?: (_optionId: string) => void;
+  onVote?: () => void;
   onToggleFavorite?: () => void;
   favoritePending?: boolean;
   canFavorite?: boolean;
   isFavorited?: boolean;
   timeRemaining: string;
+  /** 리스트에서는 투표 불가(read-only) 모드로 표시 */
+  interactive?: boolean;
 }
 
 export function PollCard({
@@ -35,8 +37,10 @@ export function PollCard({
   canFavorite,
   isFavorited,
   timeRemaining,
+  interactive = true,
 }: PollCardProps) {
   const showResults = hasVoted || isPollClosed;
+  const canInteract = interactive && !showResults;
 
   return (
     <div className="rounded-2xl border border-border/60 bg-panel shadow-sm transition hover:border-primary/40 hover:shadow-xl">
@@ -81,10 +85,13 @@ export function PollCard({
               <button
                 key={option.id}
                 type="button"
-                disabled={showResults}
-                onClick={() => onSelectOption(option.id)}
+                disabled={!canInteract}
+                onClick={() => {
+                  if (!canInteract || !onSelectOption) return;
+                  onSelectOption(option.id);
+                }}
                 className={`relative flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
-                  showResults
+                  showResults || !interactive
                     ? "border-transparent bg-background-subtle"
                     : isSelected
                       ? "border-primary bg-primary/10"
@@ -145,7 +152,7 @@ export function PollCard({
         </div>
 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-          {!showResults && (
+          {canInteract && (
             <Button
               onClick={onVote}
               disabled={!selectedOptionId}
@@ -160,6 +167,11 @@ export function PollCard({
               <span className="font-semibold text-success">
                 {isPollClosed ? "결과 고정" : "✓"}
               </span>
+            </div>
+          )}
+          {!canInteract && !showResults && (
+            <div className="flex flex-1 items-center justify-between rounded-xl border border-border-subtle px-4 py-2 text-sm text-text-secondary">
+              <span>투표는 상세 페이지에서 진행할 수 있어요.</span>
             </div>
           )}
           <Button variant="outline" asChild className="text-sm font-semibold">
