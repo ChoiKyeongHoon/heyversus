@@ -118,7 +118,18 @@ function SignInForm() {
                 {isLoading ? "로그인 중..." : "로그인"}
               </button>
             </div>
+
+            <div className="mt-4 text-center text-sm text-text-secondary">
+              계정이 없으신가요?{" "}
+              <a
+                href="/signup"
+                className="font-semibold text-primary hover:text-primary/80 underline-offset-4 hover:underline"
+              >
+                회원가입
+              </a>
+            </div>
           </form>
+
         </div>
       </main>
     </div>

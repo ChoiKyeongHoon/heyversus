@@ -248,30 +248,35 @@ export default function PollsClientInfinite({
     }
 
     return (
-      <div className="space-y-6">
-        {polls.map((poll) => {
-          const totalVotes = poll.poll_options.reduce(
-            (acc, option) => acc + (option.votes || 0),
-            0
-          );
-          const isPollClosed = poll.status === "closed" || isPollExpired(poll.expires_at);
-          const userHasVoted = hasVoted(poll.id);
-          return (
-            <PollCard
-              key={poll.id}
-              poll={poll}
-              totalVotes={totalVotes}
-              isPollClosed={isPollClosed}
-              hasVoted={userHasVoted}
-              onToggleFavorite={session ? () => handleToggleFavorite(poll.id) : undefined}
-              favoritePending={favoritePendingId === poll.id}
-              canFavorite={Boolean(session)}
-              isFavorited={poll.is_favorited}
-              timeRemaining={getTimeRemaining(poll.expires_at)}
-              interactive={false}
-            />
-          );
-        })}
+      <div className="space-y-4">
+        <div className="rounded-3xl border border-border bg-panel/70 p-4 shadow-inner sm:p-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-5">
+            {polls.map((poll) => {
+              const totalVotes = poll.poll_options.reduce(
+                (acc, option) => acc + (option.votes || 0),
+                0
+              );
+              const isPollClosed = poll.status === "closed" || isPollExpired(poll.expires_at);
+              const userHasVoted = hasVoted(poll.id);
+              return (
+                <PollCard
+                  key={poll.id}
+                  poll={poll}
+                  totalVotes={totalVotes}
+                  isPollClosed={isPollClosed}
+                  hasVoted={userHasVoted}
+                  onToggleFavorite={session ? () => handleToggleFavorite(poll.id) : undefined}
+                  favoritePending={favoritePendingId === poll.id}
+                  canFavorite={Boolean(session)}
+                  isFavorited={poll.is_favorited}
+                  timeRemaining={getTimeRemaining(poll.expires_at)}
+                  interactive={false}
+                  variant="grid"
+                />
+              );
+            })}
+          </div>
+        </div>
 
         {hasNextPage && (
           <LoadMoreTrigger

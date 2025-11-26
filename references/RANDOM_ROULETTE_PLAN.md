@@ -1,5 +1,8 @@
 # 랜덤 옵션 돌림판 구현 계획 (Step 16)
 
+**상태**: ✅ 구현 완료 (`src/app/poll/[id]/PollClient.tsx`, v0.6.x)  
+**요약**: 상세 페이지에서 conic-gradient 기반 돌림판 모달을 제공하며, 스핀 쿨다운/중복 클릭 차단, 토스트 안내, 자동 옵션 선택 하이라이트까지 포함해 Step 16 목표를 충족했습니다.
+
 ## 1. 목표
 
 - `/poll/[id]` 상세 페이지에서 선택하기 어려운 옵션을 “돌림판”으로 랜덤 추천.
@@ -45,19 +48,20 @@
 - 반응형: 모바일 44px 터치, 최대 높이 제한(overflow-auto)
 - 실패/취소: 애니메이션 중 재클릭 방지, 닫기 시 상태 초기화
 
-## 7. TODO 체크리스트
+## 7. TODO 체크리스트 (실행 결과)
 
-- [ ] UI 컴포넌트 추가: `RandomRouletteModal` (모달 + 돌림판) @ `/poll/[id]/PollClient.tsx`
-- [ ] 상태/로직 추가: `isRouletteOpen`, `isSpinning`, `cooldownUntil`, `highlightOptionId`
-- [ ] 트리거 버튼 노출 조건: !hasVoted && !isPollClosed && options.length > 1
-- [ ] 애니메이션/스타일: CSS keyframes, 슬라이스 색상/배지
-- [ ] 결과 강조: 옵션 리스트에 `highlightOptionId` 반영 + 토스트 메시지
-- [ ] 쿨다운/재클릭 방지 로직 구현
-- [ ] 접근성/반응형 검토
-- [ ] QA: 이미 투표/마감 시 버튼 숨김, 옵션 1개 시 숨김, 모바일 렌더, 애니메이션 종료 후 상태 리셋
+- [x] UI 컴포넌트 추가: 기존 `PollClient`에 모달/오버레이를 직접 포함해 `RandomRouletteModal` 역할 수행 (`isRouletteOpen` + 오버레이 DOM).
+- [x] 상태/로직 추가: `isRouletteOpen`, `isSpinning`, `cooldownUntil`, `highlightOptionId`(`rouletteResultOptionId`), `spinRotation` 상태로 스핀/결과/쿨다운 관리.
+- [x] 트리거 버튼 노출 조건: `showRouletteTrigger = !isVoted && !isPollClosed && poll_options.length > 1`.
+- [x] 애니메이션/스타일: conic-gradient + 회전 애니메이션(`ROULETTE_ANIMATION_MS=5000`, `ROULETTE_BASE_ROTATIONS=8`), ease-out cubic bezier 적용.
+- [x] 결과 강조: 당첨 옵션을 `rouletteResultOptionId`로 표기하고 토스트 `"옵션 당첨"` 메시지 노출, 옵션 리스트/슬라이스 하이라이트.
+- [x] 쿨다운/재클릭 방지: `ROULETTE_COOLDOWN_MS=1000` + `cooldownRemaining`으로 안내 토스트/버튼 비활성화.
+- [x] 접근성/반응형: 모달 `role="dialog"` + `aria-modal` 적용, 버튼 최소 44px, 모바일에서 단일 컬럼 정렬.
+- [x] QA: 이미 투표/마감/옵션 1개 이하일 때 트리거 숨김, 탭 전환 시 상태 초기화(`useVisibilityChange`), 스핀 타임아웃 클린업 추가.
 
 ## 추가 메모 (텍스트 표시 관련)
 
 - 현재 구현: 원형 돌림판은 conic-gradient만 사용해 색상 슬라이스만 보이고, 옵션 텍스트는 외부 리스트/토스트로 안내.
 - 슬라이스 안에 텍스트를 넣으려면, gradient 대신 옵션 개수만큼 절대 배치된 요소를 `transform: rotate(sliceAngle * index)`로 회전시키고, 반지름 위치에 텍스트를 배치해야 함. 배경 대비 색상/폰트 크기 가이드 필요.
 - 비용을 줄이려면 “당첨 슬라이스만 중앙 배지로 텍스트 표시” 방식으로도 해결 가능. 어느 쪽으로 갈지 결정 필요.
+- 현재 구현은 텍스트를 외부 리스트/토스트로 안내하는 방식으로 유지(추가 배치 작업은 보류).

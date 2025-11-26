@@ -18,6 +18,7 @@
 - **대표 투표**: 관리자가 지정한 '오늘의 투표'를 메인 페이지에 노출하여 사용자 참여를 유도합니다.
 - **포인트 및 랭킹**: 투표에 참여할 때마다 포인트를 획득하고, 다른 사용자들과의 순위를 `SCORE` 페이지에서 확인할 수 있습니다.
 - **즐겨찾기 관리**: 로그인 사용자는 관심 있는 투표를 즐겨찾기에 추가하고 `/favorites` 페이지에서 모아볼 수 있습니다.
+- **랜덤 옵션 추천**: 상세 페이지에서 돌림판 모달로 랜덤 옵션을 추천받고, 자동 선택/토스트 안내 후 직접 투표할 수 있습니다.
 - **프로필 관리**: `/account` 페이지에서 아바타 이미지, 사용자명, 이름, 자기소개를 편집할 수 있으며, 변경사항은 즉시 Navbar에 반영됩니다.
 - **사용자 경험(UX) 최적화**:
   - **다크/라이트 모드**: 사용자 선호도에 맞는 테마를 제공하고 실시간으로 전환할 수 있습니다. 시스템 설정을 자동으로 감지하며, Navbar의 토글 버튼으로 즉시 변경 가능합니다.
@@ -68,7 +69,7 @@
 │   ├── components/        # 재사용 가능한 UI 컴포넌트
 │   │   ├── common/        # Skeleton, ErrorState, EmptyState 등 공용 컴포넌트
 │   │   ├── layout/        # Navbar 등 레이아웃 컴포넌트
-│   │   ├── polls/         # PollCard, PollsHero, PollCategoryTabs, LoadMoreTrigger
+│   │   ├── polls/         # PollCard, FavoriteToggle, PollsHero, PollCategoryTabs, LoadMoreTrigger
 │   │   ├── ui/            # Button, Card, Badge, Input, loader 등 기본 UI
 │   │   ├── theme-provider.tsx  # next-themes Provider
 │   │   └── theme-toggle.tsx    # 다크/라이트 모드 토글 버튼
@@ -213,6 +214,7 @@ erDiagram
 - **투표 플로우 단일화**: `/polls`, `/favorites` 등 리스트 화면에서는 투표/옵션 선택을 제거하고 결과·상태만 노출, 실제 투표는 상세 `/poll/[id]`에서만 진행하도록 변경.
 - **상세 투표 UX 강화**: `usePollVote`가 React Query 캐시를 낙관적으로 갱신 후 실패 시 롤백하도록 개선해 투표 반영 속도와 안정성을 높였습니다.
 - **Supabase RPC 보강**: `increment_vote`를 `SECURITY DEFINER` + `COALESCE(votes, 0)` + 옵션/투표 불일치 시 예외 처리로 수정해 익명 투표에서도 표 수가 안전하게 반영됩니다. (`references/QUERY.md`)
+- **랜덤 옵션 돌림판**: `/poll/[id]`에 conic-gradient 모달을 추가해 랜덤 추천 → 자동 옵션 선택 하이라이트 → 토스트 안내 흐름을 제공하며, 쿨다운/중복 클릭 차단을 포함합니다.
 
 ### v0.6.6
 
@@ -226,9 +228,10 @@ erDiagram
 - **Polls 페이지 리뉴얼**: `/polls` 상단에 `PollsHero` 섹션을 추가해 총 투표 수·진행 중·마감 임박 등 핵심 지표와 CTA(새 투표 만들기, 즐겨찾기 보기)를 한눈에 보여줍니다.
 - **카테고리 탭**: `최신/인기/마감 임박` 탭이 URL 파라미터와 연동되어 정렬/필터 프리셋을 즉시 적용합니다.
 - **새 PollCard 컴포넌트**: 옵션 카드, 득표율 Progress, 즐겨찾기 버튼, 상태 배지를 통합한 카드 UI를 `@/components/polls/PollCard.tsx`로 분리해 재사용성과 접근성을 강화했습니다.
+- **FavoriteToggle 공용화**: 즐겨찾기 아이콘 토글을 `@/components/polls/FavoriteToggle.tsx`로 분리해 목록/상세 페이지 모두 같은 UX(비로그인 시 로그인 리다이렉트, 로딩 시 비활성)로 동작합니다.
 - **필터바 & 통계 개선**: 필터 영역을 반투명 카드로 정리하고, 즐겨찾기 CTA/빠른 필터 안내를 추가해 탐색 → 참여 플로우를 단순화했습니다.
 - **스코어 보드 리디자인**: `/score` 페이지도 `PollsHero` 패턴을 사용해 지표/CTA를 정리하고, Top 3 카드 + 전체 랭킹 테이블을 토큰 스타일로 재구성해 브랜드 일관성을 맞췄습니다.
-- **상세 페이지 인사이트 섹션**: `/poll/[id]`에 총 투표 수, 상태, 남은 시간, 선두 옵션을 보여주는 요약 카드를 추가해 “자세히 보기” 버튼이 제공하는 정보 가치를 높였습니다.
+- **상세 페이지 인사이트 섹션**: `/poll/[id]`에 총 투표 수, 상태, 남은 시간, 선두 옵션을 보여주는 요약 카드를 추가해 “결과·투표 보기” 버튼이 제공하는 정보 가치를 높였습니다.
 - **API & 로더 안정화**: 공용 `GradientSpinner` 로더를 도입해 로딩 UI를 통일했고, `/api/polls/[id]`가 `createClient()`를 직접 사용하도록 고쳐 `cookies()` 관련 오류를 방지했습니다.
 - **문서 업데이트**: ROADMAP Step 15과 타임라인을 "✅ 완료"로 갱신하고, README 버전을 v0.6.5로 올렸습니다.
 - **대표 투표 UX 보완**: `FeaturedPollClient`가 최신 `next/image` API(`onLoad`)를 사용하도록 정리하고, `useVoteStatus` 초기 동기화 방식을 고쳐 로그인 사용자도 즉시 “투표 완료” 상태를 확인할 수 있게 했습니다.

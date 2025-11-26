@@ -1,12 +1,14 @@
 "use client";
 
-import { Link, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, Dice5, Link, Lock, Shuffle, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { FavoriteToggle } from "@/components/polls/FavoriteToggle";
 import { STORAGE_KEYS } from "@/constants/storage";
 import { usePollVote } from "@/hooks/usePollVote";
+import { useSession } from "@/hooks/useSession";
 import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import { getToast } from "@/lib/toast";
@@ -18,9 +20,13 @@ interface PollClientProps {
   onRefresh?: () => void;
 }
 
+const RANDOM_ICON_VARIANT: "dice" | "shuffle" = "shuffle";
+const RandomIcon = RANDOM_ICON_VARIANT === "shuffle" ? Shuffle : Dice5;
+
 export default function PollClient({ poll, onRefresh }: PollClientProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { session } = useSession();
   const voteMutation = usePollVote({
     onSuccess: () => {
       onRefresh?.();
@@ -103,7 +109,13 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
     );
   };
 
-  const handleFavoriteToggle = () => {
+  const handleFavoriteToggle = (redirectOnUnauthed = true) => {
+    if (!session) {
+      if (redirectOnUnauthed) {
+        router.push(`/signin?redirect=${encodeURIComponent(pathname || `/poll/${poll.id}`)}`);
+      }
+      return;
+    }
     if (toggleFavoriteMutation.isPending) return;
     const currentPath = pathname || `/poll/${poll.id}`;
 
@@ -351,8 +363,15 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
                 </span>
               )}
             </div>
-            <div className="text-text-secondary text-[11px] sm:text-xs">
-              총 {totalVotes.toLocaleString()}표
+            <div className="flex items-center gap-2 text-text-secondary text-[11px] sm:text-xs">
+              <span>총 {totalVotes.toLocaleString()}표</span>
+              <FavoriteToggle
+                isFavorited={isFavorited}
+                pending={toggleFavoriteMutation.isPending}
+                onToggle={() => handleFavoriteToggle(true)}
+                redirectPath={pathname || `/poll/${poll.id}`}
+                size="sm"
+              />
             </div>
           </div>
 
@@ -464,104 +483,102 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
                   );
                 })}
               </div>
-              {isVoted && !isPollClosed && (
+              {isPollClosed ? (
+                <p className="text-center text-destructive text-sm font-semibold">
+                  투표가 마감되었습니다.
+                </p>
+              ) : isVoted ? (
                 <p className="text-center text-success text-sm font-semibold">
                   투표에 참여해주셔서 감사합니다!
                 </p>
-              )}
+              ) : null}
             </div>
 
             {/* Buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-center gap-2 sm:gap-4 text-center">
+            <div className="flex flex-col gap-2 sm:relative sm:flex sm:items-center sm:justify-center sm:gap-3 text-center">
               <button
                 type="button"
-                onClick={async () => {
-                  const pollUrl = window.location.href;
-                  try {
-                    await navigator.clipboard.writeText(pollUrl);
-                    const toast = await getToast();
-                    toast.success("투표 링크가 클립보드에 복사되었습니다!");
-                  } catch (err) {
-                    console.error("Failed to copy link:", err);
-                    const toast = await getToast();
-                    toast.error("링크 복사에 실패했습니다.");
-                  }
-                }}
-                className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base text-center min-h-[44px] flex items-center justify-center gap-2"
+                onClick={() => router.push("/polls")}
+                className="flex h-[26px] w-[26px] items-center justify-center rounded-full border border-border bg-panel hover:bg-panel-hover text-text-secondary transition-colors duration-200 sm:absolute sm:left-0 sm:top-1/2 sm:-translate-y-1/2"
+                aria-label="투표 목록으로 이동"
               >
-                <Link className="h-4 w-4" />
-                링크 공유
+                <ArrowLeft className="h-3 w-3" />
               </button>
-              {showVoteComplete && (
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center sm:gap-3">
                 <button
                   type="button"
-                  onClick={() => router.push("/polls")}
-                  className="border-2 border-transparent bg-gradient-to-r from-brand-orange to-brand-gold text-transparent bg-clip-text font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] flex items-center justify-center"
-                  style={{ borderImage: "linear-gradient(to right, var(--brand-orange), var(--brand-gold)) 1" }}
+                  onClick={async () => {
+                    const pollUrl = window.location.href;
+                    try {
+                      await navigator.clipboard.writeText(pollUrl);
+                      const toast = await getToast();
+                      toast.success("투표 링크가 클립보드에 복사되었습니다!");
+                    } catch (err) {
+                      console.error("Failed to copy link:", err);
+                      const toast = await getToast();
+                      toast.error("링크 복사에 실패했습니다.");
+                    }
+                  }}
+                  className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base text-center min-h-[44px] flex items-center justify-center gap-2"
                 >
-                  다른 투표들
+                  <Link className="h-4 w-4" />
+                  링크 공유
                 </button>
-              )}
-              {showRouletteTrigger && (
-                <button
-                  type="button"
-                  onClick={handleRouletteOpen}
-                  className="bg-gradient-to-br from-brand-gold/90 via-brand-gold to-brand-gold/80 text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:brightness-95 disabled:opacity-70 flex items-center justify-center gap-2"
-                  disabled={isSpinning}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  랜덤 투표
-                </button>
-              )}
-              {showVoteButton && (
-                <button
-                  onClick={() => handleVote(selectedOptionId!)}
-                  className="bg-gradient-to-br from-[#ff8c00] to-[#ff6b00] text-white font-semibold py-2.5 px-5 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:from-[#ff6b00] hover:to-[#ff5500] disabled:opacity-60 sm:min-w-[160px]"
-                  disabled={!selectedOptionId}
-                >
-                  투표하기
-                </button>
-              )}
-              {showVoteComplete && (
-                <span className="text-success font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center">
-                  ✓ 투표 완료
-                </span>
-              )}
-              {showVotingState && (
-                <span className="text-text-secondary font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center">
-                  투표 중...
-                </span>
-              )}
+
+                {showRouletteTrigger && (
+                  <button
+                    type="button"
+                    onClick={handleRouletteOpen}
+                    className="bg-gradient-to-br from-brand-gold/90 via-brand-gold to-brand-gold/80 text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:brightness-95 disabled:opacity-70 flex items-center justify-center gap-2 sm:min-w-[140px]"
+                    disabled={isSpinning}
+                  >
+                    <RandomIcon className="h-4 w-4" />
+                    랜덤 투표
+                  </button>
+                )}
+
+                {showVoteButton && (
+                  <button
+                    onClick={() => handleVote(selectedOptionId!)}
+                    className="bg-gradient-to-br from-[#ff8c00] to-[#ff6b00] text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:from-[#ff6b00] hover:to-[#ff5500] disabled:opacity-60 sm:min-w-[140px] flex items-center justify-center gap-2"
+                    disabled={!selectedOptionId}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    투표 하기
+                  </button>
+                )}
+
+                {showVoteComplete && (
+                  <span className="text-success font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center justify-center sm:min-w-[140px]">
+                    ✓ 투표 완료
+                  </span>
+                )}
+
+                {isPollClosed && (
+                  <span className="text-destructive font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center justify-center gap-1 sm:min-w-[140px]">
+                    <Lock className="h-4 w-4" />
+                    투표 마감
+                  </span>
+                )}
+
+                {showVotingState && (
+                  <span className="text-text-secondary font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center justify-center">
+                    투표 중...
+                  </span>
+                )}
+              </div>
             </div>
 
           </div>
           <div className="border-t border-border-subtle px-4 md:px-6 py-3 text-xs sm:text-[13px]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col gap-1 text-text-tertiary">
-                <span>
-                  {timeRemainingLabel ? `남은 시간: ${timeRemainingLabel}` : "기한 없음"}
-                </span>
-                {poll.expires_at && (
-                  <span>마감: {formatExpiryDate(poll.expires_at)}</span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={handleFavoriteToggle}
-                disabled={toggleFavoriteMutation.isPending}
-                aria-pressed={isFavorited}
-                className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                  isFavorited
-                    ? "border-brand-gold text-brand-gold"
-                    : "border-border text-text-secondary hover:text-text-primary"
-                } ${toggleFavoriteMutation.isPending ? "opacity-60 cursor-not-allowed" : ""}`}
-              >
-                <Star
-                  className="h-3.5 w-3.5"
-                  fill={isFavorited ? "currentColor" : "none"}
-                />
-                {isFavorited ? "즐겨찾기" : "즐겨찾기 추가"}
-              </button>
+            <div className="flex flex-col items-center gap-2 text-center text-text-tertiary sm:flex-row sm:justify-center sm:gap-4">
+              <span>
+                {timeRemainingLabel ? `남은 시간: ${timeRemainingLabel}` : "기한 없음"}
+              </span>
+              {poll.expires_at && (
+                <span>마감: {formatExpiryDate(poll.expires_at)}</span>
+              )}
             </div>
           </div>
         </div>
