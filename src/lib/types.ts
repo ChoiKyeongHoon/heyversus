@@ -17,6 +17,7 @@ export interface PollOption {
   poll_id: string;
   votes: number;
   image_url: string | null;
+  position: number;
   description?: string;
 }
 

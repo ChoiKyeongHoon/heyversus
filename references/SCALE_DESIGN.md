@@ -76,7 +76,7 @@ RETURNS TABLE (
   created_by UUID,
   is_featured BOOLEAN,
   featured_image_url TEXT,
-  poll_options JSONB,
+  poll_options JSONB,  -- 옵션은 position, created_at, id 순으로 정렬되고 position 필드를 포함
   has_voted BOOLEAN,
   is_favorited BOOLEAN,
   total_count BIGINT  -- Total count for pagination metadata
@@ -391,9 +391,10 @@ BEGIN
             'text', po.text,
             'votes', COALESCE(po.votes, 0),
             'image_url', po.image_url,
-            'created_at', po.created_at
+            'created_at', po.created_at,
+            'position', po.position
           )
-          ORDER BY po.created_at
+          ORDER BY po.position, po.created_at, po.id
         )
         FROM poll_options po
         WHERE po.poll_id = p.id

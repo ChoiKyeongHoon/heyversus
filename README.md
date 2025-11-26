@@ -183,10 +183,13 @@ erDiagram
     poll_options {
         UUID id PK
         UUID poll_id
-        text text
-        int votes
-        text image_url
-    }
+    text text
+    int votes
+    text image_url
+    int position
+  }
+
+**정렬 규칙**: 모든 목록/상세에서 옵션은 `position → created_at → id` 순으로 정렬되며, 생성 순서가 유지됩니다. `poll_options.position`은 옵션 생성 시 자동으로 채워집니다.
 
     users ||--o{ favorite_polls : "favorites"
     polls ||--o{ favorite_polls : "is favorited"
@@ -215,6 +218,7 @@ erDiagram
 - **상세 투표 UX 강화**: `usePollVote`가 React Query 캐시를 낙관적으로 갱신 후 실패 시 롤백하도록 개선해 투표 반영 속도와 안정성을 높였습니다.
 - **Supabase RPC 보강**: `increment_vote`를 `SECURITY DEFINER` + `COALESCE(votes, 0)` + 옵션/투표 불일치 시 예외 처리로 수정해 익명 투표에서도 표 수가 안전하게 반영됩니다. (`references/QUERY.md`)
 - **랜덤 옵션 돌림판**: `/poll/[id]`에 conic-gradient 모달을 추가해 랜덤 추천 → 자동 옵션 선택 하이라이트 → 토스트 안내 흐름을 제공하며, 쿨다운/중복 클릭 차단을 포함합니다.
+- **옵션 순서 고정**: `poll_options.position` 컬럼을 도입하고 모든 RPC에서 `ORDER BY position, created_at, id`로 통일해 목록/상세 모두 생성 순서로 표시됩니다.
 
 ### v0.6.6
 

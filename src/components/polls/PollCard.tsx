@@ -1,11 +1,11 @@
 "use client";
 
-import { CheckCircle, Lock, Sparkles } from "lucide-react";
+import { CheckCircle, Link as LinkIcon, Lock, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { getToast } from "@/lib/toast";
 import type { PollWithOptions } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +16,6 @@ interface PollCardProps {
   isPollClosed: boolean;
   hasVoted: boolean;
   totalVotes: number;
-  selectedOptionId?: string | null;
-  onSelectOption?: (_optionId: string) => void;
   onVote?: () => void;
   onToggleFavorite?: () => void;
   favoritePending?: boolean;
@@ -35,8 +33,6 @@ export function PollCard({
   isPollClosed,
   hasVoted,
   totalVotes,
-  selectedOptionId,
-  onSelectOption,
   onVote,
   onToggleFavorite,
   favoritePending,
@@ -47,13 +43,10 @@ export function PollCard({
   className,
   variant = "default",
 }: PollCardProps) {
-  const router = useRouter();
   const showResults = hasVoted || isPollClosed;
   const canInteract = interactive && !showResults;
   const isGridVariant = variant === "grid";
   const status = isPollClosed ? "closed" : hasVoted ? "voted" : "open";
-  const displayedOptions = poll.poll_options.slice(0, 6);
-  const hiddenOptionCount = poll.poll_options.length - displayedOptions.length;
   const statusMeta =
     status === "closed"
       ? {
@@ -109,7 +102,7 @@ export function PollCard({
           <FavoriteToggle
             isFavorited={Boolean(isFavorited)}
             pending={favoritePending}
-            onToggle={onToggleFavorite}
+            onToggle={canFavorite ? onToggleFavorite : undefined}
             redirectPath={`/poll/${poll.id}`}
             size="sm"
           />
@@ -117,18 +110,64 @@ export function PollCard({
       </div>
       <div className={cn("flex flex-1 flex-col p-4 md:p-6", isGridVariant && "p-4 md:p-5")}>
         <header className={cn("mb-4 flex flex-col gap-2", isGridVariant && "mb-3 gap-1.5")}>
-          <Link
-            href={`/poll/${poll.id}`}
-            className={cn(
-              "text-base font-semibold text-text-primary transition hover:text-primary md:text-lg",
-              isGridVariant && "line-clamp-2 leading-snug"
-            )}
-          >
-            {poll.question}
-          </Link>
-          <p className={cn("text-sm text-text-secondary", isGridVariant && "text-xs text-text-tertiary")}>
-            진행 상태를 확인하고 의견을 공유해보세요.
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-h-[64px] flex-1 flex-col justify-between">
+              <p
+                className={cn(
+                  "line-clamp-2 text-base font-semibold text-text-primary transition hover:text-primary md:text-lg",
+                  isGridVariant && "leading-snug"
+                )}
+                role="button"
+                tabIndex={0}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(poll.question);
+                    const toast = await getToast();
+                    toast.success("제목을 클립보드에 복사했어요.");
+                  } catch (err) {
+                    console.error("Failed to copy title:", err);
+                    const toast = await getToast();
+                    toast.error("복사에 실패했습니다. 지원되는 브라우저인지 확인해주세요.");
+                  }
+                }}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    try {
+                      await navigator.clipboard.writeText(poll.question);
+                      const toast = await getToast();
+                      toast.success("제목을 클립보드에 복사했어요.");
+                    } catch (err) {
+                      console.error("Failed to copy title:", err);
+                      const toast = await getToast();
+                      toast.error("복사에 실패했습니다. 지원되는 브라우저인지 확인해주세요.");
+                    }
+                  }
+                }}
+              >
+                {poll.question}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const url = `${window.location.origin}/poll/${poll.id}`;
+                  await navigator.clipboard.writeText(url);
+                  const toast = await getToast();
+                  toast.success("투표 링크를 클립보드에 복사했어요.");
+                } catch (err) {
+                  console.error("Failed to copy link:", err);
+                  const toast = await getToast();
+                  toast.error("링크 복사에 실패했습니다.");
+                }
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-text-tertiary transition hover:border-primary/50 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/50"
+              aria-label="투표 링크 복사"
+            >
+              <LinkIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </header>
 
         <div className={cn("space-y-2.5", isGridVariant && "space-y-2")}>
@@ -180,23 +219,14 @@ export function PollCard({
           ))}
         </div>
 
-        <div
-          className={cn(
-            "mt-auto space-y-3 pt-4",
-            isGridVariant && "space-y-2.5 pt-3"
-          )}
-        >
-          <p
-            className={cn(
-              "text-center text-xs text-text-tertiary",
-              isGridVariant && "text-[11px]"
-            )}
-          >
-            결과 확인과 투표는 아래 버튼을 눌러 진행해 주세요.
+        <div className={cn("mt-auto space-y-3 pt-4", isGridVariant && "space-y-2.5 pt-3")}>
+          <p className="text-center text-xs text-text-tertiary sm:text-[13px]">
+            결과 확인과 투표는 버튼을 눌러 진행해 주세요.
           </p>
+
           <div
             className={cn(
-              "flex flex-col items-stretch justify-center",
+              "flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center sm:justify-center",
               isGridVariant && "gap-2 sm:items-center"
             )}
           >
@@ -211,7 +241,7 @@ export function PollCard({
               );
 
               const baseClass = cn(
-                "w-full justify-center text-sm font-semibold sm:w-auto sm:min-w-[136px] sm:max-w-[210px] mx-auto min-h-[48px] px-3 py-2",
+                "mx-auto min-h-[48px] w-full justify-center px-3 py-2 text-sm font-semibold sm:w-auto sm:min-w-[136px] sm:max-w-[210px]",
                 statusMeta.tone === "brand" &&
                   "border-transparent bg-gradient-to-br from-[#ff8c00] to-[#ff6b00] text-white shadow-md hover:from-[#ff6b00] hover:to-[#ff5500]",
                 statusMeta.tone === "success" &&
@@ -223,11 +253,7 @@ export function PollCard({
 
               if (canInteract && status === "open" && onVote) {
                 return (
-                  <Button
-                    onClick={onVote}
-                    disabled={!selectedOptionId}
-                    className={baseClass}
-                  >
+                  <Button onClick={onVote} disabled={!onVote} className={baseClass}>
                     {content}
                   </Button>
                 );

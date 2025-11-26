@@ -17,7 +17,8 @@
 - ✅ 즐겨찾기 일원화: `FavoriteToggle`을 카드 상단 메타 영역에 배치하고 비로그인 시 `/signin?redirect=...`로 이동. (`src/components/polls/FavoriteToggle.tsx`)
 - ✅ 정렬/필터/카테고리 프리셋: `PollCategoryTabs` + `PollsFilterBar` 조합을 유지하며 URL 동기화(정렬/필터/카테고리)로 공유 가능한 뷰 제공. (`src/app/polls/PollsClientInfinite.tsx`)
 - ✅ 상태 메타 최소화: 메타바를 공개 여부/남은 시간/총 투표 수 + 즐겨찾기 아이콘만 남겨 PollsHero 톤에 맞춤.
-- ⏳ 남은 Step 17 항목: 카드 하단 “참여 상태 배너+CTA” 재구성(참여 대기/완료/마감), 인증 페이지 톤 통일은 미완료.
+- ✅ 참여 상태 배너+CTA: 카드 하단에 상태 배너(참여 대기/완료/마감)와 CTA 슬롯을 고정해 상세 투표 동선을 명확히 표현. (`src/components/polls/PollCard.tsx`)
+- ✅ 인증 페이지 톤 통일: `/signin`, `/signup`을 Polls/Poll 카드 톤의 메타/배지/카드 레이아웃으로 리뉴얼해 흐름을 정비.
 
 ## 참고/후속
 - 상세 페이지 UI 일원화(ROADMAP Step 17) 이후 동일 컨벤션을 `/polls`에도 적용.

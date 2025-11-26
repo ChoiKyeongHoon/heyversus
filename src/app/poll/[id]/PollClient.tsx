@@ -1,11 +1,9 @@
 "use client";
 
-import { ArrowLeft, Dice5, Link, Lock, Shuffle, Sparkles } from "lucide-react";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { FavoriteToggle } from "@/components/polls/FavoriteToggle";
+import { PollDetailCard } from "@/components/polls/PollDetailCard";
 import { STORAGE_KEYS } from "@/constants/storage";
 import { usePollVote } from "@/hooks/usePollVote";
 import { useSession } from "@/hooks/useSession";
@@ -13,15 +11,12 @@ import { useToggleFavorite } from "@/hooks/useToggleFavorite";
 import { useVisibilityChange } from "@/hooks/useVisibilityChange";
 import { getToast } from "@/lib/toast";
 import type { PollWithOptions } from "@/lib/types";
-import { formatExpiryDate, isPollExpired } from "@/lib/utils";
+import { isPollExpired } from "@/lib/utils";
 
 interface PollClientProps {
   poll: PollWithOptions;
   onRefresh?: () => void;
 }
-
-const RANDOM_ICON_VARIANT: "dice" | "shuffle" = "shuffle";
-const RandomIcon = RANDOM_ICON_VARIANT === "shuffle" ? Shuffle : Dice5;
 
 export default function PollClient({ poll, onRefresh }: PollClientProps) {
   const router = useRouter();
@@ -201,6 +196,19 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
     setIsSpinning(false);
   };
 
+  const handleShareLink = async () => {
+    const pollUrl = window.location.href;
+    try {
+      await navigator.clipboard.writeText(pollUrl);
+      const toast = await getToast();
+      toast.success("투표 링크가 클립보드에 복사되었습니다!");
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+      const toast = await getToast();
+      toast.error("링크 복사에 실패했습니다.");
+    }
+  };
+
   const handleRouletteSpin = async () => {
     if (isSpinning || poll.poll_options.length <= 1) return;
 
@@ -273,12 +281,7 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
     return () => clearTimeout(timeoutId);
   }, [cooldownUntil]);
 
-  const hasRouletteResult = Boolean(rouletteResultOptionId);
-  const showResultsView = isVoted || isPollClosed;
   const timeRemainingLabel = getTimeRemaining(poll.expires_at);
-  const showVoteButton = !isVoted && !isPollClosed && !voteMutation.isPending;
-  const showVoteComplete = isVoted && !isPollClosed;
-  const showVotingState = voteMutation.isPending;
 
   return (
     <div className="container mx-auto max-w-4xl px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8">
@@ -343,245 +346,32 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
           </div>
         </section>
 
-        <div
-          className={`rounded-3xl border border-border bg-panel/60 shadow-inner ${
-            isPollClosed ? "opacity-60" : ""
-          }`}
-        >
-          <div className="flex flex-wrap items-center justify-between border-b border-border-subtle px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary sm:text-xs">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
-                {poll.is_public ? "공개" : "비공개"}
-              </span>
-              {isPollClosed ? (
-                <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-destructive">
-                  마감됨
-                </span>
-              ) : (
-                <span className="rounded-full bg-accent/10 px-2 py-0.5 text-accent">
-                  {timeRemainingLabel || "진행 중"}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-text-secondary text-[11px] sm:text-xs">
-              <span>총 {totalVotes.toLocaleString()}표</span>
-              <FavoriteToggle
-                isFavorited={isFavorited}
-                pending={toggleFavoriteMutation.isPending}
-                onToggle={() => handleFavoriteToggle(true)}
-                redirectPath={pathname || `/poll/${poll.id}`}
-                size="sm"
-              />
-            </div>
-          </div>
-
-          <div className="p-4 md:p-6 space-y-6">
-            <header className="space-y-2">
-              <h3 className="text-xl font-semibold text-text-primary md:text-2xl">
-                {poll.question}
-              </h3>
-              <p className="text-sm md:text-base text-text-secondary">
-                {isPollClosed ? "결과를 확인하세요." : "이 투표에 참여해보세요."}
-              </p>
-            </header>
-
-            {/* Poll Options / Results */}
-            <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
-              {!showResultsView && rouletteResultOption && (
-                <div className="flex items-center gap-2 rounded-md bg-primary/5 px-3 py-2 text-sm text-primary">
-                  <span className="font-semibold">돌림판 결과</span>
-                  <span className="truncate">
-                    {rouletteResultOption.text} (자동 선택됨)
-                  </span>
-                </div>
-              )}
-              <div className="space-y-2">
-                {poll.poll_options.map((option) => {
-                  const isSelected = selectedOptionId === option.id;
-                  const isRouletteHighlight =
-                    !showResultsView && rouletteResultOptionId === option.id;
-                  const votePercentage =
-                    totalVotes > 0
-                      ? Math.round(((option.votes || 0) / totalVotes) * 100)
-                      : 0;
-
-                  const baseClasses = showResultsView
-                    ? "border-transparent bg-background-subtle cursor-default"
-                    : isSelected
-                      ? "border-primary bg-primary/10"
-                      : "border-border-subtle hover:border-primary/60";
-
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      disabled={showResultsView}
-                      onClick={() => {
-                        if (showResultsView) return;
-                        setSelectedOptionId(option.id);
-                        if (
-                          rouletteResultOptionId &&
-                          rouletteResultOptionId !== option.id
-                        ) {
-                          setRouletteResultOptionId(null);
-                        }
-                      }}
-                      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${baseClasses} ${
-                        isRouletteHighlight ? "ring-1 ring-primary/40" : ""
-                      }`}
-                    >
-                      {option.image_url ? (
-                        <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg">
-                          <Image
-                            src={option.image_url}
-                            alt={option.text || "Poll option"}
-                            fill
-                            sizes="48px"
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
-                          VS
-                        </div>
-                      )}
-                      <div className="flex flex-1 flex-col min-w-0">
-                        <span className="text-sm md:text-base font-semibold text-text-primary truncate">
-                          {option.text}
-                        </span>
-                        {showResultsView ? (
-                          <div className="mt-2">
-                            <div className="flex items-center justify-between text-xs text-text-tertiary">
-                              <span>{votePercentage}%</span>
-                              <span>{(option.votes || 0).toLocaleString()}표</span>
-                            </div>
-                            <div className="mt-1 h-2 rounded-full bg-border/50">
-                              <div
-                                className="h-full rounded-full bg-primary"
-                                style={{ width: `${votePercentage}%` }}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-text-secondary">
-                            선택하려면 누르세요
-                          </span>
-                        )}
-                      </div>
-                      {!showResultsView && (
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
-                            isSelected
-                              ? "border-primary text-primary"
-                              : "border-border text-text-tertiary"
-                          }`}
-                        >
-                          선택
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              {isPollClosed ? (
-                <p className="text-center text-destructive text-sm font-semibold">
-                  투표가 마감되었습니다.
-                </p>
-              ) : isVoted ? (
-                <p className="text-center text-success text-sm font-semibold">
-                  투표에 참여해주셔서 감사합니다!
-                </p>
-              ) : null}
-            </div>
-
-            {/* Buttons */}
-            <div className="flex flex-col gap-2 sm:relative sm:flex sm:items-center sm:justify-center sm:gap-3 text-center">
-              <button
-                type="button"
-                onClick={() => router.push("/polls")}
-                className="flex h-[26px] w-[26px] items-center justify-center rounded-full border border-border bg-panel hover:bg-panel-hover text-text-secondary transition-colors duration-200 sm:absolute sm:left-0 sm:top-1/2 sm:-translate-y-1/2"
-                aria-label="투표 목록으로 이동"
-              >
-                <ArrowLeft className="h-3 w-3" />
-              </button>
-
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center sm:gap-3">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const pollUrl = window.location.href;
-                    try {
-                      await navigator.clipboard.writeText(pollUrl);
-                      const toast = await getToast();
-                      toast.success("투표 링크가 클립보드에 복사되었습니다!");
-                    } catch (err) {
-                      console.error("Failed to copy link:", err);
-                      const toast = await getToast();
-                      toast.error("링크 복사에 실패했습니다.");
-                    }
-                  }}
-                  className="bg-transparent border border-border hover:bg-panel-hover text-text-secondary font-semibold py-2.5 px-4 rounded-md transition-colors duration-200 text-sm md:text-base text-center min-h-[44px] flex items-center justify-center gap-2"
-                >
-                  <Link className="h-4 w-4" />
-                  링크 공유
-                </button>
-
-                {showRouletteTrigger && (
-                  <button
-                    type="button"
-                    onClick={handleRouletteOpen}
-                    className="bg-gradient-to-br from-brand-gold/90 via-brand-gold to-brand-gold/80 text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:brightness-95 disabled:opacity-70 flex items-center justify-center gap-2 sm:min-w-[140px]"
-                    disabled={isSpinning}
-                  >
-                    <RandomIcon className="h-4 w-4" />
-                    랜덤 투표
-                  </button>
-                )}
-
-                {showVoteButton && (
-                  <button
-                    onClick={() => handleVote(selectedOptionId!)}
-                    className="bg-gradient-to-br from-[#ff8c00] to-[#ff6b00] text-white font-semibold py-2.5 px-4 rounded-md transition-all duration-200 text-sm md:text-base min-h-[44px] shadow-md hover:from-[#ff6b00] hover:to-[#ff5500] disabled:opacity-60 sm:min-w-[140px] flex items-center justify-center gap-2"
-                    disabled={!selectedOptionId}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    투표 하기
-                  </button>
-                )}
-
-                {showVoteComplete && (
-                  <span className="text-success font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center justify-center sm:min-w-[140px]">
-                    ✓ 투표 완료
-                  </span>
-                )}
-
-                {isPollClosed && (
-                  <span className="text-destructive font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center justify-center gap-1 sm:min-w-[140px]">
-                    <Lock className="h-4 w-4" />
-                    투표 마감
-                  </span>
-                )}
-
-                {showVotingState && (
-                  <span className="text-text-secondary font-semibold py-2.5 px-4 text-sm md:text-base min-h-[44px] flex items-center justify-center">
-                    투표 중...
-                  </span>
-                )}
-              </div>
-            </div>
-
-          </div>
-          <div className="border-t border-border-subtle px-4 md:px-6 py-3 text-xs sm:text-[13px]">
-            <div className="flex flex-col items-center gap-2 text-center text-text-tertiary sm:flex-row sm:justify-center sm:gap-4">
-              <span>
-                {timeRemainingLabel ? `남은 시간: ${timeRemainingLabel}` : "기한 없음"}
-              </span>
-              {poll.expires_at && (
-                <span>마감: {formatExpiryDate(poll.expires_at)}</span>
-              )}
-            </div>
-          </div>
-        </div>
+        <PollDetailCard
+          poll={poll}
+          totalVotes={totalVotes}
+          isPollClosed={isPollClosed}
+          hasVoted={isVoted}
+          timeRemaining={timeRemainingLabel}
+          selectedOptionId={selectedOptionId}
+          rouletteResultOptionId={rouletteResultOptionId}
+          onSelectOption={(optionId) => {
+            setSelectedOptionId(optionId);
+            if (rouletteResultOptionId && rouletteResultOptionId !== optionId) {
+              setRouletteResultOptionId(null);
+            }
+          }}
+          onVote={() => selectedOptionId && handleVote(selectedOptionId)}
+          votePending={voteMutation.isPending}
+          onShare={handleShareLink}
+          onBack={() => router.push("/polls")}
+          showRouletteTrigger={showRouletteTrigger}
+          onRouletteOpen={handleRouletteOpen}
+          isSpinning={isSpinning}
+          isFavorited={isFavorited}
+          favoritePending={toggleFavoriteMutation.isPending}
+          canFavorite={Boolean(session)}
+          onToggleFavorite={() => handleFavoriteToggle(true)}
+        />
       </main>
 
       {isRouletteOpen && (
@@ -669,12 +459,12 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
                       type="button"
                       onClick={handleRouletteClose}
                       className={`w-full sm:flex-1 rounded-md py-3 text-sm md:text-base font-semibold transition-colors duration-200 ${
-                        hasRouletteResult
+                        rouletteResultOption
                           ? "bg-success text-white hover:bg-success/90"
                           : "border border-border-subtle bg-surface text-text-primary hover:bg-panel-hover"
                       }`}
                     >
-                      {hasRouletteResult ? "확인" : "닫기"}
+                      {rouletteResultOption ? "확인" : "닫기"}
                     </button>
                   </div>
                   <p className="text-center text-xs text-text-secondary">

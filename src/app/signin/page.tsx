@@ -58,29 +58,36 @@ function SignInForm() {
   };
 
   return (
-    <div className="container mx-auto max-w-4xl p-8">
-      {/* Header */}
-      <header className="mb-12 text-center">
-        <h1 className="text-4xl font-bold tracking-tighter mb-2">로그인</h1>
-        <p className="text-text-secondary text-lg">계정에 로그인하세요.</p>
+    <div className="container mx-auto max-w-5xl px-4 py-10 md:py-12">
+      <header className="space-y-3 text-center">
+        <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-text-tertiary">
+          <span className="rounded-full bg-success/10 px-3 py-1 text-success">
+            보안 로그인
+          </span>
+          <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">
+            투표/즐겨찾기 동기화
+          </span>
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight text-text-primary md:text-4xl">
+          로그인하고 바로 투표를 이어가세요
+        </h1>
+        <p className="text-base text-text-secondary md:text-lg">
+          참여 내역, 즐겨찾기, 프로필을 기기마다 자동으로 동기화합니다.
+        </p>
       </header>
 
-      {/* Main Content */}
-      <main>
-        <div className="w-full max-w-md mx-auto">
-          <form
-            onSubmit={handleSignIn}
-            className="bg-panel border border-border rounded-lg p-6"
-          >
-            <div className="mb-4">
-              <label
-                className="block text-sm font-medium text-text-secondary mb-2"
-                htmlFor="email"
-              >
+      <main className="mt-8 grid gap-6 md:grid-cols-[1.05fr,0.95fr]">
+        <form
+          onSubmit={handleSignIn}
+          className="rounded-3xl border border-border bg-panel/70 p-6 shadow-inner md:p-8"
+        >
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-text-secondary" htmlFor="email">
                 이메일
               </label>
               <input
-                className="w-full bg-background-light border border-border rounded-md px-3 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl border border-border bg-background-subtle px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
                 id="email"
                 type="email"
                 placeholder="이메일을 입력하세요"
@@ -89,15 +96,12 @@ function SignInForm() {
                 required
               />
             </div>
-            <div className="mb-6">
-              <label
-                className="block text-sm font-medium text-text-secondary mb-2"
-                htmlFor="password"
-              >
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-text-secondary" htmlFor="password">
                 비밀번호
               </label>
               <input
-                className="w-full bg-background-light border border-border rounded-md px-3 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl border border-border bg-background-subtle px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
                 id="password"
                 type="password"
                 placeholder="비밀번호를 입력하세요"
@@ -107,29 +111,51 @@ function SignInForm() {
               />
             </div>
             {error && (
-              <p className="text-danger text-xs italic mb-4">{error}</p>
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive">
+                {error}
+              </p>
             )}
-            <div className="flex items-center justify-center">
+            <div className="flex flex-col gap-3">
               <button
-                className="bg-success hover:bg-success/90 text-white font-semibold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-success disabled:bg-gray-400 transition-colors duration-200"
+                className="flex min-h-[48px] items-center justify-center rounded-xl bg-gradient-to-br from-[#ff8c00] to-[#ff6b00] px-4 py-3 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:from-[#ff6b00] hover:to-[#ff5500] disabled:opacity-60"
                 type="submit"
                 disabled={isLoading}
               >
                 {isLoading ? "로그인 중..." : "로그인"}
               </button>
+              <p className="text-center text-sm text-text-secondary">
+                계정이 없으신가요?{" "}
+                <a
+                  href="/signup"
+                  className="font-semibold text-primary underline-offset-4 hover:text-primary/80 hover:underline"
+                >
+                  회원가입
+                </a>
+              </p>
+              <div className="rounded-xl border border-border-subtle bg-background/70 px-4 py-3 text-xs text-text-tertiary">
+                로그인 시 새로운 기기에서도 투표/즐겨찾기/포인트가 자동으로 동기화됩니다.
+              </div>
             </div>
+          </div>
+        </form>
 
-            <div className="mt-4 text-center text-sm text-text-secondary">
-              계정이 없으신가요?{" "}
-              <a
-                href="/signup"
-                className="font-semibold text-primary hover:text-primary/80 underline-offset-4 hover:underline"
-              >
-                회원가입
-              </a>
-            </div>
-          </form>
-
+        <div className="rounded-3xl border border-border bg-panel/60 p-6 shadow-inner md:p-7">
+          <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-text-tertiary">
+            <span className="rounded-full bg-info/10 px-2.5 py-1 text-info">안내</span>
+            <span className="rounded-full bg-accent/10 px-2.5 py-1 text-accent">혜택</span>
+          </div>
+          <h2 className="mt-3 text-xl font-semibold text-text-primary md:text-2xl">
+            로그인하면 이런 점이 달라집니다
+          </h2>
+          <ul className="mt-4 space-y-2 text-sm text-text-secondary md:text-base">
+            <li>• 투표/즐겨찾기/포인트를 모든 기기에서 동일하게 유지</li>
+            <li>• 비공개 투표 접근, 즐겨찾기 토글, 돌림판 결과까지 그대로</li>
+            <li>• 프로필/아바타를 변경하면 Navbar와 상세 페이지에 즉시 반영</li>
+            <li>• 로그인 리디렉션: 이전에 보던 페이지로 자동 복귀</li>
+          </ul>
+          <div className="mt-6 rounded-xl border border-border-subtle bg-background/70 px-4 py-3 text-xs text-text-tertiary">
+            안전한 환경을 위해 동일 오리진 경로만 리디렉션합니다. 이메일/비밀번호는 Supabase Auth에서 직접 처리됩니다.
+          </div>
         </div>
       </main>
     </div>

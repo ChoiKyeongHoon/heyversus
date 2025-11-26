@@ -32,7 +32,7 @@ RETURNS TABLE (
   created_by UUID,
   is_featured BOOLEAN,
   featured_image_url TEXT,
-  poll_options JSONB,
+  poll_options JSONB, -- position 포함, position/created_at/id 순으로 정렬
   has_voted BOOLEAN,
   is_favorited BOOLEAN,
   total_count BIGINT
