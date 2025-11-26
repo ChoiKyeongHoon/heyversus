@@ -17,7 +17,12 @@ export default async function LandingPage() {
 
   const featuredPolls = data ?? [];
   const heroPoll = featuredPolls[0];
-  const heroOption = heroPoll?.poll_options?.[0];
+  const heroOption = heroPoll?.poll_options?.reduce((best, option) => {
+    const bestVotes = best ? best.votes || 0 : -1;
+    const optionVotes = option.votes || 0;
+    if (optionVotes > bestVotes) return option;
+    return best || option;
+  }, undefined as (typeof heroPoll.poll_options)[number] | undefined);
   const heroImageUrl = heroOption?.image_url ?? null;
   const heroImageAlt =
     heroOption?.text || heroPoll?.question || "대표 투표 이미지";
