@@ -81,8 +81,24 @@ poll_id UUID REFERENCES public.polls(id) ON DELETE CASCADE, -- 'polls' 테이블
 -- ON DELETE CASCADE는 투표가 삭제될 때 해당 선택지들도 삭제되도록 합니다.
 text TEXT, -- 투표 선택지의 텍스트 내용
 votes INT DEFAULT 0, -- 이 선택지가 받은 투표 수
-image_url TEXT -- 선택지와 관련된 이미지의 선택적 URL
+image_url TEXT, -- 선택지와 관련된 이미지의 선택적 URL
+position INT NOT NULL DEFAULT 0 -- 생성/입력 순서를 명시적으로 저장합니다.
 );
+
+-- 기존 테이블에 position 컬럼이 없다면 추가하고, 기본값 0을 부여합니다.
+ALTER TABLE public.poll_options
+ADD COLUMN IF NOT EXISTS position INT NOT NULL DEFAULT 0;
+
+-- 기존 데이터에 대해 생성 시각 순서로 position을 백필합니다.
+WITH ranked_options AS (
+    SELECT id, poll_id,
+           ROW_NUMBER() OVER (PARTITION BY poll_id ORDER BY created_at, id) - 1 AS pos
+    FROM public.poll_options
+)
+UPDATE public.poll_options po
+SET position = r.pos
+FROM ranked_options r
+WHERE po.id = r.id;
 
 -- 3.1. 테이블 스키마 수정 (기존 테이블에 컬럼 추가 및 제약 조건 변경)
 -- 이 명령들은 스크립트가 여러 번 실행되더라도 안전하게 컬럼을 추가합니다.
@@ -174,8 +190,10 @@ END IF;
 
     -- 'option_texts' 배열의 각 선택지를 'poll_options' 테이블에 삽입합니다.
     -- unnest()는 배열을 행 집합으로 변환합니다.
-    INSERT INTO public.poll_options (poll_id, text, votes)
-    SELECT new_poll_id, unnest(option_texts), 0; -- 각 선택지의 투표 수를 0으로 초기화합니다.
+    -- 순서를 보존하기 위해 배열의 인덱스를 position으로 함께 저장합니다.
+    INSERT INTO public.poll_options (poll_id, text, votes, position)
+    SELECT new_poll_id, opt_text, 0, idx - 1
+    FROM UNNEST(option_texts) WITH ORDINALITY AS t(opt_text, idx);
 
     RETURN new_poll_id; -- 생성된 투표의 ID를 반환합니다.
 
@@ -391,7 +409,7 @@ p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
 EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
 -- 각 투표에 대한 선택지들을 투표 수(내림차순)에 따라 정렬하여 JSON 배열로 집계
-(SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+ (SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
 WHERE
@@ -442,7 +460,7 @@ p.expires_at,
 p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
 EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
-(SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+(SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
 WHERE
@@ -494,7 +512,7 @@ p.expires_at,
 p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
 EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
-(SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+(SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
 WHERE
@@ -584,7 +602,7 @@ END IF;
         p.status,
         EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
         true AS is_favorited,
-        (SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+        (SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
     FROM
         public.favorite_polls fp
         JOIN public.polls p ON p.id = fp.poll_id
@@ -679,7 +697,7 @@ END IF;
         p.status,
         EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
         EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
-        (SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+        (SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
     FROM
         public.polls p
     WHERE
@@ -891,9 +909,10 @@ BEGIN
             'text', po.text,
             'votes', COALESCE(po.votes, 0),
             'image_url', po.image_url,
-            'created_at', po.created_at
+            'created_at', po.created_at,
+            'position', po.position
           )
-          ORDER BY po.created_at
+          ORDER BY po.position, po.created_at, po.id
         )
         FROM public.poll_options po
         WHERE po.poll_id = p.id

@@ -248,30 +248,49 @@ export default function PollsClientInfinite({
     }
 
     return (
-      <div className="space-y-6">
-        {polls.map((poll) => {
-          const totalVotes = poll.poll_options.reduce(
-            (acc, option) => acc + (option.votes || 0),
-            0
-          );
-          const isPollClosed = poll.status === "closed" || isPollExpired(poll.expires_at);
-          const userHasVoted = hasVoted(poll.id);
-          return (
-            <PollCard
-              key={poll.id}
-              poll={poll}
-              totalVotes={totalVotes}
-              isPollClosed={isPollClosed}
-              hasVoted={userHasVoted}
-              onToggleFavorite={session ? () => handleToggleFavorite(poll.id) : undefined}
-              favoritePending={favoritePendingId === poll.id}
-              canFavorite={Boolean(session)}
-              isFavorited={poll.is_favorited}
-              timeRemaining={getTimeRemaining(poll.expires_at)}
-              interactive={false}
-            />
-          );
-        })}
+      <div className="space-y-4">
+        <div className="rounded-3xl border border-border bg-panel/70 p-4 shadow-inner sm:p-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-5">
+            {polls.map((poll) => {
+              const sortedPoll = {
+                ...poll,
+                poll_options: [...poll.poll_options].sort((a, b) => {
+                  if (a.position !== b.position) {
+                    return a.position - b.position;
+                  }
+                  const aTime = a.created_at ? new Date(a.created_at).getTime() : Number.MAX_SAFE_INTEGER;
+                  const bTime = b.created_at ? new Date(b.created_at).getTime() : Number.MAX_SAFE_INTEGER;
+                  if (aTime !== bTime) {
+                    return aTime - bTime;
+                  }
+                  return a.id.localeCompare(b.id);
+                }),
+              };
+              const totalVotes = sortedPoll.poll_options.reduce(
+                (acc, option) => acc + (option.votes || 0),
+                0
+              );
+              const isPollClosed = sortedPoll.status === "closed" || isPollExpired(sortedPoll.expires_at);
+              const userHasVoted = hasVoted(sortedPoll.id);
+              return (
+                <PollCard
+                  key={sortedPoll.id}
+                  poll={sortedPoll}
+                  totalVotes={totalVotes}
+                  isPollClosed={isPollClosed}
+                  hasVoted={userHasVoted}
+                  onToggleFavorite={session ? () => handleToggleFavorite(sortedPoll.id) : undefined}
+                  favoritePending={favoritePendingId === sortedPoll.id}
+                  canFavorite={Boolean(session)}
+                  isFavorited={sortedPoll.is_favorited}
+                  timeRemaining={getTimeRemaining(sortedPoll.expires_at)}
+                  interactive={false}
+                  variant="grid"
+                />
+              );
+            })}
+          </div>
+        </div>
 
         {hasNextPage && (
           <LoadMoreTrigger
@@ -312,8 +331,8 @@ export default function PollsClientInfinite({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-background-subtle px-4 py-3 text-sm text-text-secondary">
-          <span>맞춤 필터가 필요하신가요?</span>
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/60 bg-background-subtle px-4 py-4 text-sm text-text-secondary sm:flex-row sm:justify-center">
+          <span className="text-center">맞춤 필터가 필요하신가요?</span>
           <Button
             variant="link"
             className="p-0 text-primary"

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import PollsClient from "@/app/polls/PollsClient";
+import FavoritesClient from "@/app/favorites/FavoritesClient";
 import { getFavoritePolls } from "@/lib/services/polls";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,21 +32,6 @@ export default async function FavoritesPage() {
   }
 
   return (
-    <main
-      className="container mx-auto p-4 flex flex-col"
-      style={{ minHeight: "calc(100vh - 80px)" }}
-    >
-      <PollsClient
-        serverPolls={favoritePolls ?? []}
-        heading="즐겨찾기한 투표"
-        emptyState={{
-          title: "즐겨찾기한 투표가 없습니다",
-          message: "관심 있는 투표를 즐겨찾기에 추가해보세요.",
-          actionLabel: "투표 둘러보기",
-          actionHref: "/polls",
-        }}
-        removeOnUnfavorite
-      />
-    </main>
+    <FavoritesClient serverPolls={favoritePolls ?? []} />
   );
 }

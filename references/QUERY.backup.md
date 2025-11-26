@@ -290,6 +290,8 @@ CREATE OR REPLACE FUNCTION public.increment_vote(
 )
 RETURNS void -- 이 함수는 어떤 값도 반환하지 않습니다.
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
 AS
 $$
 
@@ -337,8 +339,13 @@ SELECT is_public, expires_at, status INTO target_poll FROM public.polls WHERE id
 
     -- 3. 모든 검사를 통과하면, 선택지의 투표 수를 1 증가시킵니다.
     UPDATE public.poll_options
-    SET votes = votes + 1
-    WHERE id = option_id_to_update;
+    SET votes = COALESCE(votes, 0) + 1
+    WHERE id = option_id_to_update
+    AND poll_id = poll_id_for_vote;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Option not found for this poll.';
+    END IF;
 
 END;
 
@@ -384,7 +391,7 @@ p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
 EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
 -- 각 투표에 대한 선택지들을 투표 수(내림차순)에 따라 정렬하여 JSON 배열로 집계
-(SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+(SELECT jsonb_agg(po ORDER BY po.created_at) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
 WHERE
@@ -435,7 +442,7 @@ p.expires_at,
 p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
 EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
-(SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+(SELECT jsonb_agg(po ORDER BY po.created_at) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
 WHERE
@@ -487,7 +494,7 @@ p.expires_at,
 p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
 EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
-(SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+(SELECT jsonb_agg(po ORDER BY po.created_at) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
 WHERE
@@ -577,7 +584,7 @@ END IF;
         p.status,
         EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
         true AS is_favorited,
-        (SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+        (SELECT jsonb_agg(po ORDER BY po.created_at) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
     FROM
         public.favorite_polls fp
         JOIN public.polls p ON p.id = fp.poll_id
@@ -672,7 +679,7 @@ END IF;
         p.status,
         EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
         EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
-        (SELECT jsonb_agg(po ORDER BY po.votes DESC) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+        (SELECT jsonb_agg(po ORDER BY po.created_at) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
     FROM
         public.polls p
     WHERE
@@ -738,18 +745,22 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
 
 -- bio 길이 제한 제약 조건 추가 (최대 500자)
-DO $$
+DO
+$$
+
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'bio_length'
-    AND conrelid = 'public.profiles'::regclass
-  ) THEN
-    ALTER TABLE public.profiles
-    ADD CONSTRAINT bio_length CHECK (char_length(bio) <= 500);
-  END IF;
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint
+WHERE conname = 'bio_length'
+AND conrelid = 'public.profiles'::regclass
+) THEN
+ALTER TABLE public.profiles
+ADD CONSTRAINT bio_length CHECK (char_length(bio) <= 500);
+END IF;
 END;
-$$;
+
+$$
+;
 
 -- RLS 정책: profiles 테이블
 -- 모든 사용자가 프로필을 볼 수 있도록 허용합니다.
@@ -850,87 +861,87 @@ AS
 $$
 
 DECLARE
-  total_polls BIGINT;
+total_polls BIGINT;
 BEGIN
-  -- 전체 투표 수 집계 (페이지네이션 메타데이터용)
-  SELECT COUNT(*)
-  INTO total_polls
-  FROM public.polls p
-  WHERE
-    (p.is_public = TRUE OR p.created_by = auth.uid())
-    AND (
-      p_filter_status = 'all' OR
-      (p_filter_status = 'active' AND (p.status = 'active' OR (p.expires_at IS NULL OR p.expires_at > NOW()))) OR
-      (p_filter_status = 'closed' AND (p.status = 'closed' OR (p.expires_at IS NOT NULL AND p.expires_at <= NOW())))
-    );
+-- 전체 투표 수 집계 (페이지네이션 메타데이터용)
+SELECT COUNT(\*)
+INTO total_polls
+FROM public.polls p
+WHERE
+(p.is_public = TRUE OR p.created_by = auth.uid())
+AND (
+p_filter_status = 'all' OR
+(p_filter_status = 'active' AND (p.status = 'active' OR (p.expires_at IS NULL OR p.expires_at > NOW()))) OR
+(p_filter_status = 'closed' AND (p.status = 'closed' OR (p.expires_at IS NOT NULL AND p.expires_at <= NOW())))
+);
 
-  -- 페이지네이션 결과 반환
-  RETURN QUERY
-  SELECT
-    p.id,
-    p.question,
-    p.is_public,
-    p.created_at,
-    p.expires_at,
-    COALESCE(p.status, 'active') AS status,
-    p.created_by,
-    COALESCE(p.is_featured, FALSE) AS is_featured,
-    p.featured_image_url,
-    COALESCE(
-      (
-        SELECT jsonb_agg(
-          jsonb_build_object(
-            'id', po.id,
-            'text', po.text,
-            'votes', COALESCE(po.votes, 0),
-            'image_url', po.image_url,
-            'created_at', po.created_at
-          )
-          ORDER BY po.created_at
-        )
-        FROM public.poll_options po
-        WHERE po.poll_id = p.id
-      ),
-      '[]'::jsonb
-    ) AS poll_options,
-    EXISTS(
-      SELECT 1
-      FROM public.user_votes uv
-      WHERE uv.poll_id = p.id
-        AND uv.user_id = auth.uid()
-    ) AS has_voted,
-    EXISTS(
-      SELECT 1
-      FROM public.favorite_polls fp
-      WHERE fp.poll_id = p.id
-        AND fp.user_id = auth.uid()
-    ) AS is_favorited,
-    total_polls AS total_count
-  FROM public.polls p
-  WHERE
-    (p.is_public = TRUE OR p.created_by = auth.uid())
-    AND (
-      p_filter_status = 'all' OR
-      (p_filter_status = 'active' AND (p.status = 'active' OR (p.expires_at IS NULL OR p.expires_at > NOW()))) OR
-      (p_filter_status = 'closed' AND (p.status = 'closed' OR (p.expires_at IS NOT NULL AND p.expires_at <= NOW())))
-    )
-  ORDER BY
-    CASE WHEN p_sort_by = 'created_at' AND p_sort_order = 'desc' THEN p.created_at END DESC,
-    CASE WHEN p_sort_by = 'created_at' AND p_sort_order = 'asc' THEN p.created_at END ASC,
-    CASE WHEN p_sort_by = 'expires_at' AND p_sort_order = 'desc' THEN p.expires_at END DESC NULLS LAST,
-    CASE WHEN p_sort_by = 'expires_at' AND p_sort_order = 'asc' THEN p.expires_at END ASC NULLS LAST,
-    CASE WHEN p_sort_by = 'votes' AND p_sort_order = 'desc' THEN (
-      SELECT COALESCE(SUM(po.votes), 0)
-      FROM public.poll_options po
-      WHERE po.poll_id = p.id
-    ) END DESC,
-    CASE WHEN p_sort_by = 'votes' AND p_sort_order = 'asc' THEN (
-      SELECT COALESCE(SUM(po.votes), 0)
-      FROM public.poll_options po
-      WHERE po.poll_id = p.id
-    ) END ASC
-  LIMIT p_limit
-  OFFSET p_offset;
+-- 페이지네이션 결과 반환
+RETURN QUERY
+SELECT
+p.id,
+p.question,
+p.is_public,
+p.created_at,
+p.expires_at,
+COALESCE(p.status, 'active') AS status,
+p.created_by,
+COALESCE(p.is_featured, FALSE) AS is_featured,
+p.featured_image_url,
+COALESCE(
+(
+SELECT jsonb_agg(
+jsonb_build_object(
+'id', po.id,
+'text', po.text,
+'votes', COALESCE(po.votes, 0),
+'image_url', po.image_url,
+'created_at', po.created_at
+)
+ORDER BY po.created_at
+)
+FROM public.poll_options po
+WHERE po.poll_id = p.id
+),
+'[]'::jsonb
+) AS poll_options,
+EXISTS(
+SELECT 1
+FROM public.user_votes uv
+WHERE uv.poll_id = p.id
+AND uv.user_id = auth.uid()
+) AS has_voted,
+EXISTS(
+SELECT 1
+FROM public.favorite_polls fp
+WHERE fp.poll_id = p.id
+AND fp.user_id = auth.uid()
+) AS is_favorited,
+total_polls AS total_count
+FROM public.polls p
+WHERE
+(p.is_public = TRUE OR p.created_by = auth.uid())
+AND (
+p_filter_status = 'all' OR
+(p_filter_status = 'active' AND (p.status = 'active' OR (p.expires_at IS NULL OR p.expires_at > NOW()))) OR
+(p_filter_status = 'closed' AND (p.status = 'closed' OR (p.expires_at IS NOT NULL AND p.expires_at <= NOW())))
+)
+ORDER BY
+CASE WHEN p_sort_by = 'created_at' AND p_sort_order = 'desc' THEN p.created_at END DESC,
+CASE WHEN p_sort_by = 'created_at' AND p_sort_order = 'asc' THEN p.created_at END ASC,
+CASE WHEN p_sort_by = 'expires_at' AND p_sort_order = 'desc' THEN p.expires_at END DESC NULLS LAST,
+CASE WHEN p_sort_by = 'expires_at' AND p_sort_order = 'asc' THEN p.expires_at END ASC NULLS LAST,
+CASE WHEN p_sort_by = 'votes' AND p_sort_order = 'desc' THEN (
+SELECT COALESCE(SUM(po.votes), 0)
+FROM public.poll_options po
+WHERE po.poll_id = p.id
+) END DESC,
+CASE WHEN p_sort_by = 'votes' AND p_sort_order = 'asc' THEN (
+SELECT COALESCE(SUM(po.votes), 0)
+FROM public.poll_options po
+WHERE po.poll_id = p.id
+) END ASC
+LIMIT p_limit
+OFFSET p_offset;
 END;
 
 $$
@@ -1067,32 +1078,34 @@ CREATE OR REPLACE FUNCTION public.update_profile(
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS
+$$
+
 DECLARE
-  v_user_id UUID;
-  v_current_username TEXT;
-  v_username_exists BOOLEAN;
-  v_result JSON;
+v_user_id UUID;
+v_current_username TEXT;
+v_username_exists BOOLEAN;
+v_result JSON;
 BEGIN
-  -- 현재 로그인한 사용자 ID 확인
-  v_user_id := auth.uid();
+-- 현재 로그인한 사용자 ID 확인
+v_user_id := auth.uid();
 
-  IF v_user_id IS NULL THEN
-    RAISE EXCEPTION 'Not authenticated';
-  END IF;
+IF v_user_id IS NULL THEN
+RAISE EXCEPTION 'Not authenticated';
+END IF;
 
-  -- 현재 사용자명 조회
-  SELECT username INTO v_current_username
-  FROM public.profiles
-  WHERE id = v_user_id;
+-- 현재 사용자명 조회
+SELECT username INTO v_current_username
+FROM public.profiles
+WHERE id = v_user_id;
 
-  -- username이 변경되는 경우 중복 체크
-  IF p_username IS NOT NULL AND p_username != v_current_username THEN
-    -- username 중복 확인
-    SELECT EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE username = p_username AND id != v_user_id
-    ) INTO v_username_exists;
+-- username이 변경되는 경우 중복 체크
+IF p_username IS NOT NULL AND p_username != v_current_username THEN
+-- username 중복 확인
+SELECT EXISTS (
+SELECT 1 FROM public.profiles
+WHERE username = p_username AND id != v_user_id
+) INTO v_username_exists;
 
     IF v_username_exists THEN
       RAISE EXCEPTION 'Username already exists';
@@ -1102,41 +1115,44 @@ BEGIN
     IF char_length(p_username) < 3 THEN
       RAISE EXCEPTION 'Username must be at least 3 characters';
     END IF;
-  END IF;
 
-  -- bio 길이 검증 (500자 이하)
-  IF p_bio IS NOT NULL AND char_length(p_bio) > 500 THEN
-    RAISE EXCEPTION 'Bio must be 500 characters or less';
-  END IF;
+END IF;
 
-  -- 프로필 업데이트
-  UPDATE public.profiles
-  SET
-    username = COALESCE(p_username, username),
-    full_name = COALESCE(p_full_name, full_name),
-    bio = COALESCE(p_bio, bio),
-    avatar_url = COALESCE(p_avatar_url, avatar_url),
-    updated_at = now()
-  WHERE id = v_user_id;
+-- bio 길이 검증 (500자 이하)
+IF p_bio IS NOT NULL AND char_length(p_bio) > 500 THEN
+RAISE EXCEPTION 'Bio must be 500 characters or less';
+END IF;
 
-  -- 업데이트된 프로필 정보 반환
-  SELECT json_build_object(
-    'id', p.id,
-    'username', p.username,
-    'full_name', p.full_name,
-    'bio', p.bio,
-    'avatar_url', p.avatar_url,
-    'points', p.points,
-    'created_at', u.created_at,
-    'updated_at', p.updated_at
-  ) INTO v_result
-  FROM public.profiles p
-  LEFT JOIN auth.users u ON p.id = u.id
-  WHERE p.id = v_user_id;
+-- 프로필 업데이트
+UPDATE public.profiles
+SET
+username = COALESCE(p_username, username),
+full_name = COALESCE(p_full_name, full_name),
+bio = COALESCE(p_bio, bio),
+avatar_url = COALESCE(p_avatar_url, avatar_url),
+updated_at = now()
+WHERE id = v_user_id;
 
-  RETURN v_result;
+-- 업데이트된 프로필 정보 반환
+SELECT json_build_object(
+'id', p.id,
+'username', p.username,
+'full_name', p.full_name,
+'bio', p.bio,
+'avatar_url', p.avatar_url,
+'points', p.points,
+'created_at', u.created_at,
+'updated_at', p.updated_at
+) INTO v_result
+FROM public.profiles p
+LEFT JOIN auth.users u ON p.id = u.id
+WHERE p.id = v_user_id;
+
+RETURN v_result;
 END;
-$$;
+
+$$
+;
 
 -- 9-2. get_profile 함수 (프로필 조회 헬퍼 함수)
 -- 사용자 ID로 프로필 정보를 조회하는 함수입니다.
@@ -1145,41 +1161,45 @@ CREATE OR REPLACE FUNCTION public.get_profile(p_user_id UUID DEFAULT NULL)
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS
+$$
+
 DECLARE
-  v_user_id UUID;
-  v_result JSON;
+v_user_id UUID;
+v_result JSON;
 BEGIN
-  -- p_user_id가 NULL이면 현재 로그인한 사용자 ID 사용
-  v_user_id := COALESCE(p_user_id, auth.uid());
+-- p_user_id가 NULL이면 현재 로그인한 사용자 ID 사용
+v_user_id := COALESCE(p_user_id, auth.uid());
 
-  IF v_user_id IS NULL THEN
-    RAISE EXCEPTION 'User ID is required';
-  END IF;
+IF v_user_id IS NULL THEN
+RAISE EXCEPTION 'User ID is required';
+END IF;
 
-  -- 프로필 정보 조회
-  SELECT json_build_object(
-    'id', p.id,
-    'username', p.username,
-    'full_name', p.full_name,
-    'bio', p.bio,
-    'avatar_url', p.avatar_url,
-    'points', p.points,
-    'created_at', u.created_at,
-    'updated_at', p.updated_at,
-    'email', u.email
-  ) INTO v_result
-  FROM public.profiles p
-  LEFT JOIN auth.users u ON p.id = u.id
-  WHERE p.id = v_user_id;
+-- 프로필 정보 조회
+SELECT json_build_object(
+'id', p.id,
+'username', p.username,
+'full_name', p.full_name,
+'bio', p.bio,
+'avatar_url', p.avatar_url,
+'points', p.points,
+'created_at', u.created_at,
+'updated_at', p.updated_at,
+'email', u.email
+) INTO v_result
+FROM public.profiles p
+LEFT JOIN auth.users u ON p.id = u.id
+WHERE p.id = v_user_id;
 
-  IF v_result IS NULL THEN
-    RAISE EXCEPTION 'Profile not found';
-  END IF;
+IF v_result IS NULL THEN
+RAISE EXCEPTION 'Profile not found';
+END IF;
 
-  RETURN v_result;
+RETURN v_result;
 END;
-$$;
+
+$$
+;
 
 
 -- =============================================================================
@@ -1189,3 +1209,4 @@ $$;
 -- SELECT * FROM public.get_profile('user-uuid-here'); -- 특정 사용자 프로필 조회
 -- SELECT * FROM public.update_profile(p_username := 'newusername', p_bio := 'Hello World!');
 -- SELECT * FROM storage.buckets WHERE id = 'avatars';
+$$
