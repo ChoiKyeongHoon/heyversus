@@ -240,7 +240,7 @@ function PollCard({
         {error && (
           <p className="text-red-500 text-xs md:text-sm text-center mb-4">{error}</p>
         )}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row-reverse items-center justify-center gap-3 sm:gap-4">
           {isPollClosed ? (
             <span className="text-text-secondary font-semibold py-2.5 md:py-3 px-4 md:px-6 flex items-center text-sm md:text-base">
               마감됨
