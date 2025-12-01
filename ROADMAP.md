@@ -168,11 +168,11 @@
 4. `get_poll_with_user_status` 함수 업데이트 (권한 검증 추가)
 5. polls 테이블 RLS 정책 재생성
 
-### 8.3 투표 플로우 단일화 및 RPC 보강 (진행 중)
+### 8.3 투표 플로우 단일화 및 RPC 보강 (완료)
 
-- 리스트(/polls, /favorites)에서는 투표 상태·결과만 노출하고, 실제 투표는 상세(/poll/[id])에서만 수행하도록 UI/로직을 단일화했습니다.
-- `usePollVote`를 낙관적 업데이트 + 실패 롤백 형태로 강화해 상세 페이지 투표 반영 속도와 안정성을 개선했습니다.
-- Supabase `increment_vote`를 `SECURITY DEFINER`, `COALESCE(votes, 0)`, 옵션/투표 불일치 시 예외 처리로 보완해 익명 투표도 안전하게 반영되도록 했습니다. (QUERY.md, 백업: QUERY.backup.md)
+- ✅ 리스트(/polls, /favorites)에서는 투표 상태·결과만 노출하고, 실제 투표는 상세(/poll/[id])에서만 수행하도록 UI/로직을 단일화했습니다.
+- ✅ `usePollVote`를 낙관적 업데이트 + 실패 롤백 형태로 강화해 상세 페이지 투표 반영 속도와 안정성을 개선했습니다.
+- ✅ Supabase `increment_vote`를 `SECURITY DEFINER`, `COALESCE(votes, 0)`, 옵션/투표 불일치 시 예외 처리로 보완해 익명 투표도 안전하게 반영되도록 했습니다. (QUERY.md, 백업: QUERY.backup.md)
 
 ## Step 9 – 반응형 레이아웃 & 뷰포트 최적화 (✅ 완료)
 

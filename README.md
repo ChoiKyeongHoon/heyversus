@@ -219,6 +219,7 @@ erDiagram
 - **Supabase RPC 보강**: `increment_vote`를 `SECURITY DEFINER` + `COALESCE(votes, 0)` + 옵션/투표 불일치 시 예외 처리로 수정해 익명 투표에서도 표 수가 안전하게 반영됩니다. (`references/QUERY.md`)
 - **랜덤 옵션 돌림판**: `/poll/[id]`에 conic-gradient 모달을 추가해 랜덤 추천 → 자동 옵션 선택 하이라이트 → 토스트 안내 흐름을 제공하며, 쿨다운/중복 클릭 차단을 포함합니다.
 - **옵션 순서 고정**: `poll_options.position` 컬럼을 도입하고 모든 RPC에서 `ORDER BY position, created_at, id`로 통일해 목록/상세 모두 생성 순서로 표시됩니다.
+- **문서 업데이트**: ROADMAP Step 8.3을 완료 상태로 표시하고 투표 플로우 단일화/투표 RPC 보강 현황을 문서에 반영했습니다.
 
 ### v0.6.6
 
