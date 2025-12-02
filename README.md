@@ -137,6 +137,20 @@
    ```bash
    npm run test
    ```
+8. 점수 집계를 수동으로 실행하려면 다음을 사용합니다.
+   ```bash
+   npm run scores:refresh
+   ```
+   환경 변수:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - 선택: `SCORE_REFRESH_LIMIT` (기본 500), `SCORE_REFRESH_OFFSET` (기본 0)
+9. 점수 집계를 매일 자동 실행하려면 GitHub Actions 시크릿을 설정합니다.
+   - 저장소 Settings → Secrets → Actions에 아래를 추가:
+     - `NEXT_PUBLIC_SUPABASE_URL`
+     - `SUPABASE_SERVICE_ROLE_KEY`
+     - (선택) `SCORE_REFRESH_LIMIT`
+   - 워크플로: `.github/workflows/score-refresh.yml` (매일 00:00 UTC 실행, 수동 실행도 가능)
 
 ## 📊 데이터베이스 스키마
 
@@ -216,6 +230,7 @@ erDiagram
 
 - **점수 이벤트 확장**: `/api/polls` 투표 생성 흐름에 `log_score_event('create_poll')`를 추가해 생성 액션도 점수에 반영합니다.
 - **집계 배치 경로 추가**: service role 클라이언트(`src/lib/supabase/service-role.ts`)와 점수 리프레시 스크립트(`scripts/refreshScores.ts`)를 추가해 `refresh_profile_scores`를 배치/스케줄러에서 실행할 수 있습니다.
+- **GitHub Actions 크론 추가**: `.github/workflows/score-refresh.yml`로 매일 00:00 UTC에 `npm run scores:refresh`를 자동 실행하도록 워크플로를 추가했습니다.
 - **점수 감가 언급 제거**: Step 18, `references/LEADERBOARD_PLAN.md`, `references/QUERY.md`에서 시간 감쇠/감가 계획을 삭제하고 합산 기반 모델로 문서를 정리했습니다.
 - **Step 18 설계/문서화**: `references/LEADERBOARD_PLAN.md`에 점수 모델·감가·스키마/RLS·UX 가드레일을 정리하고 ROADMAP Step 18을 진행 중으로 업데이트했습니다.
 - **리더보드 백엔드 스케폴드**: `references/QUERY.md`에 `profile_scores`/`profile_score_events` 테이블, `refresh_profile_scores`/`get_leaderboard` RPC 초안을 추가하고 dedup 인덱스용 `occurred_on` 생성 컬럼을 도입했습니다. 점수 이벤트 기록용 `log_score_event` RPC와 RLS 정책(leaderboard 공개 조회, 이벤트 로그 service_role 전용)을 추가했습니다.

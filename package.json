@@ -10,6 +10,7 @@
     "lint": "next lint",
     "test": "jest --passWithNoTests",
     "db:seed": "tsx scripts/seed.ts",
+    "scores:refresh": "tsx scripts/refreshScores.ts",
     "prepare": "husky install"
   },
   "dependencies": {

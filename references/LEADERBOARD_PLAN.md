@@ -27,6 +27,8 @@
 ## RPC / Batch
 - `refresh_profile_scores(p_limit, p_offset)`: 일일 배치 합산 전용, 주간 캡은 후속 확장 예정.
 - 실행 경로: service role 클라이언트(`src/lib/supabase/service-role.ts`) 또는 배치 스크립트(`scripts/refreshScores.ts`, env: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, 옵션 `SCORE_REFRESH_LIMIT`/`SCORE_REFRESH_OFFSET`)로 호출. Supabase Scheduler/CI에서 주기 실행을 권장.
+- 모니터링: 배치 실패 시 Slack/Sentry 알림을 설정하고, 주기/limit 튜닝(예: 일 1회, limit 500) 후 `profile_scores`에 최신 점수가 채워지는지 확인한다.
+- CI 크론: GitHub Actions 워크플로 `.github/workflows/score-refresh.yml`로 매일 00:00 UTC에 `npm run scores:refresh`를 실행하도록 구성(Secrets: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, 선택 `SCORE_REFRESH_LIMIT`).
 - `get_leaderboard(p_limit, p_offset, p_scope?)`: 랭킹 조회(전체/친구/지역 확장 여지), 점수·순위·프로필 요약만 반환.
 - `upsert_score_event(p_user_id, p_event_type, p_poll_id, p_weight_override?)`: 중복/제한 검증 후 이벤트 적재(실시간 가산이 필요한 경우만 사용).
 
