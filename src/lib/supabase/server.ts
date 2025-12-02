@@ -1,7 +1,8 @@
 import { type CookieOptions,createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 
+// 서버 전용 Supabase 클라이언트 생성기입니다. 클라이언트/페이지 환경에서 import하지 마세요.
 export async function createClient() {
+  const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
 
   return createServerClient(

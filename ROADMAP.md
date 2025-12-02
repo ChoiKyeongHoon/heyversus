@@ -620,7 +620,7 @@
 
 - 🚧 **설계 초안 작성**: `references/LEADERBOARD_PLAN.md`에 점수 공식/감가 파라미터/스키마·RLS/RPC/UX 요구사항을 통합 정리하고, 기존 디자인 토큰·44px 터치·라이트/다크 토큰 준수 가드레일을 명시했습니다.
 - 🚧 **백엔드 스케폴드 추가**: `references/QUERY.md`에 `profile_scores`/`profile_score_events` 테이블과 `refresh_profile_scores`/`get_leaderboard`/`log_score_event` RPC 초안을 추가해 점수 합산·이벤트 적재·랭킹 조회 기반을 마련했습니다. RLS 정책으로 leaderboard는 공개 조회, 이벤트 로그는 service_role 전용으로 제한했습니다.
-- 🚧 **코드 스케폴드 준비**: 랭킹 타입 정의(`src/lib/types.ts`), 리더보드 서비스 스텁(`src/lib/services/leaderboard.ts`), React Query 훅 뼈대(`src/hooks/useLeaderboard.ts`), 점수 이벤트 서비스(`src/lib/services/scoreEvents.ts`)를 추가해 Step 18 구현을 위한 기반을 마련했습니다.
+- 🚧 **코드 스케폴드 준비**: 랭킹 타입 정의(`src/lib/types.ts`), 리더보드 서비스 스텁(`src/lib/services/leaderboard.ts`), React Query 훅 뼈대(`src/hooks/useLeaderboard.ts`), 점수 이벤트 서비스(`src/lib/services/scoreEvents.ts`)를 추가해 Step 18 구현을 위한 기반을 마련했습니다. 투표/즐겨찾기 액션에서 `log_score_event`를 호출해 이벤트 적재를 시작했습니다.
 - ⏳ **랭킹 알고리즘 재정의**: 포인트 가중치, 투표 참여도, 즐겨찾기/공유 지표 등을 반영한 새로운 스코어 계산 공식을 설계하고 `profiles.points`를 교체할 새로운 스키마를 정의합니다.
 - ⏳ **데이터 파이프라인 구축**: Supabase RPC 또는 Edge Function으로 점수 재계산 배치를 구현하고, 실시간 반영이 필요한 항목은 트리거/리얼타임 채널을 활용해 랭킹 보드와 동기화합니다.
 - ⏳ **리더보드 UI/UX 업데이트**: `/score`(또는 `/leaderboard`) 페이지에 뷰 전환(전체/친구/지역), 사용자 하이라이트, 순위 변동 표시를 추가하고 모바일에서도 가독성 높은 테이블 컴포넌트를 구성합니다.

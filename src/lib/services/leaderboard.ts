@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getAnonServerClient } from "@/lib/supabase/anon-server";
-import { createClient } from "@/lib/supabase/server";
 import type {
   GetLeaderboardParams,
   LeaderboardEntry,
@@ -73,7 +72,7 @@ export async function getLeaderboard(
   try {
     const supabase = options?.useAnonClient
       ? getAnonServerClient()
-      : await createClient();
+      : await (await import("@/lib/supabase/server")).createClient();
 
     return fetchLeaderboard(supabase, {
       limit,

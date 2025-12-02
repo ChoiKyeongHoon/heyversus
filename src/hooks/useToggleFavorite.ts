@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 
 import { useSupabase } from "@/hooks/useSupabase";
+import { logScoreEvent } from "@/lib/services/scoreEvents";
 
 interface ToggleFavoriteParams {
   pollId: string;
@@ -29,6 +30,14 @@ export function useToggleFavorite() {
         result && typeof result.is_favorited === "boolean"
           ? result.is_favorited
           : false;
+
+      // 즐겨찾기 추가 시 점수 이벤트 적재 (삭제 시에는 기록 안 함)
+      if (isFavorited) {
+        await logScoreEvent(
+          { eventType: "favorite", pollId },
+          { supabase }
+        );
+      }
 
       return { pollId, isFavorited };
     },

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { submitVoteRequest } from "@/lib/api/vote";
+import { logScoreEvent } from "@/lib/services/scoreEvents";
 import { getToast } from "@/lib/toast";
 import type { PollWithOptions } from "@/lib/types";
 
@@ -84,6 +85,11 @@ export function usePollVote(options: UsePollVoteOptions = {}) {
     onSuccess: async () => {
       const toast = await getToast();
       toast.success("투표가 완료되었습니다!");
+      // 점수 이벤트 기록
+      await logScoreEvent(
+        { eventType: "vote" },
+        { supabase }
+      );
       options.onSuccess?.();
     },
   });
