@@ -215,8 +215,8 @@ erDiagram
 ### v0.6.8
 
 - **Step 18 설계/문서화**: `references/LEADERBOARD_PLAN.md`에 점수 모델·감가·스키마/RLS·UX 가드레일을 정리하고 ROADMAP Step 18을 진행 중으로 업데이트했습니다.
-- **리더보드 백엔드 스케폴드**: `references/QUERY.md`에 `profile_scores`/`profile_score_events` 테이블, `refresh_profile_scores`/`get_leaderboard` RPC 초안을 추가하고 dedup 인덱스용 `occurred_on` 생성 컬럼을 도입했습니다.
-- **리더보드 코드 스케폴드**: `src/lib/services/leaderboard.ts`(RPC 호출 스텁), 랭킹 타입(`src/lib/types.ts`), React Query 훅 뼈대(`src/hooks/useLeaderboard.ts`)를 추가했습니다.
+- **리더보드 백엔드 스케폴드**: `references/QUERY.md`에 `profile_scores`/`profile_score_events` 테이블, `refresh_profile_scores`/`get_leaderboard` RPC 초안을 추가하고 dedup 인덱스용 `occurred_on` 생성 컬럼을 도입했습니다. 점수 이벤트 기록용 `log_score_event` RPC를 추가해 가중치/중복 방지 로직을 마련했습니다.
+- **리더보드 코드 스케폴드**: `src/lib/services/leaderboard.ts`(RPC 호출 스텁), 랭킹 타입(`src/lib/types.ts`), React Query 훅 뼈대(`src/hooks/useLeaderboard.ts`), 점수 이벤트 서비스(`src/lib/services/scoreEvents.ts`)를 추가했습니다.
 - **레거시 컴포넌트 정리**: 사용되지 않는 `src/app/polls/PollsClient.tsx`를 제거해 `/polls` 목록을 `PollsClientInfinite`로 단일화했습니다.
 
 ### v0.6.7

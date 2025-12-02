@@ -90,3 +90,11 @@ export interface LeaderboardResponse {
   data: LeaderboardEntry[];
   pagination: PaginationMetadata;
 }
+
+export type ScoreEventType =
+  | "vote"
+  | "create_poll"
+  | "favorite"
+  | "share"
+  | "streak3"
+  | "streak7";
