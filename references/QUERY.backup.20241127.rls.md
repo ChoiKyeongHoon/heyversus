@@ -1233,48 +1233,6 @@ CREATE TABLE IF NOT EXISTS public.profile_scores (
 CREATE INDEX IF NOT EXISTS idx_profile_scores_score_desc ON public.profile_scores (score DESC);
 CREATE INDEX IF NOT EXISTS idx_profile_scores_last_activity ON public.profile_scores (last_activity_at DESC);
 
-ALTER TABLE public.profile_scores ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Allow public read of profile_scores'
-  ) THEN
-    CREATE POLICY "Allow public read of profile_scores"
-      ON public.profile_scores
-      FOR SELECT
-      USING (true);
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role insert profile_scores'
-  ) THEN
-    CREATE POLICY "Service role insert profile_scores"
-      ON public.profile_scores
-      FOR INSERT
-      WITH CHECK (auth.role() = 'service_role');
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role update profile_scores'
-  ) THEN
-    CREATE POLICY "Service role update profile_scores"
-      ON public.profile_scores
-      FOR UPDATE
-      USING (auth.role() = 'service_role')
-      WITH CHECK (auth.role() = 'service_role');
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role delete profile_scores'
-  ) THEN
-    CREATE POLICY "Service role delete profile_scores"
-      ON public.profile_scores
-      FOR DELETE
-      USING (auth.role() = 'service_role');
-  END IF;
-END $$;
-
 -- 2) 점수 이벤트 로그 (중복 방지 인덱스 포함)
 CREATE TABLE IF NOT EXISTS public.profile_score_events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -1291,48 +1249,6 @@ CREATE INDEX IF NOT EXISTS idx_profile_score_events_user ON public.profile_score
 CREATE INDEX IF NOT EXISTS idx_profile_score_events_event ON public.profile_score_events (event_type, occurred_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_profile_score_events_dedup
   ON public.profile_score_events (user_id, event_type, poll_id, occurred_on);
-
-ALTER TABLE public.profile_score_events ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role insert score_events'
-  ) THEN
-    CREATE POLICY "Service role insert score_events"
-      ON public.profile_score_events
-      FOR INSERT
-      WITH CHECK (auth.role() = 'service_role');
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role select score_events'
-  ) THEN
-    CREATE POLICY "Service role select score_events"
-      ON public.profile_score_events
-      FOR SELECT
-      USING (auth.role() = 'service_role');
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role update score_events'
-  ) THEN
-    CREATE POLICY "Service role update score_events"
-      ON public.profile_score_events
-      FOR UPDATE
-      USING (auth.role() = 'service_role')
-      WITH CHECK (auth.role() = 'service_role');
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role delete score_events'
-  ) THEN
-    CREATE POLICY "Service role delete score_events"
-      ON public.profile_score_events
-      FOR DELETE
-      USING (auth.role() = 'service_role');
-  END IF;
-END $$;
 
 -- 3) 점수 리프레시 함수 (집계 전용)
 CREATE OR REPLACE FUNCTION public.refresh_profile_scores(

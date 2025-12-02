@@ -19,8 +19,8 @@
 - 인덱스: `profile_scores(score DESC)`, `profile_scores(last_activity_at)`, `profile_score_events(user_id)`, 위 복합 유니크 인덱스.
 
 ## RLS & Exposure
-- `profile_scores`: SELECT는 공개(랭킹용)하되 조인 시 닉네임/아바타만 노출. INSERT/UPDATE는 배치/RPC 전용.
-- `profile_score_events`: INSERT는 본인만, SELECT는 배치/관리 목적에 한정(또는 집계 뷰만 공개).
+- `profile_scores`: SELECT 공개(랭킹용), INSERT/UPDATE/DELETE는 service_role만 허용(RPC/배치 전용).
+- `profile_score_events`: INSERT/SELECT/UPDATE/DELETE 모두 service_role만 허용(서버/배치 전용).
 - `leaderboard` 뷰/RPC는 `SECURITY DEFINER`로 최소 컬럼만 반환해 기존 프로필 RLS와 분리한다.
 
 ## RPC / Batch
