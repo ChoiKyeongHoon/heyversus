@@ -6,6 +6,8 @@ import {
   getPolls,
   getPollsPaginated,
 } from "@/lib/services/polls";
+import { logScoreEvent } from "@/lib/services/scoreEvents";
+import { createClient } from "@/lib/supabase/server";
 import type { GetPollsParams } from "@/lib/types";
 import {
   type CreatePollPayload,
@@ -199,6 +201,16 @@ export async function POST(request: NextRequest) {
         { error: message },
         { status }
       );
+    }
+
+    const supabase = await createClient();
+    const { error: scoreEventError } = await logScoreEvent(
+      { eventType: "create_poll" },
+      { supabase }
+    );
+
+    if (scoreEventError) {
+      console.error("Failed to log create_poll score event:", scoreEventError);
     }
 
     return NextResponse.json({ pollId }, { status: 201 });

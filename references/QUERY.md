@@ -1392,7 +1392,7 @@ CREATE OR REPLACE FUNCTION public.get_leaderboard(
   p_scope TEXT DEFAULT 'global', -- 'global' | 'friends' | 'region'
   p_sort_by TEXT DEFAULT 'score', -- 'score' | 'delta' | 'recent_activity'
   p_sort_order TEXT DEFAULT 'desc', -- 'asc' | 'desc'
-  p_period TEXT DEFAULT 'all', -- '24h' | '7d' | '30d' | 'all' (감가/필터는 후속)
+  p_period TEXT DEFAULT 'all', -- '24h' | '7d' | '30d' | 'all' (추가 기간 필터는 후속)
   p_region TEXT DEFAULT NULL
 )
 RETURNS TABLE (
