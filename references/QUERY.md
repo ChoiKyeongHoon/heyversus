@@ -1225,7 +1225,6 @@ CREATE TABLE IF NOT EXISTS public.profile_scores (
   user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
   score NUMERIC NOT NULL DEFAULT 0,
   last_activity_at TIMESTAMPTZ,
-  decay_applied_at TIMESTAMPTZ,
   raw_points_cache NUMERIC,
   weekly_cap_hit BOOLEAN NOT NULL DEFAULT FALSE,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -1251,7 +1250,7 @@ CREATE INDEX IF NOT EXISTS idx_profile_score_events_event ON public.profile_scor
 CREATE UNIQUE INDEX IF NOT EXISTS ux_profile_score_events_dedup
   ON public.profile_score_events (user_id, event_type, poll_id, occurred_on);
 
--- 3) 점수 리프레시 함수 (감가/주간 캡은 후속 업데이트에서 확장)
+-- 3) 점수 리프레시 함수 (집계 전용)
 CREATE OR REPLACE FUNCTION public.refresh_profile_scores(
   p_limit INT DEFAULT 500,
   p_offset INT DEFAULT 0
@@ -1286,21 +1285,18 @@ BEGIN
     user_id,
     score,
     last_activity_at,
-    decay_applied_at,
     updated_at
   )
   SELECT
     a.user_id,
     a.total_score,
     a.last_activity_at,
-    v_now,
     v_now
   FROM aggregated a
   ON CONFLICT (user_id) DO UPDATE
   SET
     score = EXCLUDED.score,
     last_activity_at = EXCLUDED.last_activity_at,
-    decay_applied_at = EXCLUDED.decay_applied_at,
     updated_at = v_now;
 END;
 $$;
