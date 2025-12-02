@@ -214,6 +214,10 @@ erDiagram
 
 ### v0.6.7
 
+- **Step 18 점수/랭킹 설계 착수**: `references/LEADERBOARD_PLAN.md`에 점수 모델·감가·스키마/RLS·UX 요구사항을 정리하고, ROADMAP Step 18을 진행 중으로 표시했습니다(브랜드 토큰/44px 터치 일관성 가드레일 명시).
+- **리더보드 백엔드 스케폴드**: `references/QUERY.md`에 `profile_scores`/`profile_score_events` 테이블, `refresh_profile_scores`/`get_leaderboard` RPC 초안을 추가해 점수 합산·랭킹 조회 기반을 마련했습니다.
+- **리더보드 코드 스캐폴드**: `src/lib/services/leaderboard.ts`(RPC 호출 스텁), 랭킹 타입(`src/lib/types.ts`), React Query 훅 뼈대(`src/hooks/useLeaderboard.ts`)를 추가해 Step 18 구현 준비를 시작했습니다.
+- **레거시 컴포넌트 정리**: 더 이상 사용하지 않는 `src/app/polls/PollsClient.tsx`를 제거해 `/polls` 목록이 `PollsClientInfinite` 단일 경로로 유지되도록 정돈했습니다.
 - **투표 플로우 단일화**: `/polls`, `/favorites` 등 리스트 화면에서는 투표/옵션 선택을 제거하고 결과·상태만 노출, 실제 투표는 상세 `/poll/[id]`에서만 진행하도록 변경.
 - **상세 투표 UX 강화**: `usePollVote`가 React Query 캐시를 낙관적으로 갱신 후 실패 시 롤백하도록 개선해 투표 반영 속도와 안정성을 높였습니다.
 - **Supabase RPC 보강**: `increment_vote`를 `SECURITY DEFINER` + `COALESCE(votes, 0)` + 옵션/투표 불일치 시 예외 처리로 수정해 익명 투표에서도 표 수가 안전하게 반영됩니다. (`references/QUERY.md`)

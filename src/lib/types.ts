@@ -58,3 +58,35 @@ export interface PollsResponse {
   data: PollWithOptions[];
   pagination: PaginationMetadata;
 }
+
+// Leaderboard Types (Step 18)
+
+export type LeaderboardScope = 'global' | 'friends' | 'region';
+export type LeaderboardSortBy = 'score' | 'delta' | 'recent_activity';
+export type LeaderboardPeriod = '24h' | '7d' | '30d' | 'all';
+
+export interface LeaderboardEntry {
+  user_id: string;
+  rank: number;
+  score: number;
+  display_name: string | null;
+  avatar_url: string | null;
+  delta?: number;
+  last_activity_at?: string | null;
+  region?: string | null;
+}
+
+export interface GetLeaderboardParams {
+  limit?: number;
+  offset?: number;
+  scope?: LeaderboardScope;
+  sortBy?: LeaderboardSortBy;
+  sortOrder?: SortOrder;
+  period?: LeaderboardPeriod;
+  region?: string | null;
+}
+
+export interface LeaderboardResponse {
+  data: LeaderboardEntry[];
+  pagination: PaginationMetadata;
+}
