@@ -13,21 +13,24 @@ const DEFAULT_LIMIT = 20;
 type LeaderboardRow = LeaderboardEntry & { total_count?: number };
 
 async function fetchProfilesFallback(limit: number, offset: number) {
-  const supabase = getAnonServerClient();
+  // 서비스 롤 키가 있으면 RLS를 우회해 안전하게 조회, 없으면 anon 클라이언트 사용
+  const supabase =
+    process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? getServiceRoleClient()
+      : getAnonServerClient();
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from("profiles")
-    .select("id as user_id, username as display_name, points, updated_at")
+    .select("id as user_id, username as display_name, points, updated_at", { count: "exact" })
     .order("points", { ascending: false })
     .order("updated_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (error) {
-    console.error("Error fetching profiles fallback:", error);
+    console.error("Error fetching profiles fallback:", error?.message || error);
     return { data: null, error };
   }
 
-  const totalCount = data?.length ?? 0;
   const rows: LeaderboardEntry[] =
     data?.map((row, idx) => ({
       user_id: row.user_id,
@@ -41,11 +44,11 @@ async function fetchProfilesFallback(limit: number, offset: number) {
     data: {
       data: rows,
       pagination: {
-        total: totalCount,
+        total: count ?? rows.length,
         limit,
         offset,
-        hasNextPage: offset + limit < totalCount,
-        nextOffset: offset + limit < totalCount ? offset + limit : null,
+        hasNextPage: count ? offset + limit < count : false,
+        nextOffset: count && offset + limit < count ? offset + limit : null,
       },
     } as LeaderboardResponse,
     error: null,
