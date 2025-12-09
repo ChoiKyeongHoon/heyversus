@@ -26,7 +26,7 @@ async function fetchProfilesFallback(limit: number, offset: number) {
       : getAnonServerClient();
 
   const { data, error, count } = await supabase
-    .from<ProfileRow>("profiles")
+    .from("profiles")
     .select("id, username, points, updated_at", { count: "exact" })
     .order("points", { ascending: false })
     .order("updated_at", { ascending: false })
@@ -38,7 +38,7 @@ async function fetchProfilesFallback(limit: number, offset: number) {
   }
 
   const rows: LeaderboardEntry[] =
-    data?.map((row, idx) => ({
+    (data as ProfileRow[] | null)?.map((row, idx) => ({
       user_id: row.id,
       rank: offset + idx + 1,
       score: row.points ?? 0,
