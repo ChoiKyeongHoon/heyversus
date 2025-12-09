@@ -656,6 +656,7 @@
 
 ## Step 22 – 캐시 격리 및 품질 안전망 (신규)
 
+- ✅ **리더보드 폴백**: `get_leaderboard` RPC 실패/빈 결과 시 `profiles.points`로 폴백해 랭킹 노출을 유지하고, best-effort로 `refresh_profile_scores`를 트리거해 집계 누락을 줄입니다.
 - ✅ **보안 패치 적용**: React Flight/Next.js RCE 대응을 위해 Next.js를 15.5.7로 상향했습니다.
 - 🚧 **캐시/세션 분리**: `getPolls`·`getPollById` 등 사용자 세션 의존 RPC는 `unstable_cache` 캐시를 제거하거나 익명 클라이언트 전용 캐시로 분리하고, `/api/polls?paginated=false` 경로는 캐시 없이 직접 호출로 전환합니다.
 - 🚧 **라우트 시그니처 정리**: 모든 App Route/Route Handler의 `params` 시그니처를 `{ params: { id: string } }` 형태로 교정해 Next.js 타입/정적 최적화를 유지합니다.

@@ -228,6 +228,7 @@ erDiagram
 
 ### Unreleased
 
+- **리더보드 폴백**: `profile_scores` 집계가 비었거나 RPC 오류 시 `profiles.points` 기준으로 레이팅을 표시하도록 폴백을 추가하고, best-effort로 `refresh_profile_scores`를 트리거해 집계 누락을 줄였습니다.
 - **보안 패치**: React Flight/Next.js RCE 대응을 위해 Next.js를 15.5.7로 업데이트했습니다.
 - **로드맵 정리**: Step 18의 필수 작업만 남기고 선택 과제를 Step 23 "지속적 개선"으로 이동했습니다. 타임라인을 Step 23까지 갱신했습니다.
 - **/score 리더보드 갱신**: `get_leaderboard` RPC 기반 데이터로 `/score` 페이지를 전환하고 오류/빈 상태 가드를 추가했습니다. 구 프로필 포인트 기반 리더보드 호출은 제거했습니다.
