@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getAnonServerClient } from "@/lib/supabase/anon-server";
 import { createClient } from "@/lib/supabase/server";
+import { getServiceRoleClient } from "@/lib/supabase/service-role";
 import type { ScoreEventType } from "@/lib/types";
 
 export interface LogScoreEventParams {
@@ -25,6 +26,7 @@ export interface LogScoreEventResult {
 type LogScoreEventOptions = {
   supabase?: SupabaseClient;
   useAnonClient?: boolean;
+  useServiceRole?: boolean;
 };
 
 export async function logScoreEvent(
@@ -40,8 +42,13 @@ export async function logScoreEvent(
   } = params;
 
   const supabase =
-    options.supabase ??
-    (options.useAnonClient ? getAnonServerClient() : await createClient());
+    options.useServiceRole
+      ? getServiceRoleClient()
+      : options.supabase
+        ? options.supabase
+        : options.useAnonClient
+          ? getAnonServerClient()
+          : await createClient();
 
   const { data, error } = await supabase.rpc("log_score_event", {
     p_event_type: eventType,
@@ -59,4 +66,32 @@ export async function logScoreEvent(
   const result = Array.isArray(data) && data.length > 0 ? data[0] : data;
 
   return { data: result as LogScoreEventResult, error: null };
+}
+
+export async function logScoreEventClient(
+  params: LogScoreEventParams
+): Promise<{ data: LogScoreEventResult | null; error: Error | null }> {
+  try {
+    const response = await fetch("/api/score-events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+      credentials: "same-origin",
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      const message =
+        body?.error || `Failed to log score event (status ${response.status})`;
+      return { data: null, error: new Error(message) };
+    }
+
+    const body = (await response.json()) as { data: LogScoreEventResult | null };
+    return { data: body.data ?? null, error: null };
+  } catch (error) {
+    console.error("Error calling score event API:", error);
+    return { data: null, error: error as Error };
+  }
 }

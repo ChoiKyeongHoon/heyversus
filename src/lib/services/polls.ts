@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 
-import { DEFAULTS } from "@/constants/app";
 import { CACHE_TAGS, CACHE_TIMES } from "@/constants/cache";
 import { getAnonServerClient } from "@/lib/supabase/anon-server";
 import { createClient } from "@/lib/supabase/server";
@@ -309,51 +308,6 @@ export async function toggleFavorite(pollId: string) {
   const result = Array.isArray(data) && data.length > 0 ? data[0] : null;
 
   return { data: result?.is_favorited as boolean | null, error: null };
-}
-
-/**
- * 사용자 프로필 목록을 포인트 순으로 가져옵니다 (리더보드).
- * @param options.limit - 가져올 최대 개수 (기본값: 10). null이면 제한 없음
- * @returns 프로필 목록과 오류 정보
- */
-export interface GetLeaderboardOptions {
-  limit?: number | null;
-}
-
-export async function getLeaderboard(
-  options: GetLeaderboardOptions = {}
-) {
-  const limit = options.limit ?? DEFAULTS.LEADERBOARD_LIMIT;
-  const shouldLimit = options.limit !== null;
-
-  return unstable_cache(
-    async () => {
-      const supabase = getAnonServerClient();
-
-      let query = supabase
-        .from("profiles")
-        .select("id, username, points, updated_at")
-        .order("points", { ascending: false });
-
-      if (shouldLimit) {
-        query = query.limit(limit);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Error fetching leaderboard:", error);
-        return { data: null, error };
-      }
-
-      return { data, error: null };
-    },
-    [CACHE_TAGS.LEADERBOARD, shouldLimit ? String(limit) : "all"],
-    {
-      tags: [CACHE_TAGS.LEADERBOARD],
-      revalidate: CACHE_TIMES.LEADERBOARD,
-    }
-  )();
 }
 
 /**

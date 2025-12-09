@@ -1,12 +1,14 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
 
 import { GradientSpinner } from "@/components/ui/loader";
 import { createClient } from "@/lib/supabase/client";
 
 function SignInForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,21 +39,29 @@ function SignInForm() {
     setIsLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
+    if (error || !data?.session) {
       setError(
-        "로그인 정보가 올바르지 않습니다. 이메일과 비밀번호를 확인해주세요."
+        error?.message
+          ? "로그인에 실패했습니다. 다시 시도해주세요."
+          : "세션을 생성하지 못했습니다. 잠시 후 다시 시도해주세요."
       );
+      setIsLoading(false);
+      return;
     } else {
       // 리디렉션 URL을 가져오거나 기본값으로 '/'를 사용합니다.
       const redirectPath = getSafeRedirectPath(searchParams.get("redirect"));
       // router.push() 대신 window.location.assign()을 사용하여 전체 페이지를 새로고침합니다.
       // 이렇게 하면 서버가 새로운 세션 쿠키를 확실하게 읽어들일 수 있습니다.
       window.location.assign(redirectPath);
+      // assign 실패 시를 대비한 안전망
+      setTimeout(() => {
+        router.replace(redirectPath);
+      }, 500);
     }
 
     setIsLoading(false);

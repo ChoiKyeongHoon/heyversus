@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { submitVoteRequest } from "@/lib/api/vote";
-import { logScoreEvent } from "@/lib/services/scoreEvents";
+import { logScoreEventClient } from "@/lib/services/scoreEvents";
 import { getToast } from "@/lib/toast";
 import type { PollWithOptions } from "@/lib/types";
 
@@ -82,14 +82,24 @@ export function usePollVote(options: UsePollVoteOptions = {}) {
         toast.error("투표 중 오류가 발생했습니다.");
       }
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       const toast = await getToast();
       toast.success("투표가 완료되었습니다!");
-      // 점수 이벤트 기록
-      await logScoreEvent(
-        { eventType: "vote" },
-        { supabase }
-      );
+      // 점수 이벤트 기록 (로그인 사용자만)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session && variables?.pollId) {
+        const { error: scoreEventError } = await logScoreEventClient({
+          eventType: "vote",
+          pollId: variables.pollId,
+        });
+
+        if (scoreEventError) {
+          console.error("Failed to log vote score event:", scoreEventError);
+        }
+      }
       options.onSuccess?.();
     },
   });

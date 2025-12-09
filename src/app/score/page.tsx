@@ -2,41 +2,58 @@ import Link from "next/link";
 
 import { PollsHero } from "@/components/polls/PollsHero";
 import { Button } from "@/components/ui/button";
-import { getLeaderboard } from "@/lib/services/polls";
+import { getLeaderboard } from "@/lib/services/leaderboard";
 
 export const revalidate = 120;
 
 export default async function ScorePage() {
-  const { data, error } = await getLeaderboard({ limit: null });
+  const { data, error } = await getLeaderboard(
+    {
+      limit: 50,
+      offset: 0,
+      scope: "global",
+      sortBy: "score",
+      sortOrder: "desc",
+      period: "all",
+      region: null,
+    },
+    { useAnonClient: true }
+  );
 
   if (error) {
-    console.error("Error fetching profiles:", error);
+    console.error("Error fetching leaderboard:", error);
   }
 
-  const profiles = data ?? [];
+  const entries = data?.data ?? [];
+  const totalPlayers = data?.pagination.total ?? entries.length;
 
-  const topThree = profiles.slice(0, 3);
+  const topThree = entries.slice(0, 3);
 
   const topTenAverage =
-    profiles.slice(0, 10).reduce((acc, cur) => acc + (cur.points || 0), 0) /
-    Math.max(1, Math.min(10, profiles.length));
+    entries.slice(0, 10).reduce((acc, cur) => acc + (cur.score ?? 0), 0) /
+    Math.max(1, Math.min(10, entries.length));
+  const newEntrants = entries.filter((entry) => (entry.delta ?? 0) > 0).length;
+  const hasError = Boolean(error);
 
   const stats = [
-    { label: "전체 플레이어", value: profiles.length.toLocaleString() },
+    { label: "전체 플레이어", value: totalPlayers.toLocaleString() },
     {
       label: "상위 10위 평균",
-      value: `${Math.round(topTenAverage).toLocaleString()} XP`,
+      value:
+        entries.length > 0
+          ? `${Math.round(topTenAverage).toLocaleString()} XP`
+          : "-",
       helper: "상위 플레이어 평균 포인트",
     },
     {
       label: "이번주 신규 진입",
-      value: `${Math.min(3, profiles.length)}명`,
+      value: entries.length > 0 ? `${Math.max(newEntrants, 0)}명` : "-",
       helper: "주간 신규 상위권",
     },
     {
       label: "1위 포인트",
-      value: topThree[0]?.points
-        ? `${topThree[0].points.toLocaleString()} XP`
+      value: topThree[0]?.score
+        ? `${topThree[0].score.toLocaleString()} XP`
         : "-",
     },
   ];
@@ -83,21 +100,25 @@ export default async function ScorePage() {
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             {topThree.map((profile, index) => (
               <div
-                key={profile.username}
+                key={`${profile.user_id ?? "unknown"}-${profile.rank ?? index + 1}`}
                 className="rounded-2xl border border-border bg-background px-4 py-5 text-center shadow"
               >
                 <div className="text-sm text-text-secondary">{index + 1}위</div>
                 <div className="mt-2 text-2xl font-bold text-text-primary">
-                  {profile.username || "-"}
+                  {profile.display_name || "-"}
                 </div>
                 <div className="mt-1 text-xs uppercase tracking-wider text-text-tertiary">
-                  {profile.points.toLocaleString()} XP
+                  {typeof profile.score === "number"
+                    ? `${profile.score.toLocaleString()} XP`
+                    : "-"}
                 </div>
               </div>
             ))}
             {topThree.length === 0 && (
               <div className="col-span-3 rounded-2xl border border-border bg-background px-4 py-6 text-center text-text-secondary">
-                아직 랭킹 데이터가 없습니다.
+                {hasError
+                  ? "랭킹 데이터를 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요."
+                  : "아직 랭킹 데이터가 없습니다."}
               </div>
             )}
           </div>
@@ -117,27 +138,33 @@ export default async function ScorePage() {
                 </tr>
               </thead>
               <tbody>
-                {profiles.map((profile, index) => (
+                {entries.map((profile, index) => (
                   <tr
-                    key={`${profile.username}-${index}`}
+                    key={`${profile.user_id ?? "unknown"}-${profile.rank ?? index + 1}`}
                     className="border-t border-border-subtle text-text-primary"
                   >
                     <td className="px-4 py-3 text-center font-semibold">
-                      {index + 1}
+                      {profile.rank ?? index + 1}
                     </td>
-                    <td className="px-4 py-3">{profile.username || "-"}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-primary">
-                      {profile.points.toLocaleString()} XP
-                    </td>
-                  </tr>
-                ))}
-                {profiles.length === 0 && (
+                  <td className="px-4 py-3">
+                    {profile.display_name || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-primary">
+                    {typeof profile.score === "number"
+                      ? `${profile.score.toLocaleString()} XP`
+                      : "-"}
+                  </td>
+                </tr>
+              ))}
+                {entries.length === 0 && (
                   <tr>
                     <td
                       colSpan={3}
                       className="px-4 py-6 text-center text-text-secondary"
                     >
-                      아직 랭킹 데이터가 없습니다.
+                      {hasError
+                        ? "랭킹 데이터를 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요."
+                        : "아직 랭킹 데이터가 없습니다."}
                     </td>
                   </tr>
                 )}

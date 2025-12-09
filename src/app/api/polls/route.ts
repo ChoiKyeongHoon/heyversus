@@ -188,6 +188,12 @@ export async function POST(request: NextRequest) {
 
     const payload: CreatePollPayload = parsed.data;
 
+    const supabase = await createClient();
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     const { data: pollId, error } = await createPoll({
       question: payload.question,
       options: payload.options,
@@ -203,10 +209,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
     const { error: scoreEventError } = await logScoreEvent(
-      { eventType: "create_poll" },
-      { supabase }
+      { eventType: "create_poll", userId: session?.user?.id ?? null },
+      { useServiceRole: true }
     );
 
     if (scoreEventError) {

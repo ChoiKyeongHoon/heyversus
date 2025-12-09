@@ -1289,13 +1289,25 @@ CREATE TABLE IF NOT EXISTS public.profile_score_events (
 
 CREATE INDEX IF NOT EXISTS idx_profile_score_events_user ON public.profile_score_events (user_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_profile_score_events_event ON public.profile_score_events (event_type, occurred_at DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_profile_score_events_dedup
-  ON public.profile_score_events (user_id, event_type, poll_id, occurred_on);
 
 ALTER TABLE public.profile_score_events ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
+  -- dedup 고유 제약이 없으면 인덱스가 있어도 드롭 후 제약으로 재생성
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'ux_profile_score_events_dedup' AND conrelid = 'public.profile_score_events'::regclass
+  ) THEN
+    IF EXISTS (
+      SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'ux_profile_score_events_dedup'
+    ) THEN
+      DROP INDEX public.ux_profile_score_events_dedup;
+    END IF;
+
+    ALTER TABLE public.profile_score_events
+      ADD CONSTRAINT ux_profile_score_events_dedup UNIQUE (user_id, event_type, poll_id, occurred_on);
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role insert score_events'
   ) THEN
@@ -1493,8 +1505,8 @@ BEGIN
   v_weight := COALESCE(
     p_weight_override,
     CASE p_event_type
-      WHEN 'vote' THEN 3
-      WHEN 'create_poll' THEN 10
+      WHEN 'vote' THEN 1
+      WHEN 'create_poll' THEN 5
       WHEN 'favorite' THEN 2
       WHEN 'share' THEN 2
       WHEN 'streak3' THEN 1
@@ -1523,8 +1535,7 @@ BEGIN
   DO UPDATE
     SET weight = EXCLUDED.weight,
         metadata = COALESCE(EXCLUDED.metadata, public.profile_score_events.metadata),
-        occurred_at = EXCLUDED.occurred_at,
-        occurred_on = EXCLUDED.occurred_on
+        occurred_at = EXCLUDED.occurred_at
   RETURNING json_build_object(
     'id', id,
     'user_id', user_id,

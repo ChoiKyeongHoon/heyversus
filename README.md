@@ -226,6 +226,20 @@ erDiagram
 
 ## 📌 업데이트 기록
 
+### Unreleased
+
+- **로드맵 정리**: Step 18의 필수 작업만 남기고 선택 과제를 Step 23 "지속적 개선"으로 이동했습니다. 타임라인을 Step 23까지 갱신했습니다.
+- **/score 리더보드 갱신**: `get_leaderboard` RPC 기반 데이터로 `/score` 페이지를 전환하고 오류/빈 상태 가드를 추가했습니다. 구 프로필 포인트 기반 리더보드 호출은 제거했습니다.
+- **점수 이벤트 API 경유**: 클라이언트에서 점수 이벤트를 `/api/score-events`로 전송하고 service role로 기록하도록 변경해 권한 오류를 제거했습니다.
+- **즐겨찾기 포인트 제거**: 즐겨찾기 추가 시 점수 이벤트를 기록하지 않도록 변경했습니다.
+- **투표 생성 점수 조정**: `log_score_event`에서 투표 생성(`create_poll`) 가중치를 5점으로 조정했습니다.
+- **로그인 리디렉션 안정화**: 이메일/비밀번호 로그인 후 세션 생성 실패를 감지하고, `window.location.assign` 실패 시 `router.replace`로 한 번 더 리디렉션해 로그인 페이지에 머무르는 문제를 방지했습니다.
+- **비로그인 투표 시 점수 로깅 스킵**: 로그인된 사용자만 투표 점수 이벤트를 기록하도록 가드해 401 오류 노출을 방지했습니다.
+- **점수 이벤트 API 개선**: `/api/score-events`를 force-dynamic으로 전환하고 에러 메시지를 구체화했으며, 클라이언트 요청에 쿠키를 확실히 포함하도록 했습니다.
+- **점수 이벤트 고유 제약 보정**: `profile_score_events`의 dedup 고유 제약(ux_profile_score_events_dedup)이 없으면 인덱스를 제거하고 제약으로 재생성하도록 QUERY.md에 보정 블록을 추가했습니다.
+- **score_events 업데이트 보정**: `occurred_on`(generated column)을 업데이트하지 않도록 `log_score_event`의 ON CONFLICT 절을 수정했습니다.
+- **점수 가중치 조정**: 투표(`vote`)는 1점, 투표 생성(`create_poll`)은 5점으로 가중치를 재설정했습니다.
+
 ### v0.6.8
 
 - **점수 이벤트 확장**: `/api/polls` 투표 생성 흐름에 `log_score_event('create_poll')`를 추가해 생성 액션도 점수에 반영합니다.
