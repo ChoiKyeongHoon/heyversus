@@ -11,6 +11,12 @@ import type {
 const DEFAULT_LIMIT = 20;
 
 type LeaderboardRow = LeaderboardEntry & { total_count?: number };
+type ProfileRow = {
+  id: string;
+  username: string | null;
+  points: number | null;
+  updated_at: string | null;
+};
 
 async function fetchProfilesFallback(limit: number, offset: number) {
   // 서비스 롤 키가 있으면 RLS를 우회해 안전하게 조회, 없으면 anon 클라이언트 사용
@@ -20,8 +26,8 @@ async function fetchProfilesFallback(limit: number, offset: number) {
       : getAnonServerClient();
 
   const { data, error, count } = await supabase
-    .from("profiles")
-    .select("id as user_id, username as display_name, points, updated_at", { count: "exact" })
+    .from<ProfileRow>("profiles")
+    .select("id, username, points, updated_at", { count: "exact" })
     .order("points", { ascending: false })
     .order("updated_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -33,10 +39,10 @@ async function fetchProfilesFallback(limit: number, offset: number) {
 
   const rows: LeaderboardEntry[] =
     data?.map((row, idx) => ({
-      user_id: row.user_id,
+      user_id: row.id,
       rank: offset + idx + 1,
       score: row.points ?? 0,
-      display_name: row.display_name ?? null,
+      display_name: row.username ?? null,
       avatar_url: null,
     })) ?? [];
 
