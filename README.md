@@ -228,6 +228,7 @@ erDiagram
 
 ### Unreleased
 
+- **보안 패치**: React Flight/Next.js RCE 대응을 위해 Next.js를 15.5.7로 업데이트했습니다.
 - **로드맵 정리**: Step 18의 필수 작업만 남기고 선택 과제를 Step 23 "지속적 개선"으로 이동했습니다. 타임라인을 Step 23까지 갱신했습니다.
 - **/score 리더보드 갱신**: `get_leaderboard` RPC 기반 데이터로 `/score` 페이지를 전환하고 오류/빈 상태 가드를 추가했습니다. 구 프로필 포인트 기반 리더보드 호출은 제거했습니다.
 - **점수 이벤트 API 경유**: 클라이언트에서 점수 이벤트를 `/api/score-events`로 전송하고 service role로 기록하도록 변경해 권한 오류를 제거했습니다.

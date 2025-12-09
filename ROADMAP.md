@@ -656,6 +656,7 @@
 
 ## Step 22 – 캐시 격리 및 품질 안전망 (신규)
 
+- ✅ **보안 패치 적용**: React Flight/Next.js RCE 대응을 위해 Next.js를 15.5.7로 상향했습니다.
 - 🚧 **캐시/세션 분리**: `getPolls`·`getPollById` 등 사용자 세션 의존 RPC는 `unstable_cache` 캐시를 제거하거나 익명 클라이언트 전용 캐시로 분리하고, `/api/polls?paginated=false` 경로는 캐시 없이 직접 호출로 전환합니다.
 - 🚧 **라우트 시그니처 정리**: 모든 App Route/Route Handler의 `params` 시그니처를 `{ params: { id: string } }` 형태로 교정해 Next.js 타입/정적 최적화를 유지합니다.
 - 🚧 **초기 상태 정확도**: 로그인 사용자의 즐겨찾기/투표 상태가 첫 렌더에 정확히 반영되도록 `/polls` 초기 로드에 세션 클라이언트 사용 또는 즉시 refetch + `initialData` 조합을 적용합니다.
