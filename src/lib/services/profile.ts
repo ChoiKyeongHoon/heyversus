@@ -59,8 +59,26 @@ export async function getCurrentProfile(): Promise<{
       };
     }
 
+    const profile = data as Profile;
+    let points = Number(profile?.points ?? 0);
+
+    const { data: scoreRows, error: scoreError } = await supabase
+      .from("profile_scores")
+      .select("score")
+      .eq("user_id", profile.id)
+      .limit(1);
+
+    if (scoreError) {
+      console.error("Error fetching profile score:", scoreError);
+    } else if (scoreRows?.[0]?.score !== undefined && scoreRows[0]?.score !== null) {
+      points = Number(scoreRows[0].score);
+    }
+
     return {
-      data: data as Profile,
+      data: {
+        ...profile,
+        points,
+      },
       error: null,
     };
   } catch (error) {
@@ -98,8 +116,26 @@ export async function getProfileById(
       };
     }
 
+    const profile = data as Profile;
+    let points = Number(profile?.points ?? 0);
+
+    const { data: scoreRows, error: scoreError } = await supabase
+      .from("profile_scores")
+      .select("score")
+      .eq("user_id", profile.id)
+      .limit(1);
+
+    if (scoreError) {
+      console.error("Error fetching profile score by ID:", scoreError);
+    } else if (scoreRows?.[0]?.score !== undefined && scoreRows[0]?.score !== null) {
+      points = Number(scoreRows[0].score);
+    }
+
     return {
-      data: data as Profile,
+      data: {
+        ...profile,
+        points,
+      },
       error: null,
     };
   } catch (error) {

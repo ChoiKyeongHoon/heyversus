@@ -228,6 +228,7 @@ erDiagram
 
 ### Unreleased
 
+- **프로필 점수 일원화**: 프로필/네비게이션/계정 화면이 `profile_scores` 집계 점수를 우선 사용하고 없을 때만 `profiles.points`로 폴백해 랭킹과 동일한 값을 표시합니다.
 - **Step 19 이미지 업로드 계획**: `references/STEP19_IMAGE_UPLOAD_PLAN.md`에 투표 이미지 업로드 설계(스토리지/RPC/프론트 UX/테스트/보안)를 정리했습니다.
 - **리더보드 폴백**: `profile_scores` 집계가 비었거나 RPC 오류 시 `profiles.points` 기준으로 레이팅을 표시하도록 폴백을 추가하고, best-effort로 `refresh_profile_scores`를 트리거해 집계 누락을 줄였습니다.
 - **보안 패치**: React Flight/Next.js RCE 대응을 위해 Next.js를 15.5.7로 업데이트했습니다.

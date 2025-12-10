@@ -624,6 +624,7 @@
 - ✅ **점수 이벤트 확장**: 투표 생성 API(`/api/polls`)에 `log_score_event('create_poll')`를 연동해 생성 흐름도 점수 이벤트로 기록합니다.
 - ✅ **집계 실행 경로**: service role 클라이언트(`src/lib/supabase/service-role.ts`)와 배치 스크립트(`scripts/refreshScores.ts`)를 추가해 `refresh_profile_scores`를 서버/스케줄러에서 호출할 수 있게 했습니다.
 - ✅ **정합성 검증 및 UI 반영**: 새 점수 소스 기반 `/score` 페이지로 전환하고, 오류/빈 상태 가드 및 총 플레이어 집계·상위 랭킹 UI를 업데이트했습니다.
+- ✅ **프로필 점수 일원화**: 프로필 조회 시 `profile_scores` 집계 점수를 우선 사용하고 없을 때만 `profiles.points`를 폴백해 랭킹과 동일한 값을 표시합니다.
 
 
 ## Step 19 – 투표 이미지 업로드 기능 (예정)
