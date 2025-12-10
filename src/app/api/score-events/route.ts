@@ -9,7 +9,6 @@ export const dynamic = "force-dynamic";
 const ALLOWED_EVENT_TYPES: ScoreEventType[] = [
   "vote",
   "create_poll",
-  "favorite",
   "share",
   "streak3",
   "streak7",

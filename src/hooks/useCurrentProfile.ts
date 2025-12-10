@@ -42,22 +42,41 @@ export function useCurrentProfile(userId?: string) {
       const profile = data as CurrentProfile;
       let points = Number(profile.points ?? 0);
 
-      const { data: scoreRows, error: scoreError } = await supabase
-        .from("profile_scores")
-        .select("score")
-        .eq("user_id", profile.id)
-        .limit(1);
+      try {
+        const { data: sumRows, error: sumError } = await supabase
+          .from("profile_score_events")
+          .select("weight")
+          .eq("user_id", profile.id);
 
-      if (scoreError) {
-        console.error("Error fetching profile score (client):", scoreError);
-      } else if (scoreRows?.[0]?.score !== undefined && scoreRows[0]?.score !== null) {
-        points = Number(scoreRows[0].score);
+        if (!sumError && Array.isArray(sumRows) && sumRows.length > 0) {
+          points = sumRows.reduce(
+            (acc, row) => acc + Number((row as { weight?: number })?.weight ?? 0),
+            0
+          );
+        } else {
+          if (sumError) {
+            console.error("Error summing profile score events (client):", sumError);
+          }
+          const { data: scoreRows, error: scoreError } = await supabase
+            .from("profile_scores")
+            .select("score")
+            .eq("user_id", profile.id)
+            .limit(1);
+
+          if (scoreError) {
+            console.error("Error fetching profile score (client):", scoreError);
+          } else if (
+            scoreRows?.[0]?.score !== undefined &&
+            scoreRows[0]?.score !== null
+          ) {
+            points = Number(scoreRows[0].score);
+          }
+        }
+      } catch (sumError) {
+        console.error("Unexpected error summing profile score events (client):", sumError);
       }
 
-      return {
-        ...profile,
-        points,
-      };
+      return { ...profile, points };
     },
   });
 }

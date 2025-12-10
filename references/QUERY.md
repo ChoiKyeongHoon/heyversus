@@ -409,7 +409,7 @@ p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
 EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
 -- 각 투표에 대한 선택지들을 투표 수(내림차순)에 따라 정렬하여 JSON 배열로 집계
- (SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+(SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
 WHERE
@@ -763,18 +763,22 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
 
 -- bio 길이 제한 제약 조건 추가 (최대 500자)
-DO $$
+DO
+$$
+
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'bio_length'
-    AND conrelid = 'public.profiles'::regclass
-  ) THEN
-    ALTER TABLE public.profiles
-    ADD CONSTRAINT bio_length CHECK (char_length(bio) <= 500);
-  END IF;
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint
+WHERE conname = 'bio_length'
+AND conrelid = 'public.profiles'::regclass
+) THEN
+ALTER TABLE public.profiles
+ADD CONSTRAINT bio_length CHECK (char_length(bio) <= 500);
+END IF;
 END;
-$$;
+
+$$
+;
 
 -- RLS 정책: profiles 테이블
 -- 모든 사용자가 프로필을 볼 수 있도록 허용합니다.
@@ -871,23 +875,21 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS
-$$
-
+AS $$
 DECLARE
   total_polls BIGINT;
 BEGIN
   -- 전체 투표 수 집계 (페이지네이션 메타데이터용)
   SELECT COUNT(*)
-  INTO total_polls
-  FROM public.polls p
-  WHERE
-    (p.is_public = TRUE OR p.created_by = auth.uid())
-    AND (
-      p_filter_status = 'all' OR
-      (p_filter_status = 'active' AND (p.status = 'active' OR (p.expires_at IS NULL OR p.expires_at > NOW()))) OR
-      (p_filter_status = 'closed' AND (p.status = 'closed' OR (p.expires_at IS NOT NULL AND p.expires_at <= NOW())))
-    );
+    INTO total_polls
+    FROM public.polls p
+    WHERE
+      (p.is_public = TRUE OR p.created_by = auth.uid())
+      AND (
+        p_filter_status = 'all' OR
+        (p_filter_status = 'active' AND (p.status = 'active' OR (p.expires_at IS NULL OR p.expires_at > NOW()))) OR
+        (p_filter_status = 'closed' AND (p.status = 'closed' OR (p.expires_at IS NOT NULL AND p.expires_at <= NOW())))
+      );
 
   -- 페이지네이션 결과 반환
   RETURN QUERY
@@ -958,9 +960,7 @@ BEGIN
   LIMIT p_limit
   OFFSET p_offset;
 END;
-
-$$
-;
+$$;
 
 -- 함수 실행 권한 부여
 GRANT EXECUTE ON FUNCTION public.get_polls_paginated TO authenticated;
@@ -1093,32 +1093,34 @@ CREATE OR REPLACE FUNCTION public.update_profile(
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS
+$$
+
 DECLARE
-  v_user_id UUID;
-  v_current_username TEXT;
-  v_username_exists BOOLEAN;
-  v_result JSON;
+v_user_id UUID;
+v_current_username TEXT;
+v_username_exists BOOLEAN;
+v_result JSON;
 BEGIN
-  -- 현재 로그인한 사용자 ID 확인
-  v_user_id := auth.uid();
+-- 현재 로그인한 사용자 ID 확인
+v_user_id := auth.uid();
 
-  IF v_user_id IS NULL THEN
-    RAISE EXCEPTION 'Not authenticated';
-  END IF;
+IF v_user_id IS NULL THEN
+RAISE EXCEPTION 'Not authenticated';
+END IF;
 
-  -- 현재 사용자명 조회
-  SELECT username INTO v_current_username
-  FROM public.profiles
-  WHERE id = v_user_id;
+-- 현재 사용자명 조회
+SELECT username INTO v_current_username
+FROM public.profiles
+WHERE id = v_user_id;
 
-  -- username이 변경되는 경우 중복 체크
-  IF p_username IS NOT NULL AND p_username != v_current_username THEN
-    -- username 중복 확인
-    SELECT EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE username = p_username AND id != v_user_id
-    ) INTO v_username_exists;
+-- username이 변경되는 경우 중복 체크
+IF p_username IS NOT NULL AND p_username != v_current_username THEN
+-- username 중복 확인
+SELECT EXISTS (
+SELECT 1 FROM public.profiles
+WHERE username = p_username AND id != v_user_id
+) INTO v_username_exists;
 
     IF v_username_exists THEN
       RAISE EXCEPTION 'Username already exists';
@@ -1128,41 +1130,44 @@ BEGIN
     IF char_length(p_username) < 3 THEN
       RAISE EXCEPTION 'Username must be at least 3 characters';
     END IF;
-  END IF;
 
-  -- bio 길이 검증 (500자 이하)
-  IF p_bio IS NOT NULL AND char_length(p_bio) > 500 THEN
-    RAISE EXCEPTION 'Bio must be 500 characters or less';
-  END IF;
+END IF;
 
-  -- 프로필 업데이트
-  UPDATE public.profiles
-  SET
-    username = COALESCE(p_username, username),
-    full_name = COALESCE(p_full_name, full_name),
-    bio = COALESCE(p_bio, bio),
-    avatar_url = COALESCE(p_avatar_url, avatar_url),
-    updated_at = now()
-  WHERE id = v_user_id;
+-- bio 길이 검증 (500자 이하)
+IF p_bio IS NOT NULL AND char_length(p_bio) > 500 THEN
+RAISE EXCEPTION 'Bio must be 500 characters or less';
+END IF;
 
-  -- 업데이트된 프로필 정보 반환
-  SELECT json_build_object(
-    'id', p.id,
-    'username', p.username,
-    'full_name', p.full_name,
-    'bio', p.bio,
-    'avatar_url', p.avatar_url,
-    'points', p.points,
-    'created_at', u.created_at,
-    'updated_at', p.updated_at
-  ) INTO v_result
-  FROM public.profiles p
-  LEFT JOIN auth.users u ON p.id = u.id
-  WHERE p.id = v_user_id;
+-- 프로필 업데이트
+UPDATE public.profiles
+SET
+username = COALESCE(p_username, username),
+full_name = COALESCE(p_full_name, full_name),
+bio = COALESCE(p_bio, bio),
+avatar_url = COALESCE(p_avatar_url, avatar_url),
+updated_at = now()
+WHERE id = v_user_id;
 
-  RETURN v_result;
+-- 업데이트된 프로필 정보 반환
+SELECT json_build_object(
+'id', p.id,
+'username', p.username,
+'full_name', p.full_name,
+'bio', p.bio,
+'avatar_url', p.avatar_url,
+'points', p.points,
+'created_at', u.created_at,
+'updated_at', p.updated_at
+) INTO v_result
+FROM public.profiles p
+LEFT JOIN auth.users u ON p.id = u.id
+WHERE p.id = v_user_id;
+
+RETURN v_result;
 END;
-$$;
+
+$$
+;
 
 -- 9-2. get_profile 함수 (프로필 조회 헬퍼 함수)
 -- 사용자 ID로 프로필 정보를 조회하는 함수입니다.
@@ -1171,41 +1176,45 @@ CREATE OR REPLACE FUNCTION public.get_profile(p_user_id UUID DEFAULT NULL)
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS
+$$
+
 DECLARE
-  v_user_id UUID;
-  v_result JSON;
+v_user_id UUID;
+v_result JSON;
 BEGIN
-  -- p_user_id가 NULL이면 현재 로그인한 사용자 ID 사용
-  v_user_id := COALESCE(p_user_id, auth.uid());
+-- p_user_id가 NULL이면 현재 로그인한 사용자 ID 사용
+v_user_id := COALESCE(p_user_id, auth.uid());
 
-  IF v_user_id IS NULL THEN
-    RAISE EXCEPTION 'User ID is required';
-  END IF;
+IF v_user_id IS NULL THEN
+RAISE EXCEPTION 'User ID is required';
+END IF;
 
-  -- 프로필 정보 조회
-  SELECT json_build_object(
-    'id', p.id,
-    'username', p.username,
-    'full_name', p.full_name,
-    'bio', p.bio,
-    'avatar_url', p.avatar_url,
-    'points', p.points,
-    'created_at', u.created_at,
-    'updated_at', p.updated_at,
-    'email', u.email
-  ) INTO v_result
-  FROM public.profiles p
-  LEFT JOIN auth.users u ON p.id = u.id
-  WHERE p.id = v_user_id;
+-- 프로필 정보 조회
+SELECT json_build_object(
+'id', p.id,
+'username', p.username,
+'full_name', p.full_name,
+'bio', p.bio,
+'avatar_url', p.avatar_url,
+'points', p.points,
+'created_at', u.created_at,
+'updated_at', p.updated_at,
+'email', u.email
+) INTO v_result
+FROM public.profiles p
+LEFT JOIN auth.users u ON p.id = u.id
+WHERE p.id = v_user_id;
 
-  IF v_result IS NULL THEN
-    RAISE EXCEPTION 'Profile not found';
-  END IF;
+IF v_result IS NULL THEN
+RAISE EXCEPTION 'Profile not found';
+END IF;
 
-  RETURN v_result;
+RETURN v_result;
 END;
-$$;
+
+$$
+;
 
 
 -- =============================================================================
@@ -1235,56 +1244,58 @@ CREATE INDEX IF NOT EXISTS idx_profile_scores_last_activity ON public.profile_sc
 
 ALTER TABLE public.profile_scores ENABLE ROW LEVEL SECURITY;
 
-DO $$
+DO
+$$
+
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Allow public read of profile_scores'
-  ) THEN
-    CREATE POLICY "Allow public read of profile_scores"
-      ON public.profile_scores
-      FOR SELECT
-      USING (true);
-  END IF;
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Allow public read of profile_scores'
+) THEN
+CREATE POLICY "Allow public read of profile_scores"
+ON public.profile_scores
+FOR SELECT
+USING (true);
+END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role insert profile_scores'
-  ) THEN
-    CREATE POLICY "Service role insert profile_scores"
-      ON public.profile_scores
-      FOR INSERT
-      WITH CHECK (auth.role() = 'service_role');
-  END IF;
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role insert profile_scores'
+) THEN
+CREATE POLICY "Service role insert profile_scores"
+ON public.profile_scores
+FOR INSERT
+WITH CHECK (auth.role() = 'service_role');
+END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role update profile_scores'
-  ) THEN
-    CREATE POLICY "Service role update profile_scores"
-      ON public.profile_scores
-      FOR UPDATE
-      USING (auth.role() = 'service_role')
-      WITH CHECK (auth.role() = 'service_role');
-  END IF;
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role update profile_scores'
+) THEN
+CREATE POLICY "Service role update profile_scores"
+ON public.profile_scores
+FOR UPDATE
+USING (auth.role() = 'service_role')
+WITH CHECK (auth.role() = 'service_role');
+END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role delete profile_scores'
-  ) THEN
-    CREATE POLICY "Service role delete profile_scores"
-      ON public.profile_scores
-      FOR DELETE
-      USING (auth.role() = 'service_role');
-  END IF;
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role delete profile_scores'
+) THEN
+CREATE POLICY "Service role delete profile_scores"
+ON public.profile_scores
+FOR DELETE
+USING (auth.role() = 'service_role');
+END IF;
 END $$;
 
 -- 2) 점수 이벤트 로그 (중복 방지 인덱스 포함)
 CREATE TABLE IF NOT EXISTS public.profile_score_events (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  event_type TEXT NOT NULL,
-  poll_id UUID,
-  weight NUMERIC NOT NULL,
-  metadata JSONB,
-  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  occurred_on DATE GENERATED ALWAYS AS ((occurred_at AT TIME ZONE 'UTC')::date) STORED
+id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+event_type TEXT NOT NULL,
+poll_id UUID,
+weight NUMERIC NOT NULL,
+metadata JSONB,
+occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+occurred_on DATE GENERATED ALWAYS AS ((occurred_at AT TIME ZONE 'UTC')::date) STORED
 );
 
 CREATE INDEX IF NOT EXISTS idx_profile_score_events_user ON public.profile_score_events (user_id, occurred_at DESC);
@@ -1294,108 +1305,111 @@ ALTER TABLE public.profile_score_events ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
-  -- dedup 고유 제약이 없으면 인덱스가 있어도 드롭 후 제약으로 재생성
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'ux_profile_score_events_dedup' AND conrelid = 'public.profile_score_events'::regclass
-  ) THEN
-    IF EXISTS (
-      SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'ux_profile_score_events_dedup'
-    ) THEN
-      DROP INDEX public.ux_profile_score_events_dedup;
-    END IF;
+-- dedup 고유 제약이 없으면 인덱스가 있어도 드롭 후 제약으로 재생성
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint WHERE conname = 'ux_profile_score_events_dedup' AND conrelid = 'public.profile_score_events'::regclass
+) THEN
+IF EXISTS (
+SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'ux_profile_score_events_dedup'
+) THEN
+DROP INDEX public.ux_profile_score_events_dedup;
+END IF;
 
     ALTER TABLE public.profile_score_events
       ADD CONSTRAINT ux_profile_score_events_dedup UNIQUE (user_id, event_type, poll_id, occurred_on);
-  END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role insert score_events'
-  ) THEN
-    CREATE POLICY "Service role insert score_events"
-      ON public.profile_score_events
-      FOR INSERT
-      WITH CHECK (auth.role() = 'service_role');
-  END IF;
+END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role select score_events'
-  ) THEN
-    CREATE POLICY "Service role select score_events"
-      ON public.profile_score_events
-      FOR SELECT
-      USING (auth.role() = 'service_role');
-  END IF;
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role insert score_events'
+) THEN
+CREATE POLICY "Service role insert score_events"
+ON public.profile_score_events
+FOR INSERT
+WITH CHECK (auth.role() = 'service_role');
+END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role update score_events'
-  ) THEN
-    CREATE POLICY "Service role update score_events"
-      ON public.profile_score_events
-      FOR UPDATE
-      USING (auth.role() = 'service_role')
-      WITH CHECK (auth.role() = 'service_role');
-  END IF;
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role select score_events'
+) THEN
+CREATE POLICY "Service role select score_events"
+ON public.profile_score_events
+FOR SELECT
+USING (auth.role() = 'service_role');
+END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role delete score_events'
-  ) THEN
-    CREATE POLICY "Service role delete score_events"
-      ON public.profile_score_events
-      FOR DELETE
-      USING (auth.role() = 'service_role');
-  END IF;
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role update score_events'
+) THEN
+CREATE POLICY "Service role update score_events"
+ON public.profile_score_events
+FOR UPDATE
+USING (auth.role() = 'service_role')
+WITH CHECK (auth.role() = 'service_role');
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role delete score_events'
+) THEN
+CREATE POLICY "Service role delete score_events"
+ON public.profile_score_events
+FOR DELETE
+USING (auth.role() = 'service_role');
+END IF;
 END $$;
 
 -- 3) 점수 리프레시 함수 (집계 전용)
 CREATE OR REPLACE FUNCTION public.refresh_profile_scores(
-  p_limit INT DEFAULT 500,
-  p_offset INT DEFAULT 0
+p_limit INT DEFAULT 500,
+p_offset INT DEFAULT 0
 )
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  v_now TIMESTAMPTZ := now();
+v_now TIMESTAMPTZ := now();
 BEGIN
-  WITH target_users AS (
-    SELECT user_id
-    FROM (
-      SELECT DISTINCT user_id
-      FROM public.profile_score_events
-      ORDER BY user_id
-      OFFSET p_offset
-      LIMIT p_limit
-    ) t
-  ),
-  aggregated AS (
-    SELECT
-      e.user_id,
-      COALESCE(SUM(e.weight), 0) AS total_score,
-      MAX(e.occurred_at) AS last_activity_at
-    FROM public.profile_score_events e
-    JOIN target_users t ON t.user_id = e.user_id
-    GROUP BY e.user_id
-  )
-  INSERT INTO public.profile_scores (
-    user_id,
-    score,
-    last_activity_at,
-    updated_at
-  )
-  SELECT
-    a.user_id,
-    a.total_score,
-    a.last_activity_at,
-    v_now
-  FROM aggregated a
-  ON CONFLICT (user_id) DO UPDATE
-  SET
-    score = EXCLUDED.score,
-    last_activity_at = EXCLUDED.last_activity_at,
-    updated_at = v_now;
+WITH target_users AS (
+SELECT user_id
+FROM (
+SELECT DISTINCT user_id
+FROM public.profile_score_events
+ORDER BY user_id
+OFFSET p_offset
+LIMIT p_limit
+) t
+),
+aggregated AS (
+SELECT
+e.user_id,
+COALESCE(SUM(e.weight), 0) AS total_score,
+MAX(e.occurred_at) AS last_activity_at
+FROM public.profile_score_events e
+JOIN target_users t ON t.user_id = e.user_id
+GROUP BY e.user_id
+)
+INSERT INTO public.profile_scores (
+user_id,
+score,
+last_activity_at,
+updated_at
+)
+SELECT
+a.user_id,
+a.total_score,
+a.last_activity_at,
+v_now
+FROM aggregated a
+ON CONFLICT (user_id) DO UPDATE
+SET
+score = EXCLUDED.score,
+last_activity_at = EXCLUDED.last_activity_at,
+updated_at = v_now;
 END;
-$$;
+
+$$
+;
 
 -- 4) 리더보드 조회 함수 (정렬/스코프/기간 파라미터 지원, delta/region은 placeholder)
 CREATE OR REPLACE FUNCTION public.get_leaderboard(
@@ -1421,7 +1435,9 @@ RETURNS TABLE (
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public, auth
-AS $$
+AS
+$$
+
 WITH base AS (
   SELECT
     ps.user_id,
@@ -1485,7 +1501,8 @@ RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth
-AS $$
+AS
+$$
 DECLARE
   v_user_id UUID;
   v_weight NUMERIC;
@@ -1498,7 +1515,7 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  IF p_event_type NOT IN ('vote', 'create_poll', 'favorite', 'share', 'streak3', 'streak7') THEN
+  IF p_event_type NOT IN ('vote', 'create_poll', 'share', 'streak3', 'streak7') THEN
     RAISE EXCEPTION 'Unsupported event type: %', p_event_type;
   END IF;
 
@@ -1507,7 +1524,6 @@ BEGIN
     CASE p_event_type
       WHEN 'vote' THEN 1
       WHEN 'create_poll' THEN 5
-      WHEN 'favorite' THEN 2
       WHEN 'share' THEN 2
       WHEN 'streak3' THEN 1
       WHEN 'streak7' THEN 3

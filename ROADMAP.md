@@ -625,6 +625,10 @@
 - ✅ **집계 실행 경로**: service role 클라이언트(`src/lib/supabase/service-role.ts`)와 배치 스크립트(`scripts/refreshScores.ts`)를 추가해 `refresh_profile_scores`를 서버/스케줄러에서 호출할 수 있게 했습니다.
 - ✅ **정합성 검증 및 UI 반영**: 새 점수 소스 기반 `/score` 페이지로 전환하고, 오류/빈 상태 가드 및 총 플레이어 집계·상위 랭킹 UI를 업데이트했습니다.
 - ✅ **프로필 점수 일원화**: 프로필 조회 시 `profile_scores` 집계 점수를 우선 사용하고 없을 때만 `profiles.points`를 폴백해 랭킹과 동일한 값을 표시합니다.
+- ✅ **즐겨찾기 무가산 고정**: 점수 이벤트 API에서 `favorite` 타입을 차단해 즐겨찾기 추가 시 포인트가 쌓이지 않도록 고정했습니다.
+- ✅ **즐겨찾기 점수 제거(쿼리)**: `log_score_event` SQL 정의에서 `favorite` 이벤트를 허용/가중치 목록에서 제거해 DB 차원에서도 가산이 발생하지 않도록 했습니다.
+- ✅ **집계 배치 주기 상향**: `score-refresh` GitHub Actions를 매시 정각(UTC)으로 실행해 `profile_scores` 집계 신선도를 높였습니다.
+- ✅ **QUERY.md SQL 정리**: `log_score_event` 종료 구문과 `get_polls_paginated` 등에서 잘못된 이스케이프/오타를 수정해 Supabase에서 구문 오류가 발생하지 않도록 했습니다.
 
 
 ## Step 19 – 투표 이미지 업로드 기능 (예정)

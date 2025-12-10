@@ -1,7 +1,7 @@
 # Heyversus
 
 🔗 Link : https://heyversus.vercel.app/
-📦 Version : v0.6.8
+📦 Version : v0.6.9
 
 **Heyversus**는 사용자가 직접 투표를 생성하고 참여할 수 있는 동적인 웹 애플리케이션입니다. Next.js와 Supabase를 기반으로 구축되어 있으며, 실시간 투표 결과와 사용자 인증, 포인트 시스템을 제공합니다.
 
@@ -226,11 +226,16 @@ erDiagram
 
 ## 📌 업데이트 기록
 
-### Unreleased
+### v0.6.9
 
+- **QUERY.md SQL 정리**: `log_score_event` 종료 구문 및 `get_polls_paginated` 등에서 잘못된 이스케이프/오타를 수정해 Supabase 실행 시 구문 오류를 방지했습니다.
+- **즐겨찾기 무가산 고정**: 점수 이벤트 API에서 `favorite` 타입을 차단해 즐겨찾기 추가 시 포인트가 쌓이지 않도록 고정했습니다.
+- **즐겨찾기 점수 제거(쿼리)**: `log_score_event` SQL 정의에서 `favorite` 이벤트를 허용/가중치 목록에서 제거해 DB 차원에서도 가산이 발생하지 않도록 했습니다.
 - **프로필 점수 일원화**: 프로필/네비게이션/계정 화면이 `profile_scores` 집계 점수를 우선 사용하고 없을 때만 `profiles.points`로 폴백해 랭킹과 동일한 값을 표시합니다.
+- **점수 배치 주기 변경**: `score-refresh` GitHub Actions를 매시 정각(UTC)으로 실행해 집계 신선도를 높였습니다.
 - **Step 19 이미지 업로드 계획**: `references/STEP19_IMAGE_UPLOAD_PLAN.md`에 투표 이미지 업로드 설계(스토리지/RPC/프론트 UX/테스트/보안)를 정리했습니다.
 - **리더보드 폴백**: `profile_scores` 집계가 비었거나 RPC 오류 시 `profiles.points` 기준으로 레이팅을 표시하도록 폴백을 추가하고, best-effort로 `refresh_profile_scores`를 트리거해 집계 누락을 줄였습니다.
+- **프로필 실시간 점수 합산**: 프로필 조회 시 `profile_score_events`를 합산해 즉시 점수를 계산하고, 이벤트가 없을 때만 `profile_scores`→`profiles.points` 순으로 폴백합니다.
 - **보안 패치**: React Flight/Next.js RCE 대응을 위해 Next.js를 15.5.7로 업데이트했습니다.
 - **로드맵 정리**: Step 18의 필수 작업만 남기고 선택 과제를 Step 23 "지속적 개선"으로 이동했습니다. 타임라인을 Step 23까지 갱신했습니다.
 - **/score 리더보드 갱신**: `get_leaderboard` RPC 기반 데이터로 `/score` 페이지를 전환하고 오류/빈 상태 가드를 추가했습니다. 구 프로필 포인트 기반 리더보드 호출은 제거했습니다.
