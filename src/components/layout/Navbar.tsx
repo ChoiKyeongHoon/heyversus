@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { useCurrentProfile } from "@/hooks/useCurrentProfile";
+import { CurrentProfile, useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useSession } from "@/hooks/useSession";
 import { createClient } from "@/lib/supabase/client";
 import { getToast } from "@/lib/toast";
@@ -18,7 +18,8 @@ export default function Navbar() {
   const router = useRouter();
   const supabase = createClient();
   const { session } = useSession();
-  const { data: profile } = useCurrentProfile(session?.user.id);
+  const { data: profileData } = useCurrentProfile(session?.user.id);
+  const profile: CurrentProfile | null = profileData ?? null;
   const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
