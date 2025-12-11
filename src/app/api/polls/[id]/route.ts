@@ -1,0 +1,51 @@
+import { NextRequest, NextResponse } from "next/server";
+
+import { createClient } from "@/lib/supabase/server";
+
+/**
+ * GET /api/polls/[id]
+ * 특정 ID의 투표를 조회합니다.
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id?: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Poll ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("get_poll_with_user_status", {
+      p_id: id,
+    });
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message || "Failed to fetch poll" },
+        { status: 500 }
+      );
+    }
+
+    const poll = Array.isArray(data) ? data[0] : data;
+
+    if (!poll) {
+      return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ data: poll }, { status: 200 });
+  } catch (error) {
+    console.error("Unexpected error in GET /api/polls/[id]:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export const dynamic = "force-dynamic"; // 항상 동적으로 렌더링
