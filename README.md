@@ -256,6 +256,7 @@ erDiagram
 - **점수 이벤트 고유 제약 보정**: `profile_score_events`의 dedup 고유 제약(ux_profile_score_events_dedup)이 없으면 인덱스를 제거하고 제약으로 재생성하도록 QUERY.md에 보정 블록을 추가했습니다.
 - **score_events 업데이트 보정**: `occurred_on`(generated column)을 업데이트하지 않도록 `log_score_event`의 ON CONFLICT 절을 수정했습니다.
 - **점수 가중치 조정**: 투표(`vote`)는 1점, 투표 생성(`create_poll`)은 5점으로 가중치를 재설정했습니다.
+- **로드맵 Step 8 정리**: Sentry 제거 후 Step 8을 비공개 투표 접근 제어(8.1)와 투표 플로우 단일화/RPC 보강(8.2) 두 항목으로 재정리하고 타임라인 번호를 반영했습니다.
 
 ### v0.6.8
 

@@ -98,46 +98,9 @@
 - ✅ **전용 페이지 구현**: `/favorites` 서버 컴포넌트 추가로 즐겨찾기 목록 전용 화면 제공, 빈 리스트 안내 CTA 구성.
 - ✅ **상태 동기화 & QA**: React Query 기반 `useToggleFavorite` 훅으로 상태를 즉시 반영, `npm run lint` 및 수동 QA(추가/삭제/미로그인 흐름) 완료, QUERY.md/문서 갱신.
 
-## Step 8 – 운영 모니터링 & 기능 완성 (진행 중)
+## Step 8 – 운영 모니터링 & 기능 완성 (완료)
 
-### 8.1 Sentry 도입 (에러 모니터링) (✅ 완료)
-
-프로덕션 환경에서 발생하는 클라이언트/서버 에러를 자동으로 추적하고 디버깅 정보를 수집합니다.
-
-#### 완료 내역
-
-- ✅ **패키지 설치**: `@sentry/nextjs` v8 설치 완료
-- ✅ **설정 파일 생성**:
-  - `sentry.client.config.ts` - 클라이언트 에러 추적 + Session Replay 통합
-  - `sentry.server.config.ts` - 서버 에러 추적 + 민감 헤더 필터링
-  - `sentry.edge.config.ts` - Edge Runtime 설정
-  - `src/instrumentation.ts` - Next.js 15 instrumentation hook + onRequestError
-- ✅ **Next.js 설정 업데이트**:
-  - `next.config.ts`에 `withSentryConfig` 래퍼 적용
-  - Source maps 업로드, tunnelRoute 설정
-  - deprecated `experimental.instrumentationHook` 제거
-- ✅ **환경 변수 설정**: `.env.local.example` 파일 업데이트
-  ```
-  NEXT_PUBLIC_SENTRY_DSN=<sentry-dsn>
-  SENTRY_ORG=<org-name>
-  SENTRY_PROJECT=<project-name>
-  SENTRY_AUTH_TOKEN=<auth-token>
-  ```
-- ✅ **Error Boundary 추가**:
-  - `src/app/error.tsx` - 페이지 레벨 에러 처리 (shadcn/ui 스타일)
-  - `src/app/global-error.tsx` - 전역 에러 처리 (inline 스타일)
-  - 자동 Sentry.captureException() 통합
-- ✅ **테스트 페이지**: `/test-sentry` 페이지 생성으로 5가지 에러 유형 테스트 가능 _(현재는 개발 환경에서만 사용하며 프로덕션 번들에서는 제외됨)_
-  - 클라이언트 에러, 비동기 에러, 수동 캡처, 메시지 전송, Error Boundary 트리거
-- ✅ **빌드 검증**: TypeScript 타입 에러 수정 (`jest.setup.ts`), `npm run lint` 및 `npm run build` 통과
-
-#### 알려진 제약사항
-
-- **Turbopack 호환성**: Sentry는 아직 Turbopack을 완전히 지원하지 않음 ([#8105](https://github.com/getsentry/sentry-javascript/issues/8105))
-  - 경고 무시: `SENTRY_SUPPRESS_TURBOPACK_WARNING=1` 환경변수 설정
-  - 또는 프로덕션 빌드 시 `--turbo` 플래그 제거 고려
-
-### 8.2 비공개 투표 접근 제어 구현 (✅ 완료)
+### 8.1 비공개 투표 접근 제어 구현 (✅ 완료)
 
 비공개 투표(`is_public = false`)에 대한 접근 제어를 완성하여 생성자만 접근할 수 있도록 구현했습니다.
 
@@ -168,7 +131,7 @@
 4. `get_poll_with_user_status` 함수 업데이트 (권한 검증 추가)
 5. polls 테이블 RLS 정책 재생성
 
-### 8.3 투표 플로우 단일화 및 RPC 보강 (완료)
+### 8.2 투표 플로우 단일화 및 RPC 보강 (완료)
 
 - ✅ 리스트(/polls, /favorites)에서는 투표 상태·결과만 노출하고, 실제 투표는 상세(/poll/[id])에서만 수행하도록 UI/로직을 단일화했습니다.
 - ✅ `usePollVote`를 낙관적 업데이트 + 실패 롤백 형태로 강화해 상세 페이지 투표 반영 속도와 안정성을 개선했습니다.
@@ -630,16 +593,12 @@
 - ✅ **즐겨찾기 점수 제거(쿼리)**: `log_score_event` SQL 정의에서 `favorite` 이벤트를 허용/가중치 목록에서 제거해 DB 차원에서도 가산이 발생하지 않도록 했습니다.
 - ✅ **집계 배치 주기 상향**: `score-refresh` GitHub Actions를 매시 정각(UTC)으로 실행해 `profile_scores` 집계 신선도를 높였습니다.
 - ✅ **QUERY.md SQL 정리**: `log_score_event` 종료 구문과 `get_polls_paginated` 등에서 잘못된 이스케이프/오타를 수정해 Supabase에서 구문 오류가 발생하지 않도록 했습니다.
-
-## Step 22 – 캐시 격리 및 품질 안전망 (진행 중)
-
 - ✅ **캐시/세션 분리**: `getPolls`·`getPollById`에서 `unstable_cache`를 제거하고 세션 전용 호출로 고정했으며, `/api/polls`·`/api/polls/[id]`의 `revalidate` 설정을 삭제해 비캐시 동작을 보장합니다.
 - ✅ **라우트 시그니처 정리**: `/api/polls/[id]`, `/api/polls/[id]/vote`를 Next.js 15 `params: Promise` 시그니처로 전환하고 `await params`를 적용해 런타임 오류를 제거했습니다.
 - ✅ **프로필 쿼리 타입 보강**: `useCurrentProfile` 반환을 `UseQueryResult<CurrentProfile | null>`로 고정하고 `avatar_url` 널 기본값·`gcTime` 옵션을 적용했으며, Navbar에서 명시적 타입으로 소비해 빌드 타입 오류를 해소했습니다.
 - ⏳ **초기 상태 정확도**: 로그인 사용자의 즐겨찾기/투표 상태가 첫 렌더에 정확히 반영되도록 `/polls` 초기 로드에 세션 클라이언트 사용 또는 즉시 refetch + `initialData` 조합을 적용합니다.
 - ⏳ **테스트 보강**: `/api/polls` GET/POST, `/api/polls/[id]` 404/403, `usePollVote` 오류 롤백, 즐겨찾기 토글 성공/권한 실패 등 핵심 플로우를 Jest + RTL로 커버합니다.
 - 📄 **참고 문서**: `references/ISSUE_REVIEW_2024-11.md`.
-
 
 ## Step 19 – 투표 이미지 업로드 기능 (예정)
 
@@ -670,7 +629,7 @@
 - ⏳ 관리자가 투표 비공개 전환, 삭제, 하이라이트 지정 등을 수행할 수 있는 액션 패널과 감사 로그 기록.
 - ⏳ 운영 자동화를 위해 Sentry 알림, 분석 이벤트, 이메일 알림과 연계한 워크플로 문서화.
 
-## Step 23 – 지속적 개선 (예정)
+## Step 22 – 지속적 개선 (예정)
 
 - ⏳ **랭킹 알고리즘 재정의**: 가중치·즐겨찾기/공유 지표 등을 반영한 스코어 공식 재설계 및 스키마 교체.
 - ⏳ **데이터 파이프라인 확장**: 실시간/배치 혼합 파이프라인, 트리거·리얼타임 채널, Edge Function 적용.
@@ -688,7 +647,8 @@
 6. **Step 6** – ✅ 완료: 컴포넌트 구조·상수·커스텀 훅 재사용성 강화.
 7. **Step 7** – ✅ 완료: 즐겨찾기 기능 출시 및 전용 페이지 제공.
 8. **Step 8.1** – ✅ 완료: Sentry 에러 모니터링 통합.
-9. **Step 8.2** – ✅ 완료: 비공개 투표 접근 제어 및 EmptyState 개선.
+9. **Step 8.2** – ✅ 완료: 투표 플로우 단일화 및 RPC 보강.
+10. **Step 8.3** – ⏳ 제거: Sentry 모니터링 제거 완료 반영.
 10. **Step 9** – ✅ 완료: 반응형 레이아웃 & 뷰포트 최적화.
 11. **Step 10** – ✅ 완료: 투표 목록 스케일 대응 (무한 스크롤, 필터/정렬).
 12. **Step 11** – ✅ 완료: 계정·프로필 관리 강화.
@@ -698,12 +658,11 @@
 16. **Step 15** – ✅ 완료: Polls 페이지 UI 리뉴얼.
 17. **Step 16** – ✅ 완료: 랜덤 투표 기능.
 18. **Step 17** – ✅ 완료: 투표·인증 관련 페이지 UI 일원화 및 수정 (상세 PollDetailCard 분리, 참여 상태 배너+CTA, 인증 페이지 리뉴얼).
-19. **Step 18** – ✅ 완료: 점수 랭킹 시스템 개편.
+19. **Step 18** – ✅ 완료: 점수 랭킹 시스템 개편 및 🚧 진행 중: 캐시 격리 및 품질 안전망.
 20. **Step 19** – ⏳ 예정: 투표 이미지 업로드 기능.
 21. **Step 20** – ⏳ 예정: 비공개 투표 초대 기능.
 22. **Step 21** – ⏳ 예정: 관리자 운영 대시보드.
-23. **Step 22** – 🚧 진행 중: 캐시 격리 및 품질 안전망.
-24. **Step 23** – ⏳ 예정: 지속적 개선 (랭킹 알고리즘/실시간 파이프라인/리더보드 UX/모니터링).
+23. **Step 22** – ⏳ 예정: 지속적 개선 (랭킹 알고리즘/실시간 파이프라인/리더보드 UX/모니터링).
 
 - 💬 **CSR 전환 고려 사항**: 동적 세션 데이터를 많이 사용하는 페이지는 SSR/`cookies()` 의존을 제거하고 CSR로 전환하면 TTFB 향상, 캐시 제약 해소, React Query 재사용 등의 이점이 있습니다. SEO가 주요 목표가 아닌 페이지부터 단계적으로 적용을 검토합니다.
 
