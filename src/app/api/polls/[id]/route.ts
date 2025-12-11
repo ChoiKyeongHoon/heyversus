@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 
@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
  * 특정 ID의 투표를 조회합니다.
  */
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
