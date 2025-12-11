@@ -16,6 +16,12 @@ const baseConfig: NextConfig = {
         port: "",
         pathname: "/storage/v1/object/public/**",
       },
+      {
+        protocol: "https",
+        hostname: "nsdezyvsxkyjnfnqprhe.supabase.co",
+        port: "",
+        pathname: "/storage/v1/object/sign/**",
+      },
     ],
   },
   webpack: (config, { dev }) => {

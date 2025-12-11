@@ -1,7 +1,7 @@
 # Heyversus
 
 🔗 Link : https://heyversus.vercel.app/
-📦 Version : v0.6.9
+📦 Version : v0.7.0
 
 **Heyversus**는 사용자가 직접 투표를 생성하고 참여할 수 있는 동적인 웹 애플리케이션입니다. Next.js와 Supabase를 기반으로 구축되어 있으며, 실시간 투표 결과와 사용자 인증, 포인트 시스템을 제공합니다.
 
@@ -226,6 +226,15 @@ erDiagram
 
 ## 📌 업데이트 기록
 
+### v0.7.0
+
+- **투표 이미지 업로드 베타**: `poll_images` 버킷(비공개, 10MB, JPEG/PNG/WebP)과 서비스 롤/소유자 전용 RLS를 추가하고, `create_new_poll`이 `option_image_urls`를 저장하도록 확장했습니다.
+- **서명 URL 렌더링**: Poll 서비스 계층이 옵션 이미지 경로를 5분 만료 서명 URL로 변환해 목록/상세/대표/즐겨찾기/내 투표에서 안전하게 이미지를 노출합니다. 서명 생성 실패 시 내부 경로를 노출하지 않고 안전하게 무시하도록 가드했습니다.
+- **업로드 API/클린업**: `/api/polls/images`에서 서명 업로드 URL을 발급하고 DELETE 클린업을 지원합니다. MIME/크기(10MB) 검증을 포함했습니다.
+- **생성 폼 UX**: `/create-poll`에 선택지별 이미지 업로드/미리보기/삭제, 업로드 상태·에러 표시, 업로드 중 제출 비활성, 10MB/확장자 가드를 추가했습니다.
+- **이미지 호스트 허용**: `next.config.ts`에 Supabase 서명 경로(`/storage/v1/object/sign/**`)를 추가해 서명 URL 이미지를 정상 렌더링합니다.
+- **문서 업데이트**: ROADMAP Step 19를 진행 중으로 갱신하고 `references/QUERY.md`에 실행용 SQL 블록을 추가했습니다.
+
 ### v0.6.9
 
 - **/polls 초기 상태 정합성**: 서버 prefetch를 세션 클라이언트로 수행해 즐겨찾기/투표 상태가 첫 렌더부터 일치하도록 Hydration을 보정했습니다.
@@ -257,8 +266,6 @@ erDiagram
 - **점수 이벤트 API 개선**: `/api/score-events`를 force-dynamic으로 전환하고 에러 메시지를 구체화했으며, 클라이언트 요청에 쿠키를 확실히 포함하도록 했습니다.
 - **점수 이벤트 고유 제약 보정**: `profile_score_events`의 dedup 고유 제약(ux_profile_score_events_dedup)이 없으면 인덱스를 제거하고 제약으로 재생성하도록 QUERY.md에 보정 블록을 추가했습니다.
 - **score_events 업데이트 보정**: `occurred_on`(generated column)을 업데이트하지 않도록 `log_score_event`의 ON CONFLICT 절을 수정했습니다.
-- **점수 가중치 조정**: 투표(`vote`)는 1점, 투표 생성(`create_poll`)은 5점으로 가중치를 재설정했습니다.
-- **로드맵 Step 8 정리**: Sentry 제거 후 Step 8을 비공개 투표 접근 제어(8.1)와 투표 플로우 단일화/RPC 보강(8.2) 두 항목으로 재정리하고 타임라인 번호를 반영했습니다.
 
 ### v0.6.8
 

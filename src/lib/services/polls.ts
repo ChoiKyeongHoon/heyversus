@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { CACHE_TAGS, CACHE_TIMES } from "@/constants/cache";
 import { getAnonServerClient } from "@/lib/supabase/anon-server";
 import { createClient } from "@/lib/supabase/server";
+import { getServiceRoleClient } from "@/lib/supabase/service-role";
 import type {
   FilterStatus,
   GetPollsParams,
@@ -24,16 +25,90 @@ import type {
  * - 대표 투표(getFeaturedPolls)만 익명 클라이언트 옵션 시 캐시를 사용합니다.
  */
 
+const POLL_IMAGE_BUCKET = "poll_images";
+const POLL_IMAGE_SIGN_TTL_SECONDS = 300; // 5분
+
 export interface CreatePollParams {
   question: string;
   options: string[];
   isPublic: boolean;
   expiresAt?: string | null;
+  optionImageUrls?: (string | null)[];
 }
 
 export interface VoteParams {
   optionId: string;
   pollId: string;
+}
+
+const EXTERNAL_URL_REGEX = /^https?:\/\//i;
+
+function isExternalUrl(url: string | null | undefined) {
+  return Boolean(url && EXTERNAL_URL_REGEX.test(url));
+}
+
+async function signPollOptionImages(
+  polls: PollWithOptions[] | null
+): Promise<PollWithOptions[] | null> {
+  if (!polls || polls.length === 0) {
+    return polls;
+  }
+
+  const paths = polls.flatMap((poll) =>
+    poll.poll_options
+      .map((option) => option.image_url)
+      .filter((url): url is string => Boolean(url) && !isExternalUrl(url))
+  );
+
+  const uniquePaths = Array.from(new Set(paths));
+
+  if (uniquePaths.length === 0) {
+    return polls;
+  }
+
+  const sanitizeWithoutSignedUrl = (items: PollWithOptions[]) =>
+    items.map((poll) => ({
+      ...poll,
+      poll_options: poll.poll_options.map((option) => ({
+        ...option,
+        image_url: isExternalUrl(option.image_url) ? option.image_url : null,
+      })),
+    }));
+
+  try {
+    const serviceClient = getServiceRoleClient();
+    const { data, error } = await serviceClient.storage
+      .from(POLL_IMAGE_BUCKET)
+      .createSignedUrls(uniquePaths, POLL_IMAGE_SIGN_TTL_SECONDS);
+
+    if (error) {
+      console.error("Error creating signed URLs for poll images:", error);
+      return sanitizeWithoutSignedUrl(polls);
+    }
+
+    const signedMap = new Map<string, string | null>();
+    data?.forEach((item, index) => {
+      // storage-js returns signedUrl; defensively check signedURL as well
+      const url = (item as { signedUrl?: string | null; signedURL?: string | null })
+        .signedUrl ?? (item as { signedURL?: string | null }).signedURL ?? null;
+      signedMap.set(uniquePaths[index], url);
+    });
+
+    return polls.map((poll) => ({
+      ...poll,
+      poll_options: poll.poll_options.map((option) => ({
+        ...option,
+        image_url: isExternalUrl(option.image_url)
+          ? option.image_url
+          : option.image_url
+          ? signedMap.get(option.image_url) ?? null
+          : null,
+      })),
+    }));
+  } catch (error) {
+    console.error("Unexpected error signing poll images:", error);
+    return sanitizeWithoutSignedUrl(polls);
+  }
 }
 
 /**
@@ -51,7 +126,9 @@ export async function getPolls() {
     return { data: null, error };
   }
 
-  return { data: data as PollWithOptions[], error: null };
+  const signedPolls = await signPollOptionImages(data as PollWithOptions[]);
+
+  return { data: signedPolls ?? [], error: null };
 }
 
 /**
@@ -90,8 +167,10 @@ async function fetchPaginatedPolls(
   const hasNextPage = offset + limit < total;
   const nextOffset = hasNextPage ? offset + limit : null;
 
+  const signedPolls = await signPollOptionImages(cleanedPolls);
+
   const response: PollsResponse = {
-    data: cleanedPolls,
+    data: signedPolls ?? [],
     pagination: {
       total,
       limit,
@@ -152,9 +231,11 @@ export async function getPollById(pollId: string) {
   }
 
   // RPC는 배열을 반환하므로 첫 번째 항목을 가져옵니다
-  const poll = data && data.length > 0 ? data[0] : null;
+  const poll = data && data.length > 0 ? (data[0] as PollWithOptions) : null;
+  const signed = await signPollOptionImages(poll ? [poll] : []);
+  const signedPoll = signed && signed.length > 0 ? signed[0] : poll;
 
-  return { data: poll as PollWithOptions | null, error: null };
+  return { data: signedPoll ?? null, error: null };
 }
 
 export interface GetFeaturedPollsOptions {
@@ -183,7 +264,9 @@ export async function getFeaturedPolls(
       return { data: null, error };
     }
 
-    return { data: data as PollWithOptions[], error: null };
+    const signedPolls = await signPollOptionImages(data as PollWithOptions[]);
+
+    return { data: signedPolls ?? [], error: null };
   };
 
   if (options.useAnonClient) {
@@ -217,6 +300,7 @@ export async function createPoll(params: CreatePollParams) {
   const { data: pollId, error } = await supabase.rpc("create_new_poll", {
     question_text: params.question,
     option_texts: params.options,
+    option_image_urls: params.optionImageUrls ?? null,
     is_public: params.isPublic,
     expires_at_param: params.expiresAt
       ? new Date(params.expiresAt).toISOString()
@@ -266,7 +350,9 @@ export async function getFavoritePolls() {
     return { data: null, error };
   }
 
-  return { data: data as PollWithOptions[], error: null };
+  const signedPolls = await signPollOptionImages(data as PollWithOptions[]);
+
+  return { data: signedPolls ?? [], error: null };
 }
 
 /**
@@ -325,5 +411,7 @@ export async function getMyPolls() {
     return { data: null, error };
   }
 
-  return { data: data as PollWithOptions[], error: null };
+  const signedPolls = await signPollOptionImages(data as PollWithOptions[]);
+
+  return { data: signedPolls ?? [], error: null };
 }

@@ -32,13 +32,37 @@ const EXPIRATION_PRESETS = [
 
 type ExpirationPresetValue = typeof EXPIRATION_PRESETS[number]["value"];
 
+type PollOptionField = {
+  id: string;
+  text: string;
+  imagePath: string | null;
+  previewUrl: string | null;
+  isUploading: boolean;
+  uploadError: string | null;
+};
+
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+const createEmptyOption = (): PollOptionField => ({
+  id: crypto.randomUUID(),
+  text: "",
+  imagePath: null,
+  previewUrl: null,
+  isUploading: false,
+  uploadError: null,
+});
+
 export default function CreatePollClient() {
   const router = useRouter();
   const supabase = useSupabase();
   const queryClient = useQueryClient();
 
   const [question, setQuestion] = useState("");
-  const [options, setOptions] = useState(["", ""]);
+  const [options, setOptions] = useState<PollOptionField[]>([
+    createEmptyOption(),
+    createEmptyOption(),
+  ]);
   const [isPublic, setIsPublic] = useState(true);
   const [expiresAt, setExpiresAt] = useState(getDefaultExpiresAt());
   const [activePreset, setActivePreset] = useState<string | null>("1d");
@@ -91,28 +115,187 @@ export default function CreatePollClient() {
   };
 
   const handleOptionChange = (index: number, value: string) => {
-    setOptions((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
+    setOptions((prev) =>
+      prev.map((option, i) =>
+        i === index ? { ...option, text: value } : option
+      )
+    );
   };
 
   const addOption = () => {
-    setOptions((prev) => (prev.length < 6 ? [...prev, ""] : prev));
+    setOptions((prev) =>
+      prev.length < 6 ? [...prev, createEmptyOption()] : prev
+    );
   };
 
   const removeOption = (index: number) => {
-    setOptions((prev) => (prev.length > 2 ? prev.filter((_, i) => i !== index) : prev));
+    setOptions((prev) => {
+      if (prev.length <= 2) return prev;
+      const target = prev[index];
+      if (target?.imagePath) {
+        void fetch(`/api/polls/images?path=${encodeURIComponent(target.imagePath)}`, {
+          method: "DELETE",
+        }).catch(() => null);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleRemoveImage = async (index: number) => {
+    const target = options[index];
+    if (!target?.imagePath) return;
+
+    setOptions((prev) =>
+      prev.map((option, i) =>
+        i === index
+          ? { ...option, imagePath: null, previewUrl: null, uploadError: null }
+          : option
+      )
+    );
+
+    try {
+      await fetch(`/api/polls/images?path=${encodeURIComponent(target.imagePath)}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      console.error("이미지 삭제 실패:", err);
+    }
+  };
+
+  const handleImageUpload = async (
+    index: number,
+    file: File | null | undefined
+  ) => {
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      setOptions((prev) =>
+        prev.map((option, i) =>
+          i === index
+            ? {
+                ...option,
+                uploadError: "이미지는 최대 10MB까지 업로드할 수 있습니다.",
+              }
+            : option
+        )
+      );
+      return;
+    }
+
+    if (!ALLOWED_MIME_TYPES.includes(file.type as (typeof ALLOWED_MIME_TYPES)[number])) {
+      setOptions((prev) =>
+        prev.map((option, i) =>
+          i === index
+            ? {
+                ...option,
+                uploadError: "JPEG, PNG, WebP 형식만 업로드할 수 있습니다.",
+              }
+            : option
+        )
+      );
+      return;
+    }
+
+    const previousPath = options[index]?.imagePath;
+
+    setOptions((prev) =>
+      prev.map((option, i) =>
+        i === index
+          ? { ...option, isUploading: true, uploadError: null }
+          : option
+      )
+    );
+
+    try {
+      if (previousPath) {
+        await fetch(`/api/polls/images?path=${encodeURIComponent(previousPath)}`, {
+          method: "DELETE",
+        });
+      }
+
+      const response = await fetch("/api/polls/images", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.path || !result?.token) {
+        throw new Error(
+          result?.error || "이미지 업로드 URL을 생성하지 못했습니다."
+        );
+      }
+
+      const uploadResult = await supabase.storage
+        .from("poll_images")
+        .uploadToSignedUrl(result.path, result.token, file, {
+          contentType: file.type,
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadResult.error) {
+        throw new Error(uploadResult.error.message);
+      }
+
+      const previewUrl = URL.createObjectURL(file);
+
+      setOptions((prev) =>
+        prev.map((option, i) =>
+          i === index
+            ? {
+                ...option,
+                imagePath: result.path as string,
+                previewUrl,
+                isUploading: false,
+                uploadError: null,
+              }
+            : option
+        )
+      );
+    } catch (err) {
+      console.error("이미지 업로드 실패:", err);
+      setOptions((prev) =>
+        prev.map((option, i) =>
+          i === index
+            ? {
+                ...option,
+                isUploading: false,
+                uploadError:
+                  err instanceof Error
+                    ? err.message
+                    : "이미지 업로드 중 오류가 발생했습니다.",
+                imagePath: null,
+                previewUrl: null,
+              }
+            : option
+        )
+      );
+    }
   };
 
   const handleCreatePoll = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
+    const hasUploading = options.some((option) => option.isUploading);
+
+    if (hasUploading) {
+      setError("이미지 업로드가 완료될 때까지 기다려주세요.");
+      return;
+    }
+
     const payload: CreatePollInput = {
       question,
-      options,
+      options: options.map((option) => option.text),
+      optionImageUrls: options.map((option) => option.imagePath ?? null),
       isPublic,
       expiresAt: expiresAt || null,
     };
@@ -197,6 +380,8 @@ export default function CreatePollClient() {
     }
   };
 
+  const isUploadInProgress = options.some((option) => option.isUploading);
+
   return (
     <div className="container mx-auto max-w-4xl px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8">
       <header className="mb-8 md:mb-12 text-center">
@@ -248,23 +433,69 @@ export default function CreatePollClient() {
               </div>
               <div className="space-y-3">
                 {options.map((option, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <input
-                      type="text"
-                      value={option}
-                      onChange={(e) => handleOptionChange(index, e.target.value)}
-                      className="flex-1 rounded-md border border-border bg-input px-3 py-2 text-sm md:text-base text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder={`선택지 ${index + 1}`}
-                      required
-                    />
-                    {options.length > 2 && (
-                      <button
-                        type="button"
-                        onClick={() => removeOption(index)}
-                        className="text-destructive text-sm md:text-base"
+                  <div
+                    key={option.id}
+                    className="rounded-md border border-border/70 bg-muted/30 p-3 space-y-2"
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        value={option.text}
+                        onChange={(e) => handleOptionChange(index, e.target.value)}
+                        className="flex-1 rounded-md border border-border bg-input px-3 py-2 text-sm md:text-base text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder={`선택지 ${index + 1}`}
+                        required
+                      />
+                      {options.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => removeOption(index)}
+                          className="text-destructive text-sm md:text-base"
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label
+                        htmlFor={`option-image-${option.id}`}
+                        className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs md:text-sm font-medium text-text-primary hover:border-primary"
                       >
-                        삭제
-                      </button>
+                        이미지 업로드
+                        {option.isUploading && (
+                          <span className="text-xs text-text-secondary">(업로드 중)</span>
+                        )}
+                      </label>
+                      <input
+                        id={`option-image-${option.id}`}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(index, e.target.files?.[0])}
+                      />
+                      {option.previewUrl ? (
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={option.previewUrl}
+                            alt="선택지 이미지 미리보기"
+                            className="h-14 w-14 rounded-md object-cover border border-border"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            className="text-xs text-destructive"
+                          >
+                            이미지 제거
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-text-secondary">
+                          최대 10MB, JPEG/PNG/WebP 지원
+                        </p>
+                      )}
+                    </div>
+                    {option.uploadError && (
+                      <p className="text-destructive text-xs">{option.uploadError}</p>
                     )}
                   </div>
                 ))}
@@ -333,7 +564,7 @@ export default function CreatePollClient() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isUploadInProgress}
               className="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-2.5 md:py-3 rounded-md transition-colors duration-200 text-sm md:text-base disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "생성 중..." : "투표 생성"}

@@ -5,6 +5,7 @@ const MIN_OPTIONS = 2;
 const MAX_QUESTION_LENGTH = 200;
 const MAX_OPTION_LENGTH = 120;
 const MAX_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const MAX_IMAGE_PATH_LENGTH = 2048;
 
 const optionSchema = z
   .string()
@@ -61,11 +62,41 @@ export const createPollSchema = z
         "만료 시간은 최대 30일 이내로 설정할 수 있습니다."
       )
       .default(null),
+    optionImageUrls: z
+      .array(
+        z
+          .union([
+            z
+              .string()
+              .trim()
+              .min(1, "이미지 경로가 비어 있습니다.")
+              .max(
+                MAX_IMAGE_PATH_LENGTH,
+                `이미지 경로는 최대 ${MAX_IMAGE_PATH_LENGTH}자까지 가능합니다.`
+              ),
+            z.null(),
+          ])
+      )
+      .optional(),
+  })
+  .superRefine((payload, ctx) => {
+    if (
+      payload.optionImageUrls &&
+      payload.optionImageUrls.length > 0 &&
+      payload.optionImageUrls.length !== payload.options.length
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "이미지 경로 개수가 선택지 개수와 일치해야 합니다.",
+        path: ["optionImageUrls"],
+      });
+    }
   })
   .transform((payload) => ({
     ...payload,
     question: payload.question.trim(),
     options: payload.options.map((opt) => opt.trim()),
+    optionImageUrls: payload.optionImageUrls?.map((url) => (url ? url.trim() : null)) ?? null,
   }));
 
 export type CreatePollInput = z.input<typeof createPollSchema>;

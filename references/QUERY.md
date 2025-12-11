@@ -141,8 +141,9 @@ ON DELETE SET NULL;
 CREATE OR REPLACE FUNCTION public.create_new_poll(
 question_text TEXT, -- 새 투표의 질문
 option_texts TEXT[], -- 투표 선택지들의 텍스트 배열
-is_public BOOLEAN, -- 투표가 공개되어야 하는지 여부를 나타내는 불리언 값
-expires_at_param TIMESTAMPTZ -- 투표 만료 시각
+option_image_urls TEXT[] DEFAULT NULL, -- 선택지 이미지 경로(스토리지 객체 경로), option_texts와 동일 길이여야 함
+is_public BOOLEAN DEFAULT TRUE, -- 투표가 공개되어야 하는지 여부를 나타내는 불리언 값
+expires_at_param TIMESTAMPTZ DEFAULT NULL -- 투표 만료 시각
 )
 RETURNS UUID -- 새로 생성된 투표의 UUID를 반환합니다.
 LANGUAGE plpgsql
@@ -183,6 +184,13 @@ END IF;
         RAISE EXCEPTION 'Expiration time must be in the future.';
     END IF;
 
+    -- 서버 측 검증: 이미지 경로 배열이 있을 경우 길이 일치 확인
+    IF option_image_urls IS NOT NULL
+       AND array_length(option_image_urls, 1) IS NOT NULL
+       AND array_length(option_image_urls, 1) <> array_length(option_texts, 1) THEN
+        RAISE EXCEPTION 'option_image_urls length must match option_texts length.';
+    END IF;
+
     -- 'polls' 테이블에 새 투표를 삽입합니다.
     INSERT INTO public.polls (question, created_by, is_public, expires_at)
     VALUES (question_text, auth.uid(), is_public, expires_at_param) -- auth.uid()는 현재 인증된 사용자의 ID를 가져옵니다.
@@ -191,8 +199,17 @@ END IF;
     -- 'option_texts' 배열의 각 선택지를 'poll_options' 테이블에 삽입합니다.
     -- unnest()는 배열을 행 집합으로 변환합니다.
     -- 순서를 보존하기 위해 배열의 인덱스를 position으로 함께 저장합니다.
-    INSERT INTO public.poll_options (poll_id, text, votes, position)
-    SELECT new_poll_id, opt_text, 0, idx - 1
+    INSERT INTO public.poll_options (poll_id, text, votes, position, image_url)
+    SELECT
+        new_poll_id,
+        opt_text,
+        0,
+        idx - 1,
+        CASE
+            WHEN option_image_urls IS NULL THEN NULL
+            WHEN array_length(option_image_urls, 1) IS NULL THEN NULL
+            ELSE option_image_urls[idx]
+        END
     FROM UNNEST(option_texts) WITH ORDINALITY AS t(opt_text, idx);
 
     RETURN new_poll_id; -- 생성된 투표의 ID를 반환합니다.
@@ -1616,3 +1633,33 @@ END;
 
 $$
 ;
+
+-- =============================================================================
+-- 10. Step 19 – 투표 이미지 업로드 (poll_images 버킷 + image_url + create_new_poll 확장)
+-- =============================================================================
+
+-- 10-1. poll_options.image_url 컬럼을 보강합니다. (존재하지 않을 경우 추가)
+ALTER TABLE public.poll_options
+ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+-- 10-2. poll_images 버킷 생성 (비공개, 10MB, JPEG/PNG/WebP)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'poll_images',
+  'poll_images',
+  false,
+  10485760, -- 10MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 10-3. Storage RLS 정책 설정 (Supabase Dashboard UI에서만 설정 가능)
+--   - SQL로 `storage.objects`를 직접 변경하면 “must be owner of table objects” 오류가 발생합니다.
+--   - Dashboard > Storage > poll_images > Policies에서 다음 두 정책을 추가해 주세요:
+--     - Policy name: `poll_images owners manage`, Operations: ALL, Expression/Check:
+--       `bucket_id = 'poll_images' AND split_part(name, '/', 1) = auth.uid()::text`
+--     - Policy name: `poll_images service access`, Operations: ALL, Roles: service_role, Expression/Check:
+--       `bucket_id = 'poll_images'`
+
+-- 10-4. create_new_poll 함수는 option_image_urls 배열을 받아 image_url을 함께 저장합니다.
+--       (상단의 함수 정의를 최신 버전으로 교체 후 실행)

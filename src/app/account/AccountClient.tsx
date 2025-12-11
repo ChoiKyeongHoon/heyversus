@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { Pencil, Save, Upload, User, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -31,6 +32,7 @@ interface AccountClientProps {
 
 export default function AccountClient({ initialProfile }: AccountClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<Profile>(initialProfile);
   const [isEditing, setIsEditing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -166,6 +168,20 @@ export default function AccountClient({ initialProfile }: AccountClientProps) {
         setIsEditing(false);
         setAvatarPreview(null);
         setSelectedFile(null);
+        // Navbar 등에서 즉시 반영될 수 있도록 캐시를 갱신/무효화
+        const profileKey = ["current-profile", result.data.id];
+        queryClient.setQueryData(profileKey, {
+          ...result.data,
+          points: Number(result.data.points ?? 0),
+        });
+        queryClient.setQueryData(["current-profile"], {
+          ...result.data,
+          points: Number(result.data.points ?? 0),
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["current-profile"],
+          exact: false,
+        });
         reset({
           username: result.data.username,
           full_name: result.data.full_name ?? "",
