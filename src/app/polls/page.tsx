@@ -39,8 +39,7 @@ export default async function PollsPage({ searchParams }: PollsPageProps) {
             sortBy,
             sortOrder,
             filterStatus,
-          },
-          { useAnonClient: true }
+          }
         );
 
         if (error || !data) {
