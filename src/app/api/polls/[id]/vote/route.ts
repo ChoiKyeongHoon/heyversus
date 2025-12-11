@@ -1,5 +1,5 @@
 import { revalidateTag } from "next/cache";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { CACHE_TAGS } from "@/constants/cache";
 import { voteOnPoll } from "@/lib/services/polls";
@@ -9,7 +9,7 @@ import { voteOnPoll } from "@/lib/services/polls";
  * 투표에 참여합니다.
  */
 export async function POST(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
