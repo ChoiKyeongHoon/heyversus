@@ -228,7 +228,7 @@ erDiagram
 
 ### v0.6.9
 
-- **Navbar 프로필 타입 보강**: `useCurrentProfile`가 `avatar_url`을 항상 포함하고 널 값을 기본 처리하도록 수정해 프로필 아바타 접근 시 타입 오류 없이 빌드되도록 했습니다.
+- **Navbar 프로필 타입 보강**: `useCurrentProfile`가 `avatar_url`을 항상 포함하고 `UseQueryResult` 반환 타입을 명시해, 프로필 아바타 접근 시 빌드 타입 오류 없이 동작하도록 수정했습니다.
 - **API params 비동기 처리**: `/api/polls/[id]`와 `/api/polls/[id]/vote`를 Next.js 15 `params` Promise 규약에 맞춰 `await params`로 수정해 런타임 오류를 제거했습니다.
 - **프로필 점수 실시간 반영**: `get_profile` RPC가 `profile_score_events`를 SECURITY DEFINER로 합산해 투표/생성 직후 프로필·Navbar 점수가 즉시 갱신되도록 수정했습니다.
 - **투표/생성 후 즉시 갱신 + 부하 완화**:

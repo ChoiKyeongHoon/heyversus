@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery,UseQueryResult } from "@tanstack/react-query";
 
 import { useSupabase } from "@/hooks/useSupabase";
 
@@ -21,15 +21,22 @@ export interface CurrentProfile {
  *
  * @param userId - 세션 사용자 ID (없으면 쿼리를 실행하지 않음)
  */
-export function useCurrentProfile(userId?: string) {
+export function useCurrentProfile(
+  userId?: string
+): UseQueryResult<CurrentProfile | null, Error> {
   const supabase = useSupabase();
 
-  return useQuery<CurrentProfile>({
+  return useQuery<
+    CurrentProfile | null,
+    Error,
+    CurrentProfile | null,
+    [string, string | undefined]
+  >({
     queryKey: ["current-profile", userId],
     enabled: Boolean(userId),
     staleTime: 10 * 1000,
     cacheTime: 2 * 60 * 1000,
-    queryFn: async (): Promise<CurrentProfile> => {
+    queryFn: async (): Promise<CurrentProfile | null> => {
       const { data, error } = await supabase.rpc("get_profile");
 
       if (error) {
@@ -37,7 +44,7 @@ export function useCurrentProfile(userId?: string) {
       }
 
       if (!data || typeof data !== "object") {
-        throw new Error("프로필을 찾을 수 없습니다.");
+        return null;
       }
 
       const profile = data as CurrentProfile;
