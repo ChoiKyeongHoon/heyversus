@@ -10,6 +10,7 @@ import type { PollWithOptions } from "@/lib/types";
 
 const mockGetPollsPaginated = jest.fn();
 const mockCreatePoll = jest.fn();
+const mockGetPollById = jest.fn();
 const mockCreateClient = jest.fn();
 const mockLogScoreEvent = jest.fn().mockResolvedValue({ error: null });
 const mockUseSupabase = jest.fn();
@@ -23,6 +24,7 @@ const mockGetToast = jest.fn().mockResolvedValue({
 jest.mock("@/lib/services/polls", () => ({
   getPollsPaginated: (...args: unknown[]) => mockGetPollsPaginated(...args),
   createPoll: (...args: unknown[]) => mockCreatePoll(...args),
+  getPollById: (...args: unknown[]) => mockGetPollById(...args),
 }));
 
 jest.mock("@/lib/services/scoreEvents", () => ({
@@ -127,9 +129,7 @@ describe("API routes: /api/polls/[id]", () => {
   });
 
   it("returns 404 when poll is not found", async () => {
-    mockCreateClient.mockReturnValue({
-      rpc: async () => ({ data: [], error: null }),
-    });
+    mockGetPollById.mockResolvedValue({ data: null, error: null });
 
     const response = await getPollByIdApi(new NextRequest("http://localhost/api/polls/abc"), {
       params: Promise.resolve({ id: "abc" }),
@@ -141,11 +141,9 @@ describe("API routes: /api/polls/[id]", () => {
   });
 
   it("returns 403 on permission denied errors", async () => {
-    mockCreateClient.mockReturnValue({
-      rpc: async () => ({
-        data: null,
-        error: new Error("permission denied"),
-      }),
+    mockGetPollById.mockResolvedValue({
+      data: null,
+      error: new Error("permission denied"),
     });
 
     const response = await getPollByIdApi(new NextRequest("http://localhost/api/polls/abc"), {

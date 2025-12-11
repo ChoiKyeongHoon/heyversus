@@ -21,6 +21,7 @@
 - ✅ **모듈 경로 정비**: `tsconfig.json`에 `baseUrl` 추가로 `@/*` 절대 경로를 안정화.
 - ✅ **테스트 러너 도입**: Jest + Testing Library 환경(`jest.config.js`, `jest.setup.ts`) 구성 및 `npm run test` 스크립트/샘플 유틸 테스트 추가.
 - ✅ **문서 업데이트**: README에 설치·테스트·즐겨찾기 문서화 갱신, Husky/테스트 스크립트 안내 포함.
+- ✅ **API 테스트 모킹 보강**: `/api/polls/[id]`의 `getPollById` 모킹을 추가해 404/403 응답 검증을 안정화.
 
 ## Step 3 – 단기 P1 스텝 (완료)
 
