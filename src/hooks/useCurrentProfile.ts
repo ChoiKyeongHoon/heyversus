@@ -35,7 +35,7 @@ export function useCurrentProfile(
     queryKey: ["current-profile", userId],
     enabled: Boolean(userId),
     staleTime: 10 * 1000,
-    cacheTime: 2 * 60 * 1000,
+    gcTime: 2 * 60 * 1000,
     queryFn: async (): Promise<CurrentProfile | null> => {
       const { data, error } = await supabase.rpc("get_profile");
 

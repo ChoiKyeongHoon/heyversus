@@ -635,7 +635,7 @@
 
 - ✅ **캐시/세션 분리**: `getPolls`·`getPollById`에서 `unstable_cache`를 제거하고 세션 전용 호출로 고정했으며, `/api/polls`·`/api/polls/[id]`의 `revalidate` 설정을 삭제해 비캐시 동작을 보장합니다.
 - ✅ **라우트 시그니처 정리**: `/api/polls/[id]`, `/api/polls/[id]/vote`를 Next.js 15 `params: Promise` 시그니처로 전환하고 `await params`를 적용해 런타임 오류를 제거했습니다.
-- ✅ **프로필 쿼리 타입 보강**: `useCurrentProfile` 반환을 `UseQueryResult<CurrentProfile | null>`로 고정하고 `avatar_url` 널 기본값을 적용했으며, Navbar에서 명시적 타입으로 소비해 빌드 타입 오류를 해소했습니다.
+- ✅ **프로필 쿼리 타입 보강**: `useCurrentProfile` 반환을 `UseQueryResult<CurrentProfile | null>`로 고정하고 `avatar_url` 널 기본값·`gcTime` 옵션을 적용했으며, Navbar에서 명시적 타입으로 소비해 빌드 타입 오류를 해소했습니다.
 - ⏳ **초기 상태 정확도**: 로그인 사용자의 즐겨찾기/투표 상태가 첫 렌더에 정확히 반영되도록 `/polls` 초기 로드에 세션 클라이언트 사용 또는 즉시 refetch + `initialData` 조합을 적용합니다.
 - ⏳ **테스트 보강**: `/api/polls` GET/POST, `/api/polls/[id]` 404/403, `usePollVote` 오류 롤백, 즐겨찾기 토글 성공/권한 실패 등 핵심 플로우를 Jest + RTL로 커버합니다.
 - 📄 **참고 문서**: `references/ISSUE_REVIEW_2024-11.md`.
