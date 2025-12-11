@@ -26,9 +26,12 @@ export async function GET(
     });
 
     if (error) {
+      const message = error.message || "Failed to fetch poll";
+      const normalized = message.toLowerCase();
+      const status = normalized.includes("permission denied") ? 403 : 500;
       return NextResponse.json(
-        { error: error.message || "Failed to fetch poll" },
-        { status: 500 }
+        { error: message },
+        { status }
       );
     }
 
