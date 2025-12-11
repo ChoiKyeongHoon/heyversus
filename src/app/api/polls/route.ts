@@ -228,6 +228,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Next.js 캐싱 설정
-export const revalidate = 60; // 60초마다 재검증
 export const dynamic = "force-dynamic"; // 항상 동적으로 렌더링

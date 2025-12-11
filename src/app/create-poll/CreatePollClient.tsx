@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -34,6 +35,7 @@ type ExpirationPresetValue = typeof EXPIRATION_PRESETS[number]["value"];
 export default function CreatePollClient() {
   const router = useRouter();
   const supabase = useSupabase();
+  const queryClient = useQueryClient();
 
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);
@@ -147,6 +149,39 @@ export default function CreatePollClient() {
           result?.error || "투표 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
         );
         return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
+        const profileKey = ["current-profile", session.user.id];
+        const profile =
+          queryClient.getQueryData<{ points?: number }>(profileKey) ||
+          queryClient.getQueryData<{ points?: number }>(["current-profile"]);
+        if (profile) {
+          const currentPoints = Number(profile.points ?? 0);
+          // create_poll 가중치(쿼리 기준 3점)를 낙관적으로 반영
+          queryClient.setQueryData(profileKey, {
+            ...profile,
+            points: currentPoints + 3,
+          });
+          queryClient.setQueryData(["current-profile"], {
+            ...profile,
+            points: currentPoints + 3,
+          });
+        }
+
+        queryClient.invalidateQueries({
+          queryKey: ["current-profile", session.user.id],
+          exact: false,
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["current-profile"],
+          exact: false,
+        });
+        queryClient.invalidateQueries({ queryKey: ["leaderboard"], exact: false });
       }
 
       if (result?.pollId) {

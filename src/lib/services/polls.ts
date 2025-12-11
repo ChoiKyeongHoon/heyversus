@@ -20,9 +20,8 @@ import type {
  * 재사용성과 유지보수성을 향상시킵니다.
  *
  * Next.js 캐싱 전략:
- * - getPolls: 60초 캐시, 'polls' 태그
- * - getPollById: 30초 캐시, 'poll-{id}' 태그
- * - getFeaturedPolls: 120초 캐시, 'featured-polls' 태그
+ * - 세션 의존 호출(getPolls/getPollById)은 캐시를 사용하지 않습니다.
+ * - 대표 투표(getFeaturedPolls)만 익명 클라이언트 옵션 시 캐시를 사용합니다.
  */
 
 export interface CreatePollParams {
@@ -43,25 +42,16 @@ export interface VoteParams {
  * @returns 투표 목록과 오류 정보
  */
 export async function getPolls() {
-  return unstable_cache(
-    async () => {
-      const supabase = await createClient();
+  const supabase = await createClient();
 
-      const { data, error } = await supabase.rpc("get_polls_with_user_status");
+  const { data, error } = await supabase.rpc("get_polls_with_user_status");
 
-      if (error) {
-        console.error("Error fetching polls:", error);
-        return { data: null, error };
-      }
+  if (error) {
+    console.error("Error fetching polls:", error);
+    return { data: null, error };
+  }
 
-      return { data: data as PollWithOptions[], error: null };
-    },
-    [CACHE_TAGS.POLLS], // 캐시 키
-    {
-      tags: [CACHE_TAGS.POLLS], // 캐시 태그
-      revalidate: CACHE_TIMES.POLLS, // 60초마다 재검증
-    }
-  )();
+  return { data: data as PollWithOptions[], error: null };
 }
 
 /**
@@ -150,30 +140,21 @@ export async function getPollsPaginated(
  * @returns 투표 정보와 오류 정보
  */
 export async function getPollById(pollId: string) {
-  return unstable_cache(
-    async () => {
-      const supabase = await createClient();
+  const supabase = await createClient();
 
-      const { data, error } = await supabase.rpc("get_poll_with_user_status", {
-        p_id: pollId,
-      });
+  const { data, error } = await supabase.rpc("get_poll_with_user_status", {
+    p_id: pollId,
+  });
 
-      if (error) {
-        console.error("Error fetching poll:", error);
-        return { data: null, error };
-      }
+  if (error) {
+    console.error("Error fetching poll:", error);
+    return { data: null, error };
+  }
 
-      // RPC는 배열을 반환하므로 첫 번째 항목을 가져옵니다
-      const poll = data && data.length > 0 ? data[0] : null;
+  // RPC는 배열을 반환하므로 첫 번째 항목을 가져옵니다
+  const poll = data && data.length > 0 ? data[0] : null;
 
-      return { data: poll as PollWithOptions | null, error: null };
-    },
-    [CACHE_TAGS.POLL(pollId)], // 캐시 키
-    {
-      tags: [CACHE_TAGS.POLL(pollId), CACHE_TAGS.POLLS], // 캐시 태그
-      revalidate: CACHE_TIMES.POLL_DETAIL, // 30초마다 재검증
-    }
-  )();
+  return { data: poll as PollWithOptions | null, error: null };
 }
 
 export interface GetFeaturedPollsOptions {

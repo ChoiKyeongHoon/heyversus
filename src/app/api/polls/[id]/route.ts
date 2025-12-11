@@ -8,10 +8,10 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const { id } = params;
 
     if (!id) {
       return NextResponse.json(
@@ -48,6 +48,4 @@ export async function GET(
   }
 }
 
-// Next.js 캐싱 설정
-export const revalidate = 30; // 30초마다 재검증
 export const dynamic = "force-dynamic"; // 항상 동적으로 렌더링

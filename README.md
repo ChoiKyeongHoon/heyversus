@@ -228,6 +228,12 @@ erDiagram
 
 ### v0.6.9
 
+- **프로필 점수 실시간 반영**: `get_profile` RPC가 `profile_score_events`를 SECURITY DEFINER로 합산해 투표/생성 직후 프로필·Navbar 점수가 즉시 갱신되도록 수정했습니다.
+- **투표/생성 후 즉시 갱신 + 부하 완화**:
+  - `usePollVote`: 프로필 점수 낙관적 업데이트 + `current-profile`/`poll-detail`/`leaderboard` 무효화로 액션 직후 최신화, 필요한 키만 refetch해 트래픽 최소화.
+  - `CreatePollClient`: 투표 생성 성공 시 프로필 점수를 가중치(3점)만큼 낙관적 반영하고 동일한 키를 무효화해 새 점수가 바로 표시되도록 했습니다.
+- **캐시/세션 분리 착수**: `getPolls`·`getPollById`의 `unstable_cache`를 제거하고 `/api/polls`·`/api/polls/[id]`에서 `revalidate`를 삭제해 세션 의존 데이터가 캐시되지 않도록 정비했습니다.
+- **QUERY.md 정리**: `get_leaderboard`·`log_score_event` 등에서 잘못된 토큰(`_`, `COUNT(*)` 이스케이프)을 수정해 Supabase SQL 실행 오류를 제거했습니다.
 - **QUERY.md SQL 정리**: `log_score_event` 종료 구문 및 `get_polls_paginated` 등에서 잘못된 이스케이프/오타를 수정해 Supabase 실행 시 구문 오류를 방지했습니다.
 - **즐겨찾기 무가산 고정**: 점수 이벤트 API에서 `favorite` 타입을 차단해 즐겨찾기 추가 시 포인트가 쌓이지 않도록 고정했습니다.
 - **즐겨찾기 점수 제거(쿼리)**: `log_score_event` SQL 정의에서 `favorite` 이벤트를 허용/가중치 목록에서 제거해 DB 차원에서도 가산이 발생하지 않도록 했습니다.

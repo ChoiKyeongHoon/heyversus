@@ -18,6 +18,8 @@ interface VoteParams {
 
 type VoteContext = {
   previousPoll?: PollWithOptions;
+  previousProfilePoints?: number;
+  profileKey?: (string | undefined)[];
 };
 
 export function usePollVote(options: UsePollVoteOptions = {}) {
@@ -29,12 +31,20 @@ export function usePollVote(options: UsePollVoteOptions = {}) {
       submitVoteRequest({ pollId, optionId }),
     onMutate: async ({ pollId, optionId }) => {
       const queryKey = ["poll-detail", pollId];
-      const previousPoll = queryClient.getQueryData<PollWithOptions>(queryKey);
-
-      // 비로그인 사용자인 경우 로컬 스토리지에 기록
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      const profileKey = session
+        ? ["current-profile", session.user.id]
+        : ["current-profile"];
+      const previousPoll = queryClient.getQueryData<PollWithOptions>(queryKey);
+      const previousProfile =
+        queryClient.getQueryData<{ points?: number }>(profileKey) ||
+        queryClient.getQueryData<{ points?: number }>(["current-profile"]);
+      const previousProfilePoints =
+        previousProfile?.points !== undefined
+          ? Number(previousProfile.points)
+          : undefined;
 
       if (!session) {
         const storedVotes = localStorage.getItem("heyversus-voted-polls");
@@ -64,11 +74,22 @@ export function usePollVote(options: UsePollVoteOptions = {}) {
         queryClient.setQueryData(queryKey, updatedPoll);
       }
 
-      return { previousPoll };
+      return { previousPoll, previousProfilePoints, profileKey };
     },
     onError: async (error: Error, { pollId }, context) => {
       if (context?.previousPoll) {
         queryClient.setQueryData(["poll-detail", pollId], context.previousPoll);
+      }
+      if (
+        context?.previousProfilePoints !== undefined &&
+        context.profileKey
+      ) {
+        queryClient.setQueryData(context.profileKey, (prev) =>
+          prev ? { ...prev, points: context.previousProfilePoints } : prev
+        );
+        queryClient.setQueryData(["current-profile"], (prev) =>
+          prev ? { ...prev, points: context.previousProfilePoints } : prev
+        );
       }
 
       console.error("Error voting:", error);
@@ -99,7 +120,31 @@ export function usePollVote(options: UsePollVoteOptions = {}) {
         if (scoreEventError) {
           console.error("Failed to log vote score event:", scoreEventError);
         }
+        // 프로필 점수 낙관적 반영
+        const profileKey = ["current-profile", session.user.id];
+        const profile =
+          queryClient.getQueryData<{ points?: number }>(profileKey) ||
+          queryClient.getQueryData<{ points?: number }>(["current-profile"]);
+        if (profile) {
+          const currentPoints = Number(profile.points ?? 0);
+          queryClient.setQueryData(profileKey, {
+            ...profile,
+            points: currentPoints + 1,
+          });
+          queryClient.setQueryData(["current-profile"], {
+            ...profile,
+            points: currentPoints + 1,
+          });
+        }
       }
+      // 서버 데이터 갱신을 위해 캐시 무효화 (액션 직후 반영)
+      queryClient.invalidateQueries({
+        queryKey: ["current-profile", session?.user?.id],
+        exact: false,
+      });
+      queryClient.invalidateQueries({ queryKey: ["current-profile"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["poll-detail", variables.pollId] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"], exact: false });
       options.onSuccess?.();
     },
   });

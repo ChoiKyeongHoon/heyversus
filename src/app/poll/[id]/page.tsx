@@ -5,9 +5,9 @@ export const revalidate = 300;
 export default async function PollPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = await params;
+  const { id } = params;
 
   return <PollPageClient pollId={id} />;
 }

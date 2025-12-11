@@ -875,92 +875,96 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
-DECLARE
-  total_polls BIGINT;
-BEGIN
-  -- 전체 투표 수 집계 (페이지네이션 메타데이터용)
-  SELECT COUNT(*)
-    INTO total_polls
-    FROM public.polls p
-    WHERE
-      (p.is_public = TRUE OR p.created_by = auth.uid())
-      AND (
-        p_filter_status = 'all' OR
-        (p_filter_status = 'active' AND (p.status = 'active' OR (p.expires_at IS NULL OR p.expires_at > NOW()))) OR
-        (p_filter_status = 'closed' AND (p.status = 'closed' OR (p.expires_at IS NOT NULL AND p.expires_at <= NOW())))
-      );
+AS
+$$
 
-  -- 페이지네이션 결과 반환
-  RETURN QUERY
-  SELECT
-    p.id,
-    p.question,
-    p.is_public,
-    p.created_at,
-    p.expires_at,
-    COALESCE(p.status, 'active') AS status,
-    p.created_by,
-    COALESCE(p.is_featured, FALSE) AS is_featured,
-    p.featured_image_url,
-    COALESCE(
-      (
-        SELECT jsonb_agg(
-          jsonb_build_object(
-            'id', po.id,
-            'text', po.text,
-            'votes', COALESCE(po.votes, 0),
-            'image_url', po.image_url,
-            'created_at', po.created_at,
-            'position', po.position
-          )
-          ORDER BY po.position, po.created_at, po.id
-        )
-        FROM public.poll_options po
-        WHERE po.poll_id = p.id
-      ),
-      '[]'::jsonb
-    ) AS poll_options,
-    EXISTS(
-      SELECT 1
-      FROM public.user_votes uv
-      WHERE uv.poll_id = p.id
-        AND uv.user_id = auth.uid()
-    ) AS has_voted,
-    EXISTS(
-      SELECT 1
-      FROM public.favorite_polls fp
-      WHERE fp.poll_id = p.id
-        AND fp.user_id = auth.uid()
-    ) AS is_favorited,
-    total_polls AS total_count
-  FROM public.polls p
-  WHERE
-    (p.is_public = TRUE OR p.created_by = auth.uid())
-    AND (
-      p_filter_status = 'all' OR
-      (p_filter_status = 'active' AND (p.status = 'active' OR (p.expires_at IS NULL OR p.expires_at > NOW()))) OR
-      (p_filter_status = 'closed' AND (p.status = 'closed' OR (p.expires_at IS NOT NULL AND p.expires_at <= NOW())))
-    )
-  ORDER BY
-    CASE WHEN p_sort_by = 'created_at' AND p_sort_order = 'desc' THEN p.created_at END DESC,
-    CASE WHEN p_sort_by = 'created_at' AND p_sort_order = 'asc' THEN p.created_at END ASC,
-    CASE WHEN p_sort_by = 'expires_at' AND p_sort_order = 'desc' THEN p.expires_at END DESC NULLS LAST,
-    CASE WHEN p_sort_by = 'expires_at' AND p_sort_order = 'asc' THEN p.expires_at END ASC NULLS LAST,
-    CASE WHEN p_sort_by = 'votes' AND p_sort_order = 'desc' THEN (
-      SELECT COALESCE(SUM(po.votes), 0)
-      FROM public.poll_options po
-      WHERE po.poll_id = p.id
-    ) END DESC,
-    CASE WHEN p_sort_by = 'votes' AND p_sort_order = 'asc' THEN (
-      SELECT COALESCE(SUM(po.votes), 0)
-      FROM public.poll_options po
-      WHERE po.poll_id = p.id
-    ) END ASC
-  LIMIT p_limit
-  OFFSET p_offset;
+DECLARE
+total_polls BIGINT;
+BEGIN
+-- 전체 투표 수 집계 (페이지네이션 메타데이터용)
+SELECT COUNT(*)
+INTO total_polls
+FROM public.polls p
+WHERE
+(p.is_public = TRUE OR p.created_by = auth.uid())
+AND (
+p_filter_status = 'all' OR
+(p_filter_status = 'active' AND (p.status = 'active' OR (p.expires_at IS NULL OR p.expires_at > NOW()))) OR
+(p_filter_status = 'closed' AND (p.status = 'closed' OR (p.expires_at IS NOT NULL AND p.expires_at <= NOW())))
+);
+
+-- 페이지네이션 결과 반환
+RETURN QUERY
+SELECT
+p.id,
+p.question,
+p.is_public,
+p.created_at,
+p.expires_at,
+COALESCE(p.status, 'active') AS status,
+p.created_by,
+COALESCE(p.is_featured, FALSE) AS is_featured,
+p.featured_image_url,
+COALESCE(
+(
+SELECT jsonb_agg(
+jsonb_build_object(
+'id', po.id,
+'text', po.text,
+'votes', COALESCE(po.votes, 0),
+'image_url', po.image_url,
+'created_at', po.created_at,
+'position', po.position
+)
+ORDER BY po.position, po.created_at, po.id
+)
+FROM public.poll_options po
+WHERE po.poll_id = p.id
+),
+'[]'::jsonb
+) AS poll_options,
+EXISTS(
+SELECT 1
+FROM public.user_votes uv
+WHERE uv.poll_id = p.id
+AND uv.user_id = auth.uid()
+) AS has_voted,
+EXISTS(
+SELECT 1
+FROM public.favorite_polls fp
+WHERE fp.poll_id = p.id
+AND fp.user_id = auth.uid()
+) AS is_favorited,
+total_polls AS total_count
+FROM public.polls p
+WHERE
+(p.is_public = TRUE OR p.created_by = auth.uid())
+AND (
+p_filter_status = 'all' OR
+(p_filter_status = 'active' AND (p.status = 'active' OR (p.expires_at IS NULL OR p.expires_at > NOW()))) OR
+(p_filter_status = 'closed' AND (p.status = 'closed' OR (p.expires_at IS NOT NULL AND p.expires_at <= NOW())))
+)
+ORDER BY
+CASE WHEN p_sort_by = 'created_at' AND p_sort_order = 'desc' THEN p.created_at END DESC,
+CASE WHEN p_sort_by = 'created_at' AND p_sort_order = 'asc' THEN p.created_at END ASC,
+CASE WHEN p_sort_by = 'expires_at' AND p_sort_order = 'desc' THEN p.expires_at END DESC NULLS LAST,
+CASE WHEN p_sort_by = 'expires_at' AND p_sort_order = 'asc' THEN p.expires_at END ASC NULLS LAST,
+CASE WHEN p_sort_by = 'votes' AND p_sort_order = 'desc' THEN (
+SELECT COALESCE(SUM(po.votes), 0)
+FROM public.poll_options po
+WHERE po.poll_id = p.id
+) END DESC,
+CASE WHEN p_sort_by = 'votes' AND p_sort_order = 'asc' THEN (
+SELECT COALESCE(SUM(po.votes), 0)
+FROM public.poll_options po
+WHERE po.poll_id = p.id
+) END ASC
+LIMIT p_limit
+OFFSET p_offset;
 END;
-$$;
+
+$$
+;
 
 -- 함수 실행 권한 부여
 GRANT EXECUTE ON FUNCTION public.get_polls_paginated TO authenticated;
@@ -1182,6 +1186,9 @@ $$
 DECLARE
 v_user_id UUID;
 v_result JSON;
+v_points NUMERIC := 0;
+v_last_activity TIMESTAMPTZ;
+v_score NUMERIC;
 BEGIN
 -- p_user_id가 NULL이면 현재 로그인한 사용자 ID 사용
 v_user_id := COALESCE(p_user_id, auth.uid());
@@ -1210,7 +1217,46 @@ IF v_result IS NULL THEN
 RAISE EXCEPTION 'Profile not found';
 END IF;
 
-RETURN v_result;
+-- 점수 계산: 이벤트 합산 → 집계 테이블 → 기존 points 순으로 폴백
+SELECT
+COALESCE(SUM(e.weight), 0),
+MAX(e.occurred_at)
+INTO v_points, v_last_activity
+FROM public.profile_score_events e
+WHERE e.user_id = v_user_id;
+
+IF v_points = 0 THEN
+SELECT score, last_activity_at
+INTO v_score, v_last_activity
+FROM public.profile_scores
+WHERE user_id = v_user_id
+LIMIT 1;
+
+v_points := COALESCE(v_score, v_points, 0);
+END IF;
+
+IF v_points = 0 THEN
+SELECT points
+INTO v_score
+FROM public.profiles
+WHERE id = v_user_id
+LIMIT 1;
+
+v_points := COALESCE(v_score, v_points, 0);
+END IF;
+
+RETURN json_build_object(
+'id', (v_result ->> 'id')::UUID,
+'username', v_result ->> 'username',
+'full_name', v_result ->> 'full_name',
+'bio', v_result ->> 'bio',
+'avatar_url', v_result ->> 'avatar_url',
+'points', v_points,
+'last_activity_at', v_last_activity,
+'created_at', v_result ->> 'created_at',
+'updated_at', v_result ->> 'updated_at',
+'email', v_result ->> 'email'
+);
 END;
 
 $$
@@ -1439,16 +1485,16 @@ AS
 $$
 
 WITH base AS (
-  SELECT
-    ps.user_id,
-    ps.score,
-    COALESCE(p.username, '익명') AS display_name,
-    p.avatar_url,
-    ps.last_activity_at,
-    NULL::NUMERIC AS delta,
-    NULL::TEXT AS region
-  FROM public.profile_scores ps
-  LEFT JOIN public.profiles p ON p.id = ps.user_id
+SELECT
+ps.user_id,
+ps.score,
+COALESCE(p.username, '익명') AS display_name,
+p.avatar_url,
+ps.last_activity_at,
+NULL::NUMERIC AS delta,
+NULL::TEXT AS region
+FROM public.profile_scores ps
+LEFT JOIN public.profiles p ON p.id = ps.user_id
 ),
 scoped AS (
   SELECT *
@@ -1475,19 +1521,21 @@ ranked AS (
   FROM scoped b
 )
 SELECT
-  user_id,
-  rank,
-  score,
-  display_name,
-  avatar_url,
-  delta,
-  last_activity_at,
-  region,
-  total_count
+user_id,
+rank,
+score,
+display_name,
+avatar_url,
+delta,
+last_activity_at,
+region,
+total_count
 FROM ranked
 OFFSET p_offset
 LIMIT p_limit;
-$$;
+
+$$
+;
 
 -- 5) 점수 이벤트 기록 함수 (중복 방지 + 기본 가중치)
 CREATE OR REPLACE FUNCTION public.log_score_event(
@@ -1503,65 +1551,68 @@ SECURITY DEFINER
 SET search_path = public, auth
 AS
 $$
+
 DECLARE
-  v_user_id UUID;
-  v_weight NUMERIC;
-  v_now TIMESTAMPTZ := now();
-  v_row JSON;
+v_user_id UUID;
+v_weight NUMERIC;
+v_now TIMESTAMPTZ := now();
+v_row JSON;
 BEGIN
-  v_user_id := COALESCE(p_user_id, auth.uid());
+v_user_id := COALESCE(p_user_id, auth.uid());
 
-  IF v_user_id IS NULL THEN
-    RAISE EXCEPTION 'Not authenticated';
-  END IF;
+IF v_user_id IS NULL THEN
+RAISE EXCEPTION 'Not authenticated';
+END IF;
 
-  IF p_event_type NOT IN ('vote', 'create_poll', 'share', 'streak3', 'streak7') THEN
-    RAISE EXCEPTION 'Unsupported event type: %', p_event_type;
-  END IF;
+IF p_event_type NOT IN ('vote', 'create_poll', 'share', 'streak3', 'streak7') THEN
+RAISE EXCEPTION 'Unsupported event type: %', p_event_type;
+END IF;
 
-  v_weight := COALESCE(
-    p_weight_override,
-    CASE p_event_type
-      WHEN 'vote' THEN 1
-      WHEN 'create_poll' THEN 5
-      WHEN 'share' THEN 2
-      WHEN 'streak3' THEN 1
-      WHEN 'streak7' THEN 3
-      ELSE 0
-    END
-  );
+v_weight := COALESCE(
+p_weight_override,
+CASE p_event_type
+WHEN 'vote' THEN 1
+WHEN 'create_poll' THEN 3
+WHEN 'share' THEN 2
+WHEN 'streak3' THEN 1
+WHEN 'streak7' THEN 2
+ELSE 0
+END
+);
 
-  INSERT INTO public.profile_score_events (
-    user_id,
-    event_type,
-    poll_id,
-    weight,
-    metadata,
-    occurred_at
-  )
-  VALUES (
-    v_user_id,
-    p_event_type,
-    p_poll_id,
-    v_weight,
-    p_metadata,
-    v_now
-  )
-  ON CONFLICT ON CONSTRAINT ux_profile_score_events_dedup
-  DO UPDATE
-    SET weight = EXCLUDED.weight,
-        metadata = COALESCE(EXCLUDED.metadata, public.profile_score_events.metadata),
-        occurred_at = EXCLUDED.occurred_at
-  RETURNING json_build_object(
-    'id', id,
-    'user_id', user_id,
-    'event_type', event_type,
-    'poll_id', poll_id,
-    'weight', weight,
-    'metadata', metadata,
-    'occurred_at', occurred_at
-  ) INTO v_row;
+INSERT INTO public.profile_score_events (
+user_id,
+event_type,
+poll_id,
+weight,
+metadata,
+occurred_at
+)
+VALUES (
+v_user_id,
+p_event_type,
+p_poll_id,
+v_weight,
+p_metadata,
+v_now
+)
+ON CONFLICT ON CONSTRAINT ux_profile_score_events_dedup
+DO UPDATE
+SET weight = EXCLUDED.weight,
+metadata = COALESCE(EXCLUDED.metadata, public.profile_score_events.metadata),
+occurred_at = EXCLUDED.occurred_at
+RETURNING json_build_object(
+'id', id,
+'user_id', user_id,
+'event_type', event_type,
+'poll_id', poll_id,
+'weight', weight,
+'metadata', metadata,
+'occurred_at', occurred_at
+) INTO v_row;
 
-  RETURN v_row;
+RETURN v_row;
 END;
-$$;
+
+$$
+;

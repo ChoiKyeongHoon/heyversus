@@ -625,10 +625,19 @@
 - ✅ **집계 실행 경로**: service role 클라이언트(`src/lib/supabase/service-role.ts`)와 배치 스크립트(`scripts/refreshScores.ts`)를 추가해 `refresh_profile_scores`를 서버/스케줄러에서 호출할 수 있게 했습니다.
 - ✅ **정합성 검증 및 UI 반영**: 새 점수 소스 기반 `/score` 페이지로 전환하고, 오류/빈 상태 가드 및 총 플레이어 집계·상위 랭킹 UI를 업데이트했습니다.
 - ✅ **프로필 점수 일원화**: 프로필 조회 시 `profile_scores` 집계 점수를 우선 사용하고 없을 때만 `profiles.points`를 폴백해 랭킹과 동일한 값을 표시합니다.
+- ✅ **프로필 점수 실시간 합산**: `get_profile` RPC에서 `profile_score_events`를 SECURITY DEFINER로 합산해 투표/생성 직후 프로필·Navbar 점수가 즉시 반영되도록 수정했습니다.
 - ✅ **즐겨찾기 무가산 고정**: 점수 이벤트 API에서 `favorite` 타입을 차단해 즐겨찾기 추가 시 포인트가 쌓이지 않도록 고정했습니다.
 - ✅ **즐겨찾기 점수 제거(쿼리)**: `log_score_event` SQL 정의에서 `favorite` 이벤트를 허용/가중치 목록에서 제거해 DB 차원에서도 가산이 발생하지 않도록 했습니다.
 - ✅ **집계 배치 주기 상향**: `score-refresh` GitHub Actions를 매시 정각(UTC)으로 실행해 `profile_scores` 집계 신선도를 높였습니다.
 - ✅ **QUERY.md SQL 정리**: `log_score_event` 종료 구문과 `get_polls_paginated` 등에서 잘못된 이스케이프/오타를 수정해 Supabase에서 구문 오류가 발생하지 않도록 했습니다.
+
+## Step 22 – 캐시 격리 및 품질 안전망 (진행 중)
+
+- ✅ **캐시/세션 분리**: `getPolls`·`getPollById`에서 `unstable_cache`를 제거하고 세션 전용 호출로 고정했으며, `/api/polls`·`/api/polls/[id]`의 `revalidate` 설정을 삭제해 비캐시 동작을 보장합니다.
+- ⏳ **라우트 시그니처 정리**: 모든 App Route/Route Handler의 `params` 시그니처를 `{ params: { id: string } }` 형태로 교정해 Next.js 타입/정적 최적화를 유지합니다.
+- ⏳ **초기 상태 정확도**: 로그인 사용자의 즐겨찾기/투표 상태가 첫 렌더에 정확히 반영되도록 `/polls` 초기 로드에 세션 클라이언트 사용 또는 즉시 refetch + `initialData` 조합을 적용합니다.
+- ⏳ **테스트 보강**: `/api/polls` GET/POST, `/api/polls/[id]` 404/403, `usePollVote` 오류 롤백, 즐겨찾기 토글 성공/권한 실패 등 핵심 플로우를 Jest + RTL로 커버합니다.
+- 📄 **참고 문서**: `references/ISSUE_REVIEW_2024-11.md`.
 
 
 ## Step 19 – 투표 이미지 업로드 기능 (예정)
@@ -659,16 +668,6 @@
 - ⏳ 신고된 투표/사용자 목록, 즐겨찾기 통계, 성장 지표 등을 한눈에 확인할 수 있는 카드/테이블 UI 구성.
 - ⏳ 관리자가 투표 비공개 전환, 삭제, 하이라이트 지정 등을 수행할 수 있는 액션 패널과 감사 로그 기록.
 - ⏳ 운영 자동화를 위해 Sentry 알림, 분석 이벤트, 이메일 알림과 연계한 워크플로 문서화.
-
-## Step 22 – 캐시 격리 및 품질 안전망 (신규)
-
-- ✅ **리더보드 폴백**: `get_leaderboard` RPC 실패/빈 결과 시 `profiles.points`로 폴백해 랭킹 노출을 유지하고, best-effort로 `refresh_profile_scores`를 트리거해 집계 누락을 줄입니다.
-- ✅ **보안 패치 적용**: React Flight/Next.js RCE 대응을 위해 Next.js를 15.5.7로 상향했습니다.
-- 🚧 **캐시/세션 분리**: `getPolls`·`getPollById` 등 사용자 세션 의존 RPC는 `unstable_cache` 캐시를 제거하거나 익명 클라이언트 전용 캐시로 분리하고, `/api/polls?paginated=false` 경로는 캐시 없이 직접 호출로 전환합니다.
-- 🚧 **라우트 시그니처 정리**: 모든 App Route/Route Handler의 `params` 시그니처를 `{ params: { id: string } }` 형태로 교정해 Next.js 타입/정적 최적화를 유지합니다.
-- 🚧 **초기 상태 정확도**: 로그인 사용자의 즐겨찾기/투표 상태가 첫 렌더에 정확히 반영되도록 `/polls` 초기 로드에 세션 클라이언트 사용 또는 즉시 refetch + `initialData` 조합을 적용합니다.
-- 🚧 **테스트 보강**: `/api/polls` GET/POST, `/api/polls/[id]` 404/403, `usePollVote` 오류 롤백, 즐겨찾기 토글 성공/권한 실패 등 핵심 플로우를 Jest + RTL로 커버합니다.
-- 📄 **참고 문서**: `references/ISSUE_REVIEW_2024-11.md`.
 
 ## Step 23 – 지속적 개선 (예정)
 
@@ -702,7 +701,7 @@
 20. **Step 19** – ⏳ 예정: 투표 이미지 업로드 기능.
 21. **Step 20** – ⏳ 예정: 비공개 투표 초대 기능.
 22. **Step 21** – ⏳ 예정: 관리자 운영 대시보드.
-23. **Step 22** – 🚧 신규: 캐시 격리 및 품질 안전망.
+23. **Step 22** – 🚧 진행 중: 캐시 격리 및 품질 안전망.
 24. **Step 23** – ⏳ 예정: 지속적 개선 (랭킹 알고리즘/실시간 파이프라인/리더보드 UX/모니터링).
 
 - 💬 **CSR 전환 고려 사항**: 동적 세션 데이터를 많이 사용하는 페이지는 SSR/`cookies()` 의존을 제거하고 CSR로 전환하면 TTFB 향상, 캐시 제약 해소, React Query 재사용 등의 이점이 있습니다. SEO가 주요 목표가 아닌 페이지부터 단계적으로 적용을 검토합니다.
