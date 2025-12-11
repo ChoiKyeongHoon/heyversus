@@ -8,10 +8,11 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: unknown
 ) {
   try {
-    const { id } = params;
+    const { params } = (context || {}) as { params?: { id?: string } };
+    const id = params?.id;
 
     if (!id) {
       return NextResponse.json(

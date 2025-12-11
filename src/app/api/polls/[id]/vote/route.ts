@@ -10,10 +10,11 @@ import { voteOnPoll } from "@/lib/services/polls";
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: unknown
 ) {
   try {
-    const { id: pollId } = params;
+    const { params } = (context || {}) as { params?: { id?: string } };
+    const pollId = params?.id;
     const body = await request.json();
     const { optionId } = body;
 
