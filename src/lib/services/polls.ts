@@ -33,7 +33,7 @@ export interface CreatePollParams {
   options: string[];
   isPublic: boolean;
   expiresAt?: string | null;
-  optionImageUrls?: (string | null)[];
+  optionImageUrls?: (string | null)[] | null;
 }
 
 export interface VoteParams {
