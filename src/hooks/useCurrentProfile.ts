@@ -9,7 +9,7 @@ export interface CurrentProfile {
   username: string | null;
   full_name?: string | null;
   bio?: string | null;
-  avatar_url?: string | null;
+  avatar_url: string | null;
   points: number;
   email?: string | null;
   created_at?: string;
@@ -29,7 +29,7 @@ export function useCurrentProfile(userId?: string) {
     enabled: Boolean(userId),
     staleTime: 10 * 1000,
     cacheTime: 2 * 60 * 1000,
-    queryFn: async () => {
+    queryFn: async (): Promise<CurrentProfile> => {
       const { data, error } = await supabase.rpc("get_profile");
 
       if (error) {
@@ -44,6 +44,7 @@ export function useCurrentProfile(userId?: string) {
 
       return {
         ...profile,
+        avatar_url: profile.avatar_url ?? null,
         points: Number(profile.points ?? 0),
       };
     },
