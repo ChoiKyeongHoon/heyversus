@@ -9,6 +9,7 @@ import type { PollWithOptions } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 import { FavoriteToggle } from "./FavoriteToggle";
+import { ReportButton } from "./ReportButton";
 
 type PollDetailCardProps = {
   poll: PollWithOptions;
@@ -147,16 +148,19 @@ export function PollDetailCard({
             >
               {poll.question}
             </h3>
-            {onShare && (
-              <button
-                type="button"
-                onClick={onShare}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-text-tertiary transition hover:border-primary/40 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/50"
-                aria-label="투표 링크 복사"
-              >
-                <Link className="h-4 w-4" />
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              <ReportButton pollId={poll.id} redirectPath={`/poll/${poll.id}`} />
+              {onShare ? (
+                <button
+                  type="button"
+                  onClick={onShare}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-text-tertiary transition hover:border-primary/40 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/50"
+                  aria-label="투표 링크 복사"
+                >
+                  <Link className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
           </div>
           <p className="text-sm md:text-base text-text-secondary">
             {isPollClosed ? "결과를 확인하세요." : "이 투표에 참여해보세요."}
