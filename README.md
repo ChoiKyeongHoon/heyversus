@@ -1,7 +1,7 @@
 # Heyversus
 
 🔗 Link : https://heyversus.vercel.app/
-📦 Version : v0.7.1
+📦 Version : v0.7.2
 
 **Heyversus**는 사용자가 직접 투표를 생성하고 참여할 수 있는 동적인 웹 애플리케이션입니다. Next.js와 Supabase를 기반으로 구축되어 있으며, 실시간 투표 결과와 사용자 인증, 포인트 시스템을 제공합니다.
 
@@ -62,13 +62,14 @@
 │   │   ├── signup/      # 회원가입 페이지
 │   │   ├── create-poll/ # 투표 생성 페이지
 │   │   ├── polls/       # 전체 투표 목록 페이지
-│   │   ├── favorites/   # 즐겨찾기한 투표 목록 페이지
-│   │   ├── poll/[id]/   # 투표 상세 및 결과 페이지
-│   │   ├── account/     # 프로필 관리 페이지
-│   │   ├── score/       # 사용자 랭킹(스코어보드) 페이지
-│   │   ├── layout.tsx   # 루트 레이아웃
-│   │   ├── page.tsx     # 메인 랜딩 페이지 (대표 투표)
-│   │   └── globals.css  # 글로벌 스타일 및 디자인 토큰
+	│   │   ├── favorites/   # 즐겨찾기한 투표 목록 페이지
+	│   │   ├── poll/[id]/   # 투표 상세 및 결과 페이지
+	│   │   ├── account/     # 프로필 관리 페이지
+	│   │   ├── admin/       # 관리자 운영 대시보드
+	│   │   ├── score/       # 사용자 랭킹(스코어보드) 페이지
+	│   │   ├── layout.tsx   # 루트 레이아웃
+	│   │   ├── page.tsx     # 메인 랜딩 페이지 (대표 투표)
+	│   │   └── globals.css  # 글로벌 스타일 및 디자인 토큰
 │   ├── components/      # 재사용 가능한 UI 컴포넌트
 │   │   ├── common/      # Skeleton, ErrorState, EmptyState 등 공용 컴포넌트
 │   │   ├── layout/      # Navbar 등 레이아웃 컴포넌트
@@ -161,21 +162,25 @@
 
 `references/QUERY.md` 파일은 전체 데이터베이스 스키마(SQL)를 정의합니다. 주요 테이블 간의 관계는 다음과 같습니다.
 
-```mermaid
-erDiagram
-    users ||--|| profiles : "has one"
-    users ||--o{ polls : "creates"
-    users ||--o{ user_votes : "casts"
-    users ||--o{ favorite_polls : "favorites"
+	```mermaid
+	erDiagram
+	    users ||--|| profiles : "has one"
+	    users ||--o{ polls : "creates"
+	    users ||--o{ user_votes : "casts"
+	    users ||--o{ favorite_polls : "favorites"
 
-    polls ||--|{ poll_options : "contains"
-    polls ||--o{ user_votes : "is voted on"
-    polls ||--o{ favorite_polls : "is favorited"
+	    polls ||--|{ poll_options : "contains"
+	    polls ||--o{ user_votes : "is voted on"
+	    polls ||--o{ favorite_polls : "is favorited"
+	    polls ||--o{ reports : "is reported"
 
-    poll_options ||--o{ user_votes : "is chosen in"
+	    poll_options ||--o{ user_votes : "is chosen in"
 
-    profiles ||--|| profile_scores : "has score"
-    profiles ||--o{ profile_score_events : "logs"
+	    profiles ||--|| profile_scores : "has score"
+	    profiles ||--o{ profile_score_events : "logs"
+	    profiles ||--o{ reports : "reports"
+	    profiles ||--o{ reports : "is reported"
+	    profiles ||--o{ admin_audit_logs : "acts"
 
     users {
         UUID id PK
@@ -183,27 +188,29 @@ erDiagram
         timestamptz created_at
     }
 
-    profiles {
-        UUID id PK
-        string username
-        string avatar_url
-        string bio
-        string full_name
-        int points
-        timestamptz updated_at
-    }
+	    profiles {
+	        UUID id PK
+	        string username
+	        string role
+	        string avatar_url
+	        string bio
+	        string full_name
+	        int points
+	        timestamptz updated_at
+	    }
 
-    polls {
-        UUID id PK
-        timestamptz created_at
-        text question
-        UUID created_by
-        boolean is_public
-        boolean is_featured
-        text featured_image_url
-        timestamptz expires_at
-        varchar status
-    }
+	    polls {
+	        UUID id PK
+	        timestamptz created_at
+	        text question
+	        UUID created_by
+	        boolean is_public
+	        boolean is_featured
+	        text featured_image_url
+	        timestamptz expires_at
+	        varchar status
+	        int max_voters
+	    }
 
     poll_options {
         UUID id PK
@@ -223,17 +230,41 @@ erDiagram
         timestamptz created_at
     }
 
-    favorite_polls {
-        UUID id PK
-        UUID user_id
-        UUID poll_id
-        timestamptz created_at
-    }
+	    favorite_polls {
+	        UUID id PK
+	        UUID user_id
+	        UUID poll_id
+	        timestamptz created_at
+	    }
 
-    profile_scores {
-        UUID user_id PK
-        numeric score
-        timestamptz last_activity_at
+	    reports {
+	        UUID id PK
+	        string target_type
+	        UUID poll_id
+	        UUID target_user_id
+	        string reason_code
+	        string reason_detail
+	        string status
+	        UUID reporter_user_id
+	        timestamptz created_at
+	        UUID resolved_by
+	        timestamptz resolved_at
+	    }
+
+	    admin_audit_logs {
+	        UUID id PK
+	        UUID actor_user_id
+	        string action
+	        string target_type
+	        UUID target_id
+	        jsonb payload
+	        timestamptz created_at
+	    }
+
+	    profile_scores {
+	        UUID user_id PK
+	        numeric score
+	        timestamptz last_activity_at
         timestamptz updated_at
     }
 
@@ -251,6 +282,14 @@ erDiagram
 
 ## 📌 업데이트 기록
 
+### v0.7.2
+
+- **관리자 대시보드(MVP)**: `/admin` 보호 라우트(관리자 전용)와 운영 대시보드를 추가했습니다.
+- **신고(Report) 플로우(베타)**: 투표 상세에서 신고를 생성하고, `/admin`에서 신고 목록 조회/상태 변경/메모 기록을 지원합니다.
+- **관리자 액션 & 감사 로그**: 투표 공개/비공개 전환, 대표 투표 지정/해제, 삭제 액션을 추가하고 모든 액션을 `admin_audit_logs`로 기록합니다.
+- **SQL 스키마/RPC 추가**: `references/QUERY.md` Step 21 블록에 `profiles.role`, `reports`, `admin_audit_logs`, 관리자 RPC를 추가했습니다. (Supabase에서 Step 21 블록 실행 필요)
+- **로드맵 보완**: `ROADMAP.md` Step 22에 `profiles.role` 노출 최소화 옵션 2안(A: 공개용 view/RPC 분리, B: roles 분리 테이블 + RLS)을 기록했습니다.
+
 ### v0.7.1
 
 - **비공개 언리스트드 + 정원 제한(베타)**: 비공개 투표는 목록에 숨겨지고 로그인 사용자는 링크로 접근·투표할 수 있습니다. 비공개 생성 시 `maxVoters`를 설정하면 선착순 정원 도달 즉시 자동 마감되어 이후에는 결과만 확인합니다.
@@ -258,7 +297,6 @@ erDiagram
 - **전체 재실행 안전화**: Step 20 블록 시작에 구 시그니처 `create_new_poll`과 기존 `get_poll_with_user_status`를 `DROP`하도록 추가해, `references/QUERY.md` 전체 재실행 시에도 최신 정의로 일관되게 적용됩니다.
 - **UI/UX 보강**: `/create-poll`에 비공개 정원 입력 UI를 추가했고, `/poll/[id]`에서 현재/최대 참여자 표기 및 정원 마감 시 안내 토스트를 제공합니다.
 - **문서/로드맵 정리**: `references/STEP20_PRIVATE_INVITE_PLAN.md`를 최소 범위(언리스트드+정원 제한) 기준으로 재작성했고, `ROADMAP.md`에서 Step 20을 ✅ 완료로 갱신했습니다.
-- **로드맵 보완**: `ROADMAP.md` Step 22에 `profiles.role` 노출 최소화 옵션 2안(A: 공개용 view/RPC 분리, B: roles 분리 테이블 + RLS)을 기록했습니다.
 
 ### v0.7.0
 

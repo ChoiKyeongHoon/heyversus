@@ -45,6 +45,611 @@ END;
 $$
 ;
 
+-- =============================================================================
+-- 12. Step 21 – 관리자 운영 대시보드 (MVP)
+-- =============================================================================
+
+-- 12-1. profiles.role 컬럼 추가 (기본값: user)
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
+
+-- role 값 제약 (user/admin)
+DO
+$$
+
+BEGIN
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint
+WHERE conname = 'profiles_role_check'
+AND conrelid = 'public.profiles'::regclass
+) THEN
+ALTER TABLE public.profiles
+ADD CONSTRAINT profiles_role_check CHECK (role IN ('user', 'admin'));
+END IF;
+END;
+
+$$
+;
+
+-- ⚠️ 중요: role 컬럼은 일반 사용자가 업데이트할 수 없어야 합니다.
+-- 컬럼 권한으로 role/points 등 민감 컬럼 업데이트를 차단합니다.
+REVOKE UPDATE ON TABLE public.profiles FROM authenticated;
+GRANT UPDATE (username, full_name, bio, avatar_url) ON TABLE public.profiles TO authenticated;
+
+-- 12-2. 관리자 여부 헬퍼 함수
+CREATE OR REPLACE FUNCTION public.is_admin(p_user_id UUID DEFAULT auth.uid())
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+  SELECT
+    (auth.role() = 'service_role')
+    OR EXISTS (
+      SELECT 1
+      FROM public.profiles p
+      WHERE p.id = COALESCE(p_user_id, auth.uid())
+        AND p.role = 'admin'
+    );
+$$
+;
+
+-- 12-3. reports 테이블 (투표/사용자 신고)
+CREATE TABLE IF NOT EXISTS public.reports (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  target_type TEXT NOT NULL, -- 'poll' | 'user'
+  poll_id UUID REFERENCES public.polls(id) ON DELETE CASCADE,
+  target_user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  reason_code TEXT NOT NULL,
+  reason_detail TEXT,
+  status TEXT NOT NULL DEFAULT 'open', -- open | resolved | dismissed
+  reporter_user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  resolved_at TIMESTAMPTZ,
+  admin_note TEXT
+);
+
+-- target_type 제약 + status 제약
+DO
+$$
+
+BEGIN
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint
+WHERE conname = 'reports_target_check'
+AND conrelid = 'public.reports'::regclass
+) THEN
+ALTER TABLE public.reports
+ADD CONSTRAINT reports_target_check CHECK (
+  (target_type = 'poll' AND poll_id IS NOT NULL AND target_user_id IS NULL)
+  OR
+  (target_type = 'user' AND target_user_id IS NOT NULL AND poll_id IS NULL)
+);
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint
+WHERE conname = 'reports_target_type_check'
+AND conrelid = 'public.reports'::regclass
+) THEN
+ALTER TABLE public.reports
+ADD CONSTRAINT reports_target_type_check CHECK (target_type IN ('poll', 'user'));
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint
+WHERE conname = 'reports_status_check'
+AND conrelid = 'public.reports'::regclass
+) THEN
+ALTER TABLE public.reports
+ADD CONSTRAINT reports_status_check CHECK (status IN ('open', 'resolved', 'dismissed'));
+END IF;
+END;
+
+$$
+;
+
+CREATE INDEX IF NOT EXISTS idx_reports_status_created_at
+ON public.reports(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reports_poll_id ON public.reports(poll_id);
+CREATE INDEX IF NOT EXISTS idx_reports_target_user_id ON public.reports(target_user_id);
+CREATE INDEX IF NOT EXISTS idx_reports_reporter_user_id ON public.reports(reporter_user_id);
+
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+
+-- 재실행 안전화를 위해 정책을 DROP 후 재생성합니다.
+DROP POLICY IF EXISTS "Users can create reports" ON public.reports;
+DROP POLICY IF EXISTS "Users can view own reports" ON public.reports;
+DROP POLICY IF EXISTS "Admins can view all reports" ON public.reports;
+DROP POLICY IF EXISTS "Admins can update reports" ON public.reports;
+DROP POLICY IF EXISTS "Admins can delete reports" ON public.reports;
+
+CREATE POLICY "Users can create reports"
+ON public.reports
+FOR INSERT
+WITH CHECK (auth.uid() IS NOT NULL AND reporter_user_id = auth.uid());
+
+CREATE POLICY "Users can view own reports"
+ON public.reports
+FOR SELECT
+USING (reporter_user_id = auth.uid());
+
+CREATE POLICY "Admins can view all reports"
+ON public.reports
+FOR SELECT
+USING (public.is_admin());
+
+CREATE POLICY "Admins can update reports"
+ON public.reports
+FOR UPDATE
+USING (public.is_admin())
+WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can delete reports"
+ON public.reports
+FOR DELETE
+USING (public.is_admin());
+
+-- 12-4. 관리자 감사 로그 테이블
+CREATE TABLE IF NOT EXISTS public.admin_audit_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  actor_user_id UUID NOT NULL REFERENCES public.profiles(id),
+  action TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_id UUID NOT NULL,
+  payload JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at
+ON public.admin_audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_actor_created_at
+ON public.admin_audit_logs(actor_user_id, created_at DESC);
+
+ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can read audit logs" ON public.admin_audit_logs;
+DROP POLICY IF EXISTS "Admins can insert audit logs" ON public.admin_audit_logs;
+
+CREATE POLICY "Admins can read audit logs"
+ON public.admin_audit_logs
+FOR SELECT
+USING (public.is_admin());
+
+CREATE POLICY "Admins can insert audit logs"
+ON public.admin_audit_logs
+FOR INSERT
+WITH CHECK (public.is_admin());
+
+-- 12-5. RPC: 관리자 role 설정 (부트스트랩/운영용)
+DROP FUNCTION IF EXISTS public.set_profile_role(UUID, TEXT);
+CREATE OR REPLACE FUNCTION public.set_profile_role(p_user_id UUID, p_role TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+BEGIN
+IF auth.role() <> 'service_role' AND public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    IF p_role NOT IN ('user', 'admin') THEN
+        RAISE EXCEPTION 'Invalid role';
+    END IF;
+
+    UPDATE public.profiles
+    SET role = p_role
+    WHERE id = p_user_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Profile not found';
+    END IF;
+END;
+
+$$
+;
+
+-- 12-6. RPC: 신고 생성
+DROP FUNCTION IF EXISTS public.create_report(TEXT, UUID, UUID, TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.create_report(
+  p_target_type TEXT,
+  p_poll_id UUID DEFAULT NULL,
+  p_target_user_id UUID DEFAULT NULL,
+  p_reason_code TEXT,
+  p_reason_detail TEXT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_report_id UUID;
+v_allowed_codes TEXT[] := ARRAY['spam', 'hate', 'sexual', 'violence', 'harassment', 'misinfo', 'other'];
+BEGIN
+IF auth.uid() IS NULL THEN
+RAISE EXCEPTION 'Authentication required';
+END IF;
+
+    IF p_target_type NOT IN ('poll', 'user') THEN
+        RAISE EXCEPTION 'Invalid target_type';
+    END IF;
+
+    IF p_reason_code IS NULL OR p_reason_code = '' OR NOT (p_reason_code = ANY(v_allowed_codes)) THEN
+        RAISE EXCEPTION 'Invalid reason_code';
+    END IF;
+
+    IF p_target_type = 'poll' AND p_poll_id IS NULL THEN
+        RAISE EXCEPTION 'poll_id is required';
+    END IF;
+
+    IF p_target_type = 'user' AND p_target_user_id IS NULL THEN
+        RAISE EXCEPTION 'target_user_id is required';
+    END IF;
+
+    INSERT INTO public.reports (
+      target_type,
+      poll_id,
+      target_user_id,
+      reason_code,
+      reason_detail,
+      reporter_user_id
+    )
+    VALUES (
+      p_target_type,
+      CASE WHEN p_target_type = 'poll' THEN p_poll_id ELSE NULL END,
+      CASE WHEN p_target_type = 'user' THEN p_target_user_id ELSE NULL END,
+      p_reason_code,
+      p_reason_detail,
+      auth.uid()
+    )
+    RETURNING id INTO v_report_id;
+
+    RETURN v_report_id;
+END;
+
+$$
+;
+
+-- 12-7. RPC: 관리자용 신고 목록 조회
+DROP FUNCTION IF EXISTS public.get_reports_admin(TEXT, INT, INT);
+CREATE OR REPLACE FUNCTION public.get_reports_admin(
+  p_status TEXT DEFAULT 'open',
+  p_limit INT DEFAULT 50,
+  p_offset INT DEFAULT 0
+)
+RETURNS TABLE (
+  id UUID,
+  target_type TEXT,
+  poll_id UUID,
+  poll_question TEXT,
+  poll_is_public BOOLEAN,
+  poll_is_featured BOOLEAN,
+  target_user_id UUID,
+  target_username TEXT,
+  reason_code TEXT,
+  reason_detail TEXT,
+  status TEXT,
+  reporter_user_id UUID,
+  reporter_username TEXT,
+  created_at TIMESTAMPTZ,
+  resolved_by UUID,
+  resolved_by_username TEXT,
+  resolved_at TIMESTAMPTZ,
+  admin_note TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    RETURN QUERY
+    SELECT
+      r.id,
+      r.target_type,
+      r.poll_id,
+      p.question AS poll_question,
+      p.is_public AS poll_is_public,
+      p.is_featured AS poll_is_featured,
+      r.target_user_id,
+      tu.username AS target_username,
+      r.reason_code,
+      r.reason_detail,
+      r.status,
+      r.reporter_user_id,
+      ru.username AS reporter_username,
+      r.created_at,
+      r.resolved_by,
+      rbu.username AS resolved_by_username,
+      r.resolved_at,
+      r.admin_note
+    FROM public.reports r
+    LEFT JOIN public.polls p ON p.id = r.poll_id
+    LEFT JOIN public.profiles ru ON ru.id = r.reporter_user_id
+    LEFT JOIN public.profiles tu ON tu.id = r.target_user_id
+    LEFT JOIN public.profiles rbu ON rbu.id = r.resolved_by
+    WHERE (p_status = 'all' OR r.status = p_status)
+    ORDER BY r.created_at DESC
+    LIMIT p_limit
+    OFFSET p_offset;
+END;
+
+$$
+;
+
+-- 12-8. RPC: 신고 처리(상태 변경 + 메모) + 감사 로그
+DROP FUNCTION IF EXISTS public.resolve_report(UUID, TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.resolve_report(
+  p_report_id UUID,
+  p_status TEXT,
+  p_admin_note TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_actor UUID := auth.uid();
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    IF p_status NOT IN ('open', 'resolved', 'dismissed') THEN
+        RAISE EXCEPTION 'Invalid status';
+    END IF;
+
+    UPDATE public.reports
+    SET
+      status = p_status,
+      admin_note = p_admin_note,
+      resolved_by = CASE WHEN p_status = 'open' THEN NULL ELSE v_actor END,
+      resolved_at = CASE WHEN p_status = 'open' THEN NULL ELSE now() END
+    WHERE id = p_report_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Report not found';
+    END IF;
+
+    INSERT INTO public.admin_audit_logs (
+      actor_user_id,
+      action,
+      target_type,
+      target_id,
+      payload
+    )
+    VALUES (
+      v_actor,
+      'resolve_report',
+      'report',
+      p_report_id,
+      jsonb_build_object('status', p_status, 'admin_note', p_admin_note)
+    );
+END;
+
+$$
+;
+
+-- 12-9. RPC: 운영 지표(JSONB) 조회
+DROP FUNCTION IF EXISTS public.get_admin_stats(TEXT);
+CREATE OR REPLACE FUNCTION public.get_admin_stats(p_range TEXT DEFAULT '7d')
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_since TIMESTAMPTZ;
+v_polls_created BIGINT;
+v_votes_cast BIGINT;
+v_favorites_added BIGINT;
+v_active_users BIGINT;
+v_open_reports BIGINT;
+v_featured_polls BIGINT;
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    IF p_range = '24h' THEN
+      v_since := now() - interval '24 hours';
+    ELSIF p_range = '7d' THEN
+      v_since := now() - interval '7 days';
+    ELSIF p_range = '30d' THEN
+      v_since := now() - interval '30 days';
+    ELSIF p_range = 'all' THEN
+      v_since := '1970-01-01'::timestamptz;
+    ELSE
+      RAISE EXCEPTION 'Invalid range';
+    END IF;
+
+    SELECT COUNT(*) INTO v_polls_created
+    FROM public.polls
+    WHERE created_at >= v_since;
+
+    SELECT COUNT(*) INTO v_votes_cast
+    FROM public.user_votes
+    WHERE created_at >= v_since;
+
+    SELECT COUNT(*) INTO v_favorites_added
+    FROM public.favorite_polls
+    WHERE created_at >= v_since;
+
+    SELECT COUNT(DISTINCT user_id) INTO v_active_users
+    FROM public.user_votes
+    WHERE created_at >= v_since;
+
+    SELECT COUNT(*) INTO v_open_reports
+    FROM public.reports
+    WHERE status = 'open';
+
+    SELECT COUNT(*) INTO v_featured_polls
+    FROM public.polls
+    WHERE is_featured = TRUE;
+
+    RETURN jsonb_build_object(
+      'range', p_range,
+      'since', v_since,
+      'polls_created', v_polls_created,
+      'authenticated_votes_cast', v_votes_cast,
+      'favorites_added', v_favorites_added,
+      'active_users', v_active_users,
+      'open_reports', v_open_reports,
+      'featured_polls', v_featured_polls
+    );
+END;
+
+$$
+;
+
+-- 12-10. RPC: 관리자 투표 액션 (공개/비공개, 대표 지정, 삭제) + 감사 로그
+DROP FUNCTION IF EXISTS public.admin_set_poll_visibility(UUID, BOOLEAN);
+CREATE OR REPLACE FUNCTION public.admin_set_poll_visibility(
+  p_poll_id UUID,
+  p_is_public BOOLEAN
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_actor UUID := auth.uid();
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    UPDATE public.polls
+    SET is_public = p_is_public
+    WHERE id = p_poll_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Poll not found';
+    END IF;
+
+    INSERT INTO public.admin_audit_logs (actor_user_id, action, target_type, target_id, payload)
+    VALUES (
+      v_actor,
+      'admin_set_poll_visibility',
+      'poll',
+      p_poll_id,
+      jsonb_build_object('is_public', p_is_public)
+    );
+END;
+
+$$
+;
+
+DROP FUNCTION IF EXISTS public.admin_set_featured(UUID, BOOLEAN);
+CREATE OR REPLACE FUNCTION public.admin_set_featured(
+  p_poll_id UUID,
+  p_is_featured BOOLEAN
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_actor UUID := auth.uid();
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    UPDATE public.polls
+    SET is_featured = p_is_featured
+    WHERE id = p_poll_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Poll not found';
+    END IF;
+
+    INSERT INTO public.admin_audit_logs (actor_user_id, action, target_type, target_id, payload)
+    VALUES (
+      v_actor,
+      'admin_set_featured',
+      'poll',
+      p_poll_id,
+      jsonb_build_object('is_featured', p_is_featured)
+    );
+END;
+
+$$
+;
+
+DROP FUNCTION IF EXISTS public.admin_delete_poll(UUID);
+CREATE OR REPLACE FUNCTION public.admin_delete_poll(p_poll_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_actor UUID := auth.uid();
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    DELETE FROM public.polls
+    WHERE id = p_poll_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Poll not found';
+    END IF;
+
+    INSERT INTO public.admin_audit_logs (actor_user_id, action, target_type, target_id, payload)
+    VALUES (
+      v_actor,
+      'admin_delete_poll',
+      'poll',
+      p_poll_id,
+      NULL
+    );
+END;
+
+$$
+;
+
+-- 함수 실행 권한 부여
+GRANT EXECUTE ON FUNCTION public.is_admin TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin TO anon;
+GRANT EXECUTE ON FUNCTION public.set_profile_role TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_report TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_reports_admin TO authenticated;
+GRANT EXECUTE ON FUNCTION public.resolve_report TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_admin_stats TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_poll_visibility TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_featured TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_poll TO authenticated;
+
 -- 기존 함수 정리 (반환 타입이 변경될 경우, REPLACE가 아닌 DROP 후 CREATE 해야 함)
 DROP FUNCTION IF EXISTS public.get_polls_with_user_status();
 DROP FUNCTION IF EXISTS public.get_poll_with_user_status(UUID);
