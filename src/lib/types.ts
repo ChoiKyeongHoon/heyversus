@@ -8,6 +8,7 @@ export interface Poll {
   featured_image_url: string | null;
   expires_at: string | null;
   status: string;
+  max_voters?: number | null;
 }
 
 export interface PollOption {

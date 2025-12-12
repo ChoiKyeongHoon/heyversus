@@ -62,6 +62,9 @@ export const createPollSchema = z
         "만료 시간은 최대 30일 이내로 설정할 수 있습니다."
       )
       .default(null),
+    maxVoters: z
+      .union([z.number().int().positive(), z.null(), z.undefined()])
+      .default(null),
     optionImageUrls: z
       .array(
         z
@@ -97,6 +100,7 @@ export const createPollSchema = z
     question: payload.question.trim(),
     options: payload.options.map((opt) => opt.trim()),
     optionImageUrls: payload.optionImageUrls?.map((url) => (url ? url.trim() : null)) ?? null,
+    maxVoters: payload.isPublic ? null : payload.maxVoters ?? null,
   }));
 
 export type CreatePollInput = z.input<typeof createPollSchema>;

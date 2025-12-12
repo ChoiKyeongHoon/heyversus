@@ -66,6 +66,7 @@ export default function CreatePollClient() {
   const [isPublic, setIsPublic] = useState(true);
   const [expiresAt, setExpiresAt] = useState(getDefaultExpiresAt());
   const [activePreset, setActivePreset] = useState<string | null>("1d");
+  const [maxVoters, setMaxVoters] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -298,6 +299,8 @@ export default function CreatePollClient() {
       optionImageUrls: options.map((option) => option.imagePath ?? null),
       isPublic,
       expiresAt: expiresAt || null,
+      maxVoters:
+        !isPublic && maxVoters.trim() !== "" ? Number(maxVoters) : null,
     };
 
     const parsed = createPollSchema.safeParse(payload);
@@ -512,7 +515,10 @@ export default function CreatePollClient() {
                     type="radio"
                     name="visibility"
                     checked={isPublic}
-                    onChange={() => setIsPublic(true)}
+                    onChange={() => {
+                      setIsPublic(true);
+                      setMaxVoters("");
+                    }}
                   />
                   공개
                 </label>
@@ -527,6 +533,25 @@ export default function CreatePollClient() {
                 </label>
               </div>
             </div>
+
+            {!isPublic && (
+              <div className="mb-4 md:mb-6">
+                <label className="text-sm md:text-base font-medium text-text-primary mb-2 block">
+                  참여 인원 제한 (선착순, 선택)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="미입력 시 제한 없음"
+                  value={maxVoters}
+                  onChange={(e) => setMaxVoters(e.target.value)}
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm md:text-base text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <p className="mt-1 text-xs text-text-secondary">
+                  정원에 도달하면 자동으로 투표가 마감되고, 이후에는 결과만 확인할 수 있어요.
+                </p>
+              </div>
+            )}
 
             <div className="mb-4 md:mb-6">
               <label className="text-sm md:text-base font-medium text-text-primary mb-2 block">

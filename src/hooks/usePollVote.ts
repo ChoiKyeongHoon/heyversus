@@ -97,6 +97,8 @@ export function usePollVote(options: UsePollVoteOptions = {}) {
 
       if (error.message?.includes("User has already voted")) {
         toast.warning("이미 이 투표에 참여했습니다.");
+      } else if (error.message?.includes("maximum number of voters")) {
+        toast.info("정원이 마감되어 더 이상 투표할 수 없습니다.");
       } else if (error.message?.includes("Authentication required")) {
         toast.error("이 투표는 로그인이 필요합니다.");
       } else {

@@ -97,7 +97,11 @@ export function PollDetailCard({
           )}
         </div>
         <div className="flex items-center gap-2 text-text-secondary">
-          <span>총 {totalVotes.toLocaleString()}표</span>
+          <span>
+            {!poll.is_public && poll.max_voters != null
+              ? `현재 ${totalVotes.toLocaleString()}/${poll.max_voters.toLocaleString()}명`
+              : `총 ${totalVotes.toLocaleString()}표`}
+          </span>
           <FavoriteToggle
             isFavorited={Boolean(isFavorited)}
             pending={favoritePending}

@@ -33,6 +33,7 @@ export interface CreatePollParams {
   options: string[];
   isPublic: boolean;
   expiresAt?: string | null;
+  maxVoters?: number | null;
   optionImageUrls?: (string | null)[] | null;
 }
 
@@ -305,6 +306,7 @@ export async function createPoll(params: CreatePollParams) {
     expires_at_param: params.expiresAt
       ? new Date(params.expiresAt).toISOString()
       : null,
+    max_voters_param: params.maxVoters ?? null,
   });
 
   if (error) {

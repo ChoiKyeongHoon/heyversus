@@ -1663,3 +1663,270 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 10-4. create_new_poll 함수는 option_image_urls 배열을 받아 image_url을 함께 저장합니다.
 --       (상단의 함수 정의를 최신 버전으로 교체 후 실행)
+
+-- =============================================================================
+-- 11. Step 20 – 비공개 투표 언리스트드 링크 + 정원 제한(max_voters)
+-- =============================================================================
+
+-- 11-1. polls.max_voters 컬럼 추가 (비공개에서만 사용, NULL=제한 없음)
+ALTER TABLE public.polls
+ADD COLUMN IF NOT EXISTS max_voters INT;
+
+-- 전체 재실행 안전을 위해 기존 create_new_poll(구 시그니처)를 제거합니다.
+DROP FUNCTION IF EXISTS public.create_new_poll(TEXT, TEXT[], TEXT[], BOOLEAN, TIMESTAMPTZ);
+
+-- 11-2. create_new_poll 함수 확장: max_voters_param 추가
+CREATE OR REPLACE FUNCTION public.create_new_poll(
+question_text TEXT, -- 새 투표의 질문
+option_texts TEXT[], -- 투표 선택지들의 텍스트 배열
+option_image_urls TEXT[] DEFAULT NULL, -- 선택지 이미지 경로(스토리지 객체 경로)
+is_public BOOLEAN DEFAULT TRUE, -- 공개/비공개 여부
+expires_at_param TIMESTAMPTZ DEFAULT NULL, -- 투표 만료 시각
+max_voters_param INT DEFAULT NULL -- 비공개 투표 정원 제한(선착순), NULL=제한 없음
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+new_poll_id UUID;
+option_text TEXT;
+BEGIN
+IF question_text IS NULL OR trim(question_text) = '' THEN
+RAISE EXCEPTION 'Question text cannot be empty.';
+END IF;
+
+    IF option_texts IS NULL OR array_length(option_texts, 1) < 2 THEN
+        RAISE EXCEPTION 'At least 2 options are required.';
+    END IF;
+
+    IF array_length(option_texts, 1) > 6 THEN
+        RAISE EXCEPTION 'Maximum 6 options are allowed.';
+    END IF;
+
+    FOREACH option_text IN ARRAY option_texts
+    LOOP
+        IF option_text IS NULL OR trim(option_text) = '' THEN
+            RAISE EXCEPTION 'All option texts must be non-empty.';
+        END IF;
+    END LOOP;
+
+    IF expires_at_param IS NOT NULL AND expires_at_param <= now() THEN
+        RAISE EXCEPTION 'Expiration time must be in the future.';
+    END IF;
+
+    IF option_image_urls IS NOT NULL
+       AND array_length(option_image_urls, 1) IS NOT NULL
+       AND array_length(option_image_urls, 1) <> array_length(option_texts, 1) THEN
+        RAISE EXCEPTION 'option_image_urls length must match option_texts length.';
+    END IF;
+
+    -- 공개 투표는 정원 제한을 사용하지 않습니다.
+    IF is_public = TRUE THEN
+        max_voters_param := NULL;
+    END IF;
+
+    IF max_voters_param IS NOT NULL AND max_voters_param <= 0 THEN
+        RAISE EXCEPTION 'max_voters must be positive.';
+    END IF;
+
+    INSERT INTO public.polls (question, created_by, is_public, expires_at, max_voters)
+    VALUES (question_text, auth.uid(), is_public, expires_at_param, max_voters_param)
+    RETURNING id INTO new_poll_id;
+
+    INSERT INTO public.poll_options (poll_id, text, votes, position, image_url)
+    SELECT
+        new_poll_id,
+        opt_text,
+        0,
+        idx - 1,
+        CASE
+            WHEN option_image_urls IS NULL THEN NULL
+            WHEN array_length(option_image_urls, 1) IS NULL THEN NULL
+            ELSE option_image_urls[idx]
+        END
+    FROM UNNEST(option_texts) WITH ORDINALITY AS t(opt_text, idx);
+
+    RETURN new_poll_id;
+END;
+
+$$
+;
+
+-- 11-3. 언리스트드 링크 모델 접근 제어
+-- 공개 투표는 누구나 접근 가능, 비공개 투표는 로그인 사용자라면 링크로 접근 가능
+CREATE OR REPLACE FUNCTION public.can_access_poll(p_poll_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+current_user_id UUID := auth.uid();
+poll_is_public BOOLEAN;
+BEGIN
+SELECT is_public INTO poll_is_public
+FROM public.polls
+WHERE id = p_poll_id;
+
+    IF poll_is_public IS NULL THEN
+        RETURN false;
+    END IF;
+
+    IF poll_is_public = true THEN
+        RETURN true;
+    END IF;
+
+    RETURN current_user_id IS NOT NULL;
+END;
+
+$$
+;
+
+-- 전체 재실행 안전을 위해 기존 get_poll_with_user_status를 제거합니다.
+DROP FUNCTION IF EXISTS public.get_poll_with_user_status(UUID);
+
+-- 11-4. 상세 조회 RPC 권한 모델 변경 + max_voters 포함
+CREATE OR REPLACE FUNCTION public.get_poll_with_user_status(p_id UUID)
+RETURNS TABLE (
+    id UUID,
+    created_at TIMESTAMPTZ,
+    question TEXT,
+    created_by UUID,
+    is_public BOOLEAN,
+    is_featured BOOLEAN,
+    featured_image_url TEXT,
+    expires_at TIMESTAMPTZ,
+    status VARCHAR,
+    max_voters INT,
+    has_voted BOOLEAN,
+    is_favorited BOOLEAN,
+    poll_options JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+current_user_id UUID := auth.uid();
+BEGIN
+RETURN QUERY
+SELECT
+p.id,
+p.created_at,
+p.question,
+p.created_by,
+p.is_public,
+p.is_featured,
+p.featured_image_url,
+p.expires_at,
+p.status,
+p.max_voters,
+EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
+EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
+(SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+FROM
+public.polls p
+WHERE
+p.id = p_id
+AND (
+p.is_public = TRUE
+OR (p.is_public = FALSE AND current_user_id IS NOT NULL)
+);
+END;
+
+$$
+;
+
+-- 11-5. increment_vote 정원 제한 및 자동 마감(max_voters)
+CREATE OR REPLACE FUNCTION public.increment_vote(
+    option_id_to_update UUID,
+    poll_id_for_vote UUID
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+current_user_id UUID := auth.uid();
+target_poll RECORD;
+voters_before INT := 0;
+BEGIN
+SELECT id, is_public, expires_at, status, max_voters INTO target_poll
+FROM public.polls
+WHERE id = poll_id_for_vote
+FOR UPDATE;
+
+    IF target_poll IS NULL THEN
+        RAISE EXCEPTION 'Poll not found.';
+    END IF;
+
+    IF target_poll.status = 'closed' OR target_poll.expires_at IS NOT NULL AND target_poll.expires_at < now() THEN
+        RAISE EXCEPTION 'This poll is closed and no longer accepting votes.';
+    END IF;
+
+    IF current_user_id IS NOT NULL THEN
+        IF EXISTS (SELECT 1 FROM public.user_votes WHERE user_id = current_user_id AND poll_id = poll_id_for_vote) THEN
+            RAISE EXCEPTION 'User has already voted on this poll.';
+        END IF;
+
+        -- 비공개 + 정원 제한이 있는 경우, 선착순 상한을 원자적으로 강제합니다.
+        IF target_poll.is_public = FALSE AND target_poll.max_voters IS NOT NULL THEN
+            SELECT COUNT(DISTINCT user_id) INTO voters_before
+            FROM public.user_votes
+            WHERE poll_id = poll_id_for_vote;
+
+            IF voters_before >= target_poll.max_voters THEN
+                UPDATE public.polls
+                SET status = 'closed'
+                WHERE id = poll_id_for_vote;
+                RAISE EXCEPTION 'This poll has reached the maximum number of voters.';
+            END IF;
+        END IF;
+
+        INSERT INTO public.user_votes (user_id, poll_id, option_id)
+        VALUES (current_user_id, poll_id_for_vote, option_id_to_update);
+
+        UPDATE public.profiles
+        SET points = points + 1
+        WHERE id = current_user_id;
+
+    ELSE
+        IF NOT target_poll.is_public THEN
+            RAISE EXCEPTION 'Authentication required to vote on this private poll.';
+        END IF;
+    END IF;
+
+    UPDATE public.poll_options
+    SET votes = COALESCE(votes, 0) + 1
+    WHERE id = option_id_to_update
+    AND poll_id = poll_id_for_vote;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Option not found for this poll.';
+    END IF;
+
+    -- N번째 투표 성공 직후 자동 마감
+    IF current_user_id IS NOT NULL
+       AND target_poll.is_public = FALSE
+       AND target_poll.max_voters IS NOT NULL
+       AND voters_before + 1 >= target_poll.max_voters THEN
+        UPDATE public.polls
+        SET status = 'closed'
+        WHERE id = poll_id_for_vote;
+    END IF;
+
+END;
+
+$$
+;

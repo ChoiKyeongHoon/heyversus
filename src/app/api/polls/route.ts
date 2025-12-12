@@ -199,6 +199,7 @@ export async function POST(request: NextRequest) {
       options: payload.options,
       isPublic: payload.isPublic ?? true,
       expiresAt: payload.expiresAt ?? null,
+      maxVoters: payload.maxVoters ?? null,
       optionImageUrls: payload.optionImageUrls ?? null,
     });
 
