@@ -52,44 +52,49 @@
 ```
 /
 ├── public/              # 정적 에셋 (이미지, 폰트 등)
+├── scripts/             # 시딩/배치 스크립트
 ├── src/
-│   ├── __tests__/          # Jest + RTL 테스트 코드
-│   ├── app/               # Next.js App Router 페이지 및 레이아웃
-│   │   ├── api/           # RESTful API Route handlers
-│   │   ├── page.tsx       # 메인 랜딩 페이지 (대표 투표)
-│   │   ├── signin/        # 로그인 페이지
-│   │   ├── signup/        # 회원가입 페이지
-│   │   ├── create-poll/   # 투표 생성 페이지
-│   │   ├── polls/         # 전체 투표 목록 페이지
-│   │   ├── favorites/     # 즐겨찾기한 투표 목록 페이지
-│   │   ├── poll/[id]/     # 투표 상세 및 결과 페이지
-│   │   ├── account/       # 프로필 관리 페이지
-│   │   ├── score/         # 사용자 랭킹(스코어보드) 페이지
-│   │   └── globals.css    # 글로벌 스타일 및 디자인 토큰
-│   ├── components/        # 재사용 가능한 UI 컴포넌트
-│   │   ├── common/        # Skeleton, ErrorState, EmptyState 등 공용 컴포넌트
-│   │   ├── layout/        # Navbar 등 레이아웃 컴포넌트
-│   │   ├── polls/         # PollCard, FavoriteToggle, PollsHero, PollCategoryTabs, LoadMoreTrigger
-│   │   ├── ui/            # Button, Card, Badge, Input, loader 등 기본 UI
-│   │   ├── theme-provider.tsx  # next-themes Provider
-│   │   └── theme-toggle.tsx    # 다크/라이트 모드 토글 버튼
-│   ├── constants/         # 애플리케이션 상수 (storage, cache, defaults)
-│   ├── hooks/             # 재사용 가능한 커스텀 훅
-│   │   ├── useSession.ts          # Supabase 세션 관리
-│   │   ├── useLocalStorage.ts     # 타입 안전 localStorage 동기화
-│   │   ├── useVisibilityChange.ts # 페이지 가시성 감지
-│   │   ├── useSupabase.ts         # Supabase 클라이언트 최적화
-│   │   ├── usePollVote.ts         # 투표 참여 Optimistic Update
-│   │   └── useToggleFavorite.ts   # 즐겨찾기 토글
-│   ├── lib/               # 공통 유틸리티, Supabase 클라이언트 및 서비스 계층
-│   │   ├── services/      # Supabase RPC를 감싼 비즈니스 로직
-│   │   └── stores/        # Zustand 기반 전역 상태
-│   ├── providers/         # React Query 등 글로벌 Provider 구성
+│   ├── __tests__/       # Jest + RTL 테스트 코드
+│   ├── app/             # Next.js App Router 페이지 및 레이아웃
+│   │   ├── api/         # Route handlers (REST API)
+│   │   ├── auth/        # OAuth/세션 콜백 라우트
+│   │   ├── signin/      # 로그인 페이지
+│   │   ├── signup/      # 회원가입 페이지
+│   │   ├── create-poll/ # 투표 생성 페이지
+│   │   ├── polls/       # 전체 투표 목록 페이지
+│   │   ├── favorites/   # 즐겨찾기한 투표 목록 페이지
+│   │   ├── poll/[id]/   # 투표 상세 및 결과 페이지
+│   │   ├── account/     # 프로필 관리 페이지
+│   │   ├── score/       # 사용자 랭킹(스코어보드) 페이지
+│   │   ├── layout.tsx   # 루트 레이아웃
+│   │   ├── page.tsx     # 메인 랜딩 페이지 (대표 투표)
+│   │   └── globals.css  # 글로벌 스타일 및 디자인 토큰
+│   ├── components/      # 재사용 가능한 UI 컴포넌트
+│   │   ├── common/      # Skeleton, ErrorState, EmptyState 등 공용 컴포넌트
+│   │   ├── layout/      # Navbar 등 레이아웃 컴포넌트
+│   │   ├── polls/       # Poll 관련 컴포넌트
+│   │   └── ui/          # shadcn 기반 기본 UI
+│   ├── constants/       # 애플리케이션 상수 (storage, cache, defaults)
+│   ├── hooks/           # 재사용 가능한 커스텀 훅
+│   │   ├── useCurrentProfile.ts
+│   │   ├── useInfinitePolls.ts
+│   │   ├── useLeaderboard.ts
+│   │   ├── usePollVote.ts
+│   │   ├── useToggleFavorite.ts
+│   │   └── useVoteStatus.ts
+│   ├── lib/             # 공통 유틸리티, Supabase 클라이언트 및 서비스 계층
+│   │   ├── services/    # Supabase RPC/스토리지 비즈니스 로직
+│   │   ├── stores/      # Zustand 기반 전역 상태
+│   │   ├── supabase/    # anon/server/service-role 클라이언트
+│   │   ├── validation/  # Zod 스키마
+│   │   ├── types.ts     # 공유 타입
+│   │   └── utils.ts     # 공용 유틸
+│   ├── providers/       # React Query 등 글로벌 Provider 구성
 │   ├── instrumentation.ts # Sentry 등 Next.js instrumentation 훅
-│   └── middleware.ts      # Supabase 세션 관리 미들웨어
-├── QUERY.md             # 데이터베이스 스키마 (SQL)
+│   └── middleware.ts    # Supabase 세션 관리 미들웨어
+├── references/          # 참고 문서 및 가이드
+│   └── QUERY.md         # 데이터베이스 스키마 (SQL)
 ├── ROADMAP.md           # 개발 로드맵 및 진행 현황
-├── references/          # 참고 문서 및 가이드 (디자인 시스템, SQL 스크립트 등)
 └── README.md            # 프로젝트 문서
 ```
 
@@ -154,18 +159,23 @@
 
 ## 📊 데이터베이스 스키마
 
-`QUERY.md` 파일은 전체 데이터베이스 스키마를 정의합니다. 주요 테이블 간의 관계는 다음과 같습니다.
+`references/QUERY.md` 파일은 전체 데이터베이스 스키마(SQL)를 정의합니다. 주요 테이블 간의 관계는 다음과 같습니다.
 
 ```mermaid
 erDiagram
-    users ||--|{ profiles : "has one"
+    users ||--|| profiles : "has one"
     users ||--o{ polls : "creates"
     users ||--o{ user_votes : "casts"
+    users ||--o{ favorite_polls : "favorites"
 
     polls ||--|{ poll_options : "contains"
     polls ||--o{ user_votes : "is voted on"
+    polls ||--o{ favorite_polls : "is favorited"
 
     poll_options ||--o{ user_votes : "is chosen in"
+
+    profiles ||--|| profile_scores : "has score"
+    profiles ||--o{ profile_score_events : "logs"
 
     users {
         UUID id PK
@@ -185,11 +195,12 @@ erDiagram
 
     polls {
         UUID id PK
+        timestamptz created_at
         text question
         UUID created_by
         boolean is_public
         boolean is_featured
-        timestamptz created_at
+        text featured_image_url
         timestamptz expires_at
         varchar status
     }
@@ -197,16 +208,12 @@ erDiagram
     poll_options {
         UUID id PK
         UUID poll_id
-    text text
-    int votes
-    text image_url
-    int position
-  }
-
-**정렬 규칙**: 모든 목록/상세에서 옵션은 `position → created_at → id` 순으로 정렬되며, 생성 순서가 유지됩니다. `poll_options.position`은 옵션 생성 시 자동으로 채워집니다.
-
-    users ||--o{ favorite_polls : "favorites"
-    polls ||--o{ favorite_polls : "is favorited"
+        text text
+        int votes
+        text image_url
+        int position
+        timestamptz created_at
+    }
 
     user_votes {
         UUID id PK
@@ -222,7 +229,25 @@ erDiagram
         UUID poll_id
         timestamptz created_at
     }
+
+    profile_scores {
+        UUID user_id PK
+        numeric score
+        timestamptz last_activity_at
+        timestamptz updated_at
+    }
+
+    profile_score_events {
+        UUID id PK
+        UUID user_id
+        text event_type
+        UUID poll_id
+        numeric weight
+        timestamptz occurred_at
+    }
 ```
+
+**정렬 규칙**: 모든 목록/상세에서 옵션은 `position → created_at → id` 순으로 정렬되며, 생성 순서가 유지됩니다. `poll_options.position`은 옵션 생성 시 자동으로 채워집니다.
 
 ## 📌 업데이트 기록
 
@@ -393,7 +418,7 @@ erDiagram
   - `lucide-react`: UI 아이콘 라이브러리
 - **빌드 검증**: `npm run build` 성공 (15개 페이지, /account 포함), TypeScript 통과, ESLint 통과.
 
-**⚠️ 배포 전 필수 작업**: `QUERY.md`의 SQL을 Supabase SQL Editor에서 실행해야 프로덕션에서 작동합니다.
+**⚠️ 배포 전 필수 작업**: `references/QUERY.md`의 SQL을 Supabase SQL Editor에서 실행해야 프로덕션에서 작동합니다.
 
 ### v0.5.1
 
@@ -453,7 +478,7 @@ erDiagram
   - 정렬 옵션: 최신순 / 오래된순 / 투표 많은순 / 투표 적은순 / 마감 임박순 / 마감 여유순
   - 필터/정렬 상태를 URL 쿼리 파라미터로 관리하여 공유 가능한 링크 생성
 - **데이터베이스 최적화**:
-  - `get_polls_paginated` RPC 함수 생성 (SQL은 `QUERY.md` 참조)
+  - `get_polls_paginated` RPC 함수 생성 (SQL은 `references/QUERY.md` 참조)
   - 성능 인덱스 추가: created_at, expires_at, status, public_creator, votes
   - 페이지네이션 메타데이터 포함 (total, hasNextPage, nextOffset)
 - **API 계층 강화**:
@@ -475,7 +500,7 @@ erDiagram
 - **접근성 유지**: WCAG 2.1 AA 준수, 키보드 네비게이션, 스크린 리더 지원, 44px 터치 영역.
 - **문서화**:
   - `references/SCALE_DESIGN.md`: 아키텍처 설계 + 구현 요약 + SQL Appendix
-  - `QUERY.md`: Supabase SQL 실행 스크립트 및 가이드
+  - `references/QUERY.md`: Supabase SQL 실행 스크립트 및 가이드
 - **번들 크기**: +15KB (+7.6%) - React Query 통합으로 인한 증가지만 성능 이득이 훨씬 큼.
 - **빌드 검증**: `npm run lint` (0 warnings), `npm run build` 성공 (14개 페이지).
 

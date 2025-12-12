@@ -4,9 +4,9 @@
 
 - **기술 스택**: Next.js 15.5.2, React 19.1.0, TypeScript, Tailwind CSS v4, Supabase.
 - **핵심 기능**: 투표 생성·참여·조회, 실시간 결과, 공유 링크, 로그인/회원가입.
-- **최근 해결**: `PollPageProps` 타입 부재 해결, `create_new_poll`/`increment_vote` Supabase 함수 생성, `question` → `title` 필드 정합성 확보.
-- **현재 상태**: 생성/조회는 정상, 투표 실행은 `increment_vote` 파라미터 불일치로 일부 실패 가능.
-- **데이터 모델**: `polls(id, title, is_public, created_at, user_id)`, `poll_options(id, poll_id, text, votes, image_url, created_at)`.
+- **최근 해결**: `PollPageProps` 타입 부재 해결, `create_new_poll`/`increment_vote` Supabase 함수 보강, `poll.question` 필드 정합성 확보.
+- **현재 상태**: 생성/조회/투표·즐겨찾기·랭킹·이미지 업로드까지 핵심 플로우 정상, 다음은 비공개 초대 기능(Step 20).
+- **데이터 모델**: `polls(id, question, created_by, is_public, is_featured, featured_image_url, expires_at, status, created_at)`, `poll_options(id, poll_id, text, votes, image_url, position, created_at)`.
 
 ## Step 1 – 크리티컬 이슈 안정화 (완료)
 
@@ -612,6 +612,8 @@
 
 ## Step 20 – 비공개 투표 초대 기능 (예정)
 
+- ⏳ **계획 수립**: `references/STEP20_PRIVATE_INVITE_PLAN.md`에 비공개 투표 초대, 선착순 인원 제한(`max_voters`), 수동 마감/재오픈, RLS/RPC/UI/테스트 플랜을 정리했습니다.
+- ⏳ **정원 제한 & 예약 마감 포함**: 비공개 투표는 `expires_at`(마감 캡) 필수, `max_voters` 선택 입력(NULL=제한 없음), 정원 마감(limit)은 `max_voters` 상향/해제 시 자동 해제, 수동/예약 마감은 캡 내 1회 설정 후 비가역으로 종료되도록 설계합니다.
 - ⏳ **접근 제어 모델 확장**: `poll_invites` (또는 `poll_access`) 테이블을 추가하고, 생성자 ID + 초대 대상 사용자 ID/이메일을 매핑하는 RLS 정책을 설계합니다. 비공개 투표(`is_public = false`)는 생성자 또는 초대 목록에 포함된 사용자만 SELECT/INSERT 가능하도록 조건을 확장합니다.
 - ⏳ **초대 토큰 & 링크 설계**: Supabase JWT 혹은 Edge Function을 활용해 서명된 초대 토큰을 발급하고, 제한된 기간 동안만 유효한 초대 링크(`/poll/<id>?invite=<token>` 등)를 제공합니다. 토큰 검증 로직과 만료/재발급 정책을 정의합니다.
 - ⏳ **RPC 및 서비스 계층 구현**:
@@ -626,6 +628,7 @@
 
 ## Step 21 – 관리자 운영 대시보드 (예정)
 
+- ⏳ **계획 수립**: `references/STEP21_ADMIN_DASHBOARD_PLAN.md`에 관리자 권한 모델(A안), 신고 테이블/플로우, 지표 JSONB 설계, 관리자 액션/감사 로그, `/admin` UI 구조를 정리했습니다.
 - ⏳ `/admin` 보호 라우트를 생성하고 Supabase RLS 및 역할 기반 인증(관리자 전용)를 설정.
 - ⏳ 신고된 투표/사용자 목록, 즐겨찾기 통계, 성장 지표 등을 한눈에 확인할 수 있는 카드/테이블 UI 구성.
 - ⏳ 관리자가 투표 비공개 전환, 삭제, 하이라이트 지정 등을 수행할 수 있는 액션 패널과 감사 로그 기록.
@@ -633,6 +636,7 @@
 
 ## Step 22 – 지속적 개선 (예정)
 
+- ✅ **문서/아키텍처 동기화**: `references/ARCHITECTURE.md`, `references/USERFLOWCHART.md`, README의 구조·DB 스키마를 최신 코드/스키마에 맞게 정합화.
 - ⏳ **랭킹 알고리즘 재정의**: 가중치·즐겨찾기/공유 지표 등을 반영한 스코어 공식 재설계 및 스키마 교체.
 - ⏳ **데이터 파이프라인 확장**: 실시간/배치 혼합 파이프라인, 트리거·리얼타임 채널, Edge Function 적용.
 - ⏳ **리더보드 UX 확장**: `/score` 뷰 전환(전체/친구/지역), 순위 변동/하이라이트, 모바일 가독성 개선.

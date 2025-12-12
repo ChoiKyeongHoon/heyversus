@@ -16,14 +16,16 @@ graph TD
     subgraph "투표 생성"
         Create_Entry["/create-poll"]
         Create_Check{로그인 여부}
-        Create_Form[질문 · 선택지 입력<br/>만료 시간 설정]
+        Create_Form[질문 · 선택지 입력<br/>만료 시간 설정<br/>(선택지 이미지 선택 옵션)]
+        Create_Image[선택지 이미지 업로드(옵션)<br/>poll_images 서명 URL]
         Create_Save["create_new_poll RPC 호출"]
         Create_Detail["/poll/[id] 상세 페이지"]
 
         Create_Entry --> Create_Check
         Create_Check -- No --> Auth_SignIn
         Create_Check -- Yes --> Create_Form
-        Create_Form -- 생성하기 --> Create_Save
+        Create_Form -- 생성하기 --> Create_Image
+        Create_Image --> Create_Save
         Create_Save --> Create_Detail
     end
 
@@ -35,7 +37,7 @@ graph TD
         Vote_Duplicate_Login{이미 투표했는가?}
         Vote_Duplicate_Guest{localStorage 기록 존재?}
         Vote_Submit["increment_vote RPC"]
-        Vote_Store["React Query 캐시 갱신<br/>+ Supabase revalidate"]
+        Vote_Store["React Query 캐시 패치<br/>+ invalidateQueries"]
         Vote_View["최신 결과 렌더링"]
 
         Vote_Page --> Vote_Fetch

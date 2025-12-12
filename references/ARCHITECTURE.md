@@ -17,7 +17,7 @@ graph TD
         G --> H[Auth · Session]
         G --> I[PostgreSQL]
         G --> J[Edge Functions]
-        G --> K[Storage (avatars 버킷)]
+        G --> K[Storage (avatars, poll_images 버킷)]
     end
 
     subgraph "데이터 계층 로직"
