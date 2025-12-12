@@ -30,6 +30,22 @@
 - role이 `admin`이 아니면 403 또는 메인으로 리다이렉트한다.
 - API 라우트/서버 액션도 동일한 `requireAdmin()` 가드를 재사용한다.
 
+### 2-1) 접속 방법 & 권한 부여(부트스트랩)
+- 접속 URL
+  - 로컬 개발: `npm run dev` 실행 후 `http://localhost:3000/admin`
+  - 배포: `https://heyversus.vercel.app/admin`
+- 접근 조건
+  - 로그인 상태여야 하며, `public.profiles.role = 'admin'` 이어야 접근 가능
+- 선행 작업(필수)
+  - Supabase SQL Editor에서 `references/QUERY.md`의 **Step 21(Section 12)** 블록을 먼저 실행
+    - `profiles.role` 컬럼, `reports`, `admin_audit_logs`, 관리자 RPC/정책이 포함됨
+- 관리자 role 부여(가장 단순/안전)
+  - Supabase Dashboard → Authentication → Users에서 내 `id(UUID)` 확인 후 아래 실행:
+    - `UPDATE public.profiles SET role = 'admin' WHERE id = '<내 UUID>';`
+- 접속이 안 될 때 체크
+  - `/admin`이 `/`로 리다이렉트: role이 admin이 아님
+  - “DB 스키마가 최신이 아님/role 컬럼 없음” 류 오류: Step 21 SQL 미적용(특히 `profiles.role`)
+
 ### 3) 신고(Report) 플로우
 - 신고 대상: **투표(poll) + 사용자(user) 모두 지원**.
 - 신고 사유: **고정 코드(enum/check) + 자유 서술** 하이브리드.
@@ -167,4 +183,3 @@
 - 신고 대상에 “댓글/옵션” 등 추가 여부(후속).
 - admin UI 탭 구성/필터/검색 UX 세부 확정.
 - 관리자 role 부여 운영 프로세스(운영 SQL vs admin 전용 화면).
-

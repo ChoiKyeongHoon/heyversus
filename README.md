@@ -288,6 +288,7 @@
 - **신고(Report) 플로우(베타)**: 투표 상세에서 신고를 생성하고, `/admin`에서 신고 목록 조회/상태 변경/메모 기록을 지원합니다.
 - **관리자 액션 & 감사 로그**: 투표 공개/비공개 전환, 대표 투표 지정/해제, 삭제 액션을 추가하고 모든 액션을 `admin_audit_logs`로 기록합니다.
 - **SQL 스키마/RPC 추가**: `references/QUERY.md` Step 21 블록에 `profiles.role`, `reports`, `admin_audit_logs`, 관리자 RPC를 추가했습니다. (Supabase에서 Step 21 블록 실행 필요)
+- **운영 가이드**: `references/STEP21_ADMIN_DASHBOARD_PLAN.md`에 `/admin` 접속 및 관리자 role 부여(부트스트랩) 절차를 추가했습니다.
 - **로드맵 보완**: `ROADMAP.md` Step 22에 `profiles.role` 노출 최소화 옵션 2안(A: 공개용 view/RPC 분리, B: roles 분리 테이블 + RLS)을 기록했습니다.
 
 ### v0.7.1
