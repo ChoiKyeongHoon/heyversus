@@ -258,6 +258,7 @@ erDiagram
 - **전체 재실행 안전화**: Step 20 블록 시작에 구 시그니처 `create_new_poll`과 기존 `get_poll_with_user_status`를 `DROP`하도록 추가해, `references/QUERY.md` 전체 재실행 시에도 최신 정의로 일관되게 적용됩니다.
 - **UI/UX 보강**: `/create-poll`에 비공개 정원 입력 UI를 추가했고, `/poll/[id]`에서 현재/최대 참여자 표기 및 정원 마감 시 안내 토스트를 제공합니다.
 - **문서/로드맵 정리**: `references/STEP20_PRIVATE_INVITE_PLAN.md`를 최소 범위(언리스트드+정원 제한) 기준으로 재작성했고, `ROADMAP.md`에서 Step 20을 ✅ 완료로 갱신했습니다.
+- **로드맵 보완**: `ROADMAP.md` Step 22에 `profiles.role` 노출 최소화 옵션 2안(A: 공개용 view/RPC 분리, B: roles 분리 테이블 + RLS)을 기록했습니다.
 
 ### v0.7.0
 
