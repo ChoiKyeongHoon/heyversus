@@ -37,11 +37,14 @@
 - 접근 조건
   - 로그인 상태여야 하며, `public.profiles.role = 'admin'` 이어야 접근 가능
 - 선행 작업(필수)
-  - Supabase SQL Editor에서 `references/QUERY.md`의 **Step 21(Section 12)** 블록을 먼저 실행
-    - `profiles.role` 컬럼, `reports`, `admin_audit_logs`, 관리자 RPC/정책이 포함됨
+  - Supabase SQL Editor에서 `references/QUERY.md`를 **전체 실행** (권장)
+    - 관리자 기능(Section 12) + 대표 투표 단일화(대표 지정 RPC/인덱스)까지 함께 적용됩니다.
 - 관리자 role 부여(가장 단순/안전)
   - Supabase Dashboard → Authentication → Users에서 내 `id(UUID)` 확인 후 아래 실행:
-    - `UPDATE public.profiles SET role = 'admin' WHERE id = '<내 UUID>';`
+    - `UPDATE public.profiles SET role = 'admin' WHERE id = '내-UUID-여기에-붙여넣기';`
+    - ⚠️ 주의: 예시의 `< >`는 플레이스홀더입니다. 실제 실행할 때는 UUID만 남기고 `< >`는 제거하세요.
+- 관리자 role 회수(권한 삭제)
+  - `UPDATE public.profiles SET role = 'user' WHERE id = '내-UUID-여기에-붙여넣기';`
 - 접속이 안 될 때 체크
   - `/admin`이 `/`로 리다이렉트: role이 admin이 아님
   - “DB 스키마가 최신이 아님/role 컬럼 없음” 류 오류: Step 21 SQL 미적용(특히 `profiles.role`)
@@ -61,6 +64,12 @@
 ### 5) 관리자 액션 & 감사 로그
 - 관리자는 투표에 대해 비공개 전환/삭제/대표 지정 등의 액션을 실행할 수 있다.
 - 모든 액션은 서버에서 권한을 다시 확인하고, **admin_audit_logs에 payload 포함으로 기록**한다.
+
+### 5-1) 대표 투표 운영 규칙(구현 반영)
+- 대표 투표(`polls.is_featured = true`)는 **동시에 1개만 허용**된다. (DB 제약 + RPC 로직)
+- 대표 투표 지정 시 기존 대표 투표는 **자동 해제**된다.
+- 대표 투표로 지정하려면 **모든 선택지(투표 대상)에 이미지(`poll_options.image_url`)가 있어야** 한다.
+- 홈/카드에서 사용하는 대표 투표 이미지는 `polls.featured_image_url`이 아니라 **선택지 이미지(`poll_options.image_url`)**를 기준으로 노출한다.
 
 ## 설계 안 (백엔드)
 ### DB 스키마
@@ -98,6 +107,7 @@
 - `reports(status, created_at)`
 - `reports(poll_id)` / `reports(target_user_id)`
 - `admin_audit_logs(created_at, actor_user_id)`
+- 대표 투표 단일화: `polls`의 `is_featured=true`를 **부분 유니크 인덱스**로 1개만 허용
 
 ### RLS 정책
 1) `profiles`
@@ -143,9 +153,11 @@
 - `/api/admin/stats` (GET)
 - `/api/admin/reports` (GET/POST)
 - `/api/admin/reports/[id]` (PATCH)
+- `/api/admin/polls` (GET) — 투표 목록 검색/필터/페이지네이션
 - `/api/admin/polls/[id]/visibility` (PATCH)
 - `/api/admin/polls/[id]/feature` (PATCH)
 - `/api/admin/polls/[id]` (DELETE)
+- `/api/admin/poll-options/[id]/image` (PATCH) — 선택지 이미지(업로드/외부 URL) 설정/수정
 - 모든 라우트는 `requireAdmin()` 가드 + Zod 검증 후 RPC 호출.
 
 ## 클라이언트 UI/UX

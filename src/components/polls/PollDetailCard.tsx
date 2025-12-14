@@ -11,6 +11,16 @@ import { cn } from "@/lib/utils";
 import { FavoriteToggle } from "./FavoriteToggle";
 import { ReportButton } from "./ReportButton";
 
+const supabaseHostname = (() => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+})();
+
 type PollDetailCardProps = {
   poll: PollWithOptions;
   totalVotes: number;
@@ -212,20 +222,30 @@ export function PollDetailCard({
                   isRouletteHighlight && "ring-1 ring-primary/40"
                 )}
               >
-                {option.image_url ? (
-                  <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg">
-                    <Image
-                      src={option.image_url}
-                      alt={option.text || "Poll option"}
-                      fill
-                      sizes="48px"
-                      className="object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
-                    VS
-                  </div>
+	                {option.image_url ? (
+	                  <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg">
+	                    {supabaseHostname && option.image_url.includes(supabaseHostname) ? (
+	                      <Image
+	                        src={option.image_url}
+	                        alt={option.text || "Poll option"}
+	                        fill
+	                        sizes="48px"
+	                        className="object-cover"
+	                      />
+	                    ) : (
+	                      <img
+	                        src={option.image_url}
+	                        alt={option.text || "Poll option"}
+	                        className="h-full w-full object-cover"
+	                        loading="lazy"
+	                        referrerPolicy="no-referrer"
+	                      />
+	                    )}
+	                  </div>
+	                ) : (
+	                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
+	                    VS
+	                  </div>
                 )}
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-sm font-semibold text-text-primary md:text-base">

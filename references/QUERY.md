@@ -259,8 +259,8 @@ $$
 DROP FUNCTION IF EXISTS public.create_report(TEXT, UUID, UUID, TEXT, TEXT);
 CREATE OR REPLACE FUNCTION public.create_report(
   p_target_type TEXT,
-  p_poll_id UUID DEFAULT NULL,
-  p_target_user_id UUID DEFAULT NULL,
+  p_poll_id UUID,
+  p_target_user_id UUID,
   p_reason_code TEXT,
   p_reason_detail TEXT DEFAULT NULL
 )
@@ -580,6 +580,16 @@ BEGIN
 IF public.is_admin() = FALSE THEN
 RAISE EXCEPTION 'Admin only';
 END IF;
+
+    -- 대표 투표는 동시에 1개만 허용합니다. (동시 호출 시 마지막 요청 우선)
+    IF p_is_featured = TRUE THEN
+      PERFORM pg_advisory_xact_lock(hashtext('heyversus'), hashtext('polls_single_featured'));
+
+      UPDATE public.polls
+      SET is_featured = FALSE
+      WHERE is_featured = TRUE
+        AND id <> p_poll_id;
+    END IF;
 
     UPDATE public.polls
     SET is_featured = p_is_featured
@@ -1137,11 +1147,12 @@ EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.use
 (SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
-WHERE
-p.is_featured = TRUE
-ORDER BY
-p.created_at DESC;
-END;
+	WHERE
+	p.is_featured = TRUE
+	ORDER BY
+	p.created_at DESC
+	LIMIT 1;
+	END;
 
 $$
 ;
@@ -1455,6 +1466,39 @@ CREATE INDEX IF NOT EXISTS idx_favorite_polls_poll_id ON public.favorite_polls(p
 
 -- polls 테이블: is_featured, is_public, created_by로 필터링이 자주 발생
 CREATE INDEX IF NOT EXISTS idx_polls_is_featured ON public.polls(is_featured) WHERE is_featured = TRUE;
+
+-- 대표 투표는 최대 1개만 허용합니다. (is_featured = TRUE)
+-- 기존 데이터에 중복이 있다면 최근 대표 지정 1개만 유지합니다.
+WITH featured AS (
+  SELECT id, created_at
+  FROM public.polls
+  WHERE is_featured = TRUE
+),
+winner AS (
+  SELECT f.id
+  FROM featured f
+  LEFT JOIN LATERAL (
+    SELECT aal.created_at
+    FROM public.admin_audit_logs aal
+    WHERE aal.target_type = 'poll'
+      AND aal.target_id = f.id
+      AND aal.action = 'admin_set_featured'
+      AND aal.payload->>'is_featured' = 'true'
+    ORDER BY aal.created_at DESC
+    LIMIT 1
+  ) last_feature ON TRUE
+  ORDER BY last_feature.created_at DESC NULLS LAST, f.created_at DESC, f.id DESC
+  LIMIT 1
+)
+UPDATE public.polls p
+SET is_featured = FALSE
+WHERE p.is_featured = TRUE
+  AND p.id <> (SELECT id FROM winner);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_polls_is_featured_singleton
+ON public.polls (is_featured)
+WHERE is_featured = TRUE;
+
 CREATE INDEX IF NOT EXISTS idx_polls_is_public ON public.polls(is_public) WHERE is_public = TRUE;
 CREATE INDEX IF NOT EXISTS idx_polls_created_by ON public.polls(created_by);
 

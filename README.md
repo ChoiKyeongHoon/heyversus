@@ -1,7 +1,7 @@
 # Heyversus
 
 🔗 Link : https://heyversus.vercel.app/
-📦 Version : v0.7.2
+📦 Version : v0.7.4
 
 **Heyversus**는 사용자가 직접 투표를 생성하고 참여할 수 있는 동적인 웹 애플리케이션입니다. Next.js와 Supabase를 기반으로 구축되어 있으며, 실시간 투표 결과와 사용자 인증, 포인트 시스템을 제공합니다.
 
@@ -15,7 +15,7 @@
 - **실시간 투표 시스템**:
   - **익명 투표**: 공개 투표는 로그인하지 않은 사용자도 참여할 수 있습니다.
   - **중복 투표 방지**: 로그인 사용자는 DB를 통해, 비로그인 사용자는 로컬 스토리지를 통해 중복 투표를 효과적으로 방지합니다.
-- **대표 투표**: 관리자가 지정한 '오늘의 투표'를 메인 페이지에 노출하여 사용자 참여를 유도합니다.
+- **대표 투표(최대 1개)**: 관리자가 지정한 '오늘의 투표'를 메인 페이지에 노출하여 사용자 참여를 유도합니다.
 - **포인트 및 랭킹**: 투표에 참여할 때마다 포인트를 획득하고, 다른 사용자들과의 순위를 `SCORE` 페이지에서 확인할 수 있습니다.
 - **즐겨찾기 관리**: 로그인 사용자는 관심 있는 투표를 즐겨찾기에 추가하고 `/favorites` 페이지에서 모아볼 수 있습니다.
 - **랜덤 옵션 추천**: 상세 페이지에서 돌림판 모달로 랜덤 옵션을 추천받고, 자동 선택/토스트 안내 후 직접 투표할 수 있습니다.
@@ -57,19 +57,23 @@
 │   ├── __tests__/       # Jest + RTL 테스트 코드
 │   ├── app/             # Next.js App Router 페이지 및 레이아웃
 │   │   ├── api/         # Route handlers (REST API)
+│   │   │   ├── admin/   # 관리자 API (/api/admin/*)
+│   │   │   ├── polls/   # 투표 API (/api/polls/*)
+│   │   │   ├── reports/ # 신고 API (/api/reports/*)
+│   │   │   └── score-events/ # 점수 이벤트 API (/api/score-events)
 │   │   ├── auth/        # OAuth/세션 콜백 라우트
 │   │   ├── signin/      # 로그인 페이지
 │   │   ├── signup/      # 회원가입 페이지
 │   │   ├── create-poll/ # 투표 생성 페이지
 │   │   ├── polls/       # 전체 투표 목록 페이지
-	│   │   ├── favorites/   # 즐겨찾기한 투표 목록 페이지
-	│   │   ├── poll/[id]/   # 투표 상세 및 결과 페이지
-	│   │   ├── account/     # 프로필 관리 페이지
-	│   │   ├── admin/       # 관리자 운영 대시보드
-	│   │   ├── score/       # 사용자 랭킹(스코어보드) 페이지
-	│   │   ├── layout.tsx   # 루트 레이아웃
-	│   │   ├── page.tsx     # 메인 랜딩 페이지 (대표 투표)
-	│   │   └── globals.css  # 글로벌 스타일 및 디자인 토큰
+│   │   ├── favorites/   # 즐겨찾기한 투표 목록 페이지
+│   │   ├── poll/[id]/   # 투표 상세 및 결과 페이지
+│   │   ├── account/     # 프로필 관리 페이지
+│   │   ├── admin/       # 관리자 운영 대시보드
+│   │   ├── score/       # 사용자 랭킹(스코어보드) 페이지
+│   │   ├── layout.tsx   # 루트 레이아웃
+│   │   ├── page.tsx     # 메인 랜딩 페이지 (대표 투표)
+│   │   └── globals.css  # 글로벌 스타일 및 디자인 토큰
 │   ├── components/      # 재사용 가능한 UI 컴포넌트
 │   │   ├── common/      # Skeleton, ErrorState, EmptyState 등 공용 컴포넌트
 │   │   ├── layout/      # Navbar 등 레이아웃 컴포넌트
@@ -162,132 +166,148 @@
 
 `references/QUERY.md` 파일은 전체 데이터베이스 스키마(SQL)를 정의합니다. 주요 테이블 간의 관계는 다음과 같습니다.
 
-	```mermaid
-	erDiagram
-	    users ||--|| profiles : "has one"
-	    users ||--o{ polls : "creates"
-	    users ||--o{ user_votes : "casts"
-	    users ||--o{ favorite_polls : "favorites"
+```mermaid
+erDiagram
+  users ||--|| profiles : "has one"
+  users ||--o{ polls : "creates"
+  users ||--o{ user_votes : "casts"
+  users ||--o{ favorite_polls : "favorites"
 
-	    polls ||--|{ poll_options : "contains"
-	    polls ||--o{ user_votes : "is voted on"
-	    polls ||--o{ favorite_polls : "is favorited"
-	    polls ||--o{ reports : "is reported"
+  polls ||--|{ poll_options : "contains"
+  polls ||--o{ user_votes : "is voted on"
+  polls ||--o{ favorite_polls : "is favorited"
+  polls ||--o{ reports : "is reported"
 
-	    poll_options ||--o{ user_votes : "is chosen in"
+  poll_options ||--o{ user_votes : "is chosen in"
 
-	    profiles ||--|| profile_scores : "has score"
-	    profiles ||--o{ profile_score_events : "logs"
-	    profiles ||--o{ reports : "reports"
-	    profiles ||--o{ reports : "is reported"
-	    profiles ||--o{ admin_audit_logs : "acts"
+  profiles ||--|| profile_scores : "has score"
+  profiles ||--o{ profile_score_events : "logs"
+  profiles ||--o{ reports : "reports"
+  profiles ||--o{ reports : "is reported"
+  profiles ||--o{ admin_audit_logs : "acts"
 
-    users {
-        UUID id PK
-        string email
-        timestamptz created_at
-    }
+  users {
+    UUID id PK
+    string email
+    timestamptz created_at
+  }
 
-	    profiles {
-	        UUID id PK
-	        string username
-	        string role
-	        string avatar_url
-	        string bio
-	        string full_name
-	        int points
-	        timestamptz updated_at
-	    }
+  profiles {
+    UUID id PK
+    string username
+    string role
+    string avatar_url
+    string bio
+    string full_name
+    int points
+    timestamptz updated_at
+  }
 
-	    polls {
-	        UUID id PK
-	        timestamptz created_at
-	        text question
-	        UUID created_by
-	        boolean is_public
-	        boolean is_featured
-	        text featured_image_url
-	        timestamptz expires_at
-	        varchar status
-	        int max_voters
-	    }
+  polls {
+    UUID id PK
+    timestamptz created_at
+    text question
+    UUID created_by
+    boolean is_public
+    boolean is_featured
+    text featured_image_url
+    timestamptz expires_at
+    varchar status
+    int max_voters
+  }
 
-    poll_options {
-        UUID id PK
-        UUID poll_id
-        text text
-        int votes
-        text image_url
-        int position
-        timestamptz created_at
-    }
+  poll_options {
+    UUID id PK
+    UUID poll_id
+    text text
+    int votes
+    text image_url
+    int position
+    timestamptz created_at
+  }
 
-    user_votes {
-        UUID id PK
-        UUID user_id
-        UUID poll_id
-        UUID option_id
-        timestamptz created_at
-    }
+  user_votes {
+    UUID id PK
+    UUID user_id
+    UUID poll_id
+    UUID option_id
+    timestamptz created_at
+  }
 
-	    favorite_polls {
-	        UUID id PK
-	        UUID user_id
-	        UUID poll_id
-	        timestamptz created_at
-	    }
+  favorite_polls {
+    UUID id PK
+    UUID user_id
+    UUID poll_id
+    timestamptz created_at
+  }
 
-	    reports {
-	        UUID id PK
-	        string target_type
-	        UUID poll_id
-	        UUID target_user_id
-	        string reason_code
-	        string reason_detail
-	        string status
-	        UUID reporter_user_id
-	        timestamptz created_at
-	        UUID resolved_by
-	        timestamptz resolved_at
-	    }
+  reports {
+    UUID id PK
+    string target_type
+    UUID poll_id
+    UUID target_user_id
+    string reason_code
+    string reason_detail
+    string status
+    UUID reporter_user_id
+    timestamptz created_at
+    UUID resolved_by
+    timestamptz resolved_at
+    string admin_note
+  }
 
-	    admin_audit_logs {
-	        UUID id PK
-	        UUID actor_user_id
-	        string action
-	        string target_type
-	        UUID target_id
-	        jsonb payload
-	        timestamptz created_at
-	    }
+  admin_audit_logs {
+    UUID id PK
+    UUID actor_user_id
+    string action
+    string target_type
+    UUID target_id
+    jsonb payload
+    timestamptz created_at
+  }
 
-	    profile_scores {
-	        UUID user_id PK
-	        numeric score
-	        timestamptz last_activity_at
-        timestamptz updated_at
-    }
+  profile_scores {
+    UUID user_id PK
+    numeric score
+    timestamptz last_activity_at
+    timestamptz updated_at
+  }
 
-    profile_score_events {
-        UUID id PK
-        UUID user_id
-        text event_type
-        UUID poll_id
-        numeric weight
-        timestamptz occurred_at
-    }
+  profile_score_events {
+    UUID id PK
+    UUID user_id
+    text event_type
+    UUID poll_id
+    numeric weight
+    timestamptz occurred_at
+  }
 ```
 
 **정렬 규칙**: 모든 목록/상세에서 옵션은 `position → created_at → id` 순으로 정렬되며, 생성 순서가 유지됩니다. `poll_options.position`은 옵션 생성 시 자동으로 채워집니다.
 
+**대표 투표**: 대표 투표는 DB 제약으로 0~1개만 유지되며, 현재 홈/카드의 대표 투표 이미지는 `polls.featured_image_url`이 아니라 **선택지(투표 대상) 이미지**인 `poll_options.image_url`을 기준으로 노출합니다.
+
 ## 📌 업데이트 기록
+
+### v0.7.4
+
+- **대표 투표 단일화(핫픽스)**: 대표 투표 지정 시 기존 대표 투표는 자동 해제되며, DB 제약(부분 유니크 인덱스)으로 `is_featured=true`가 복수로 유지되지 않도록 방지했습니다. (`admin_set_featured` 로직 + `get_featured_polls_with_user_status` 1개 반환)
+- **버전 동기화**: README 표기 버전과 `package.json`/`package-lock.json` 버전을 `0.7.4`로 맞췄습니다.
+- **관리자 운영 문서 보강**: `references/STEP21_ADMIN_DASHBOARD_PLAN.md`에 role 부여/회수 SQL 예시, 대표 투표 운영 규칙, 관리자 API 엔드포인트를 최신 구현 기준으로 정리했습니다.
+
+### v0.7.3
+
+- **투표 관리(관리자)**: `/admin`에 투표 목록 검색/필터/페이지네이션과 선택지(투표 대상) 이미지 편집(업로드/외부 URL)을 추가하고, 모든 선택지에 이미지가 있어야 대표 투표로 지정할 수 있도록 가드했습니다.
+- **선택지 이미지(외부 URL 지원)**: 선택지 이미지는 업로드 또는 외부 URL(http/https)로 설정할 수 있으며, 홈/목록/상세/대표 카드에서 외부 URL 이미지는 `<img>`로 렌더링해 Next/Image 도메인 제한 이슈를 회피했습니다.
 
 ### v0.7.2
 
 - **관리자 대시보드(MVP)**: `/admin` 보호 라우트(관리자 전용)와 운영 대시보드를 추가했습니다.
 - **신고(Report) 플로우(베타)**: 투표 상세에서 신고를 생성하고, `/admin`에서 신고 목록 조회/상태 변경/메모 기록을 지원합니다.
+- **관리자 UI 라벨 정리**: 신고 상태 필터/처리 버튼의 `open/resolved/dismissed/all` 표기를 `미처리/해결/기각/전체`로 한글화했습니다.
 - **관리자 액션 & 감사 로그**: 투표 공개/비공개 전환, 대표 투표 지정/해제, 삭제 액션을 추가하고 모든 액션을 `admin_audit_logs`로 기록합니다.
 - **SQL 스키마/RPC 추가**: `references/QUERY.md` Step 21 블록에 `profiles.role`, `reports`, `admin_audit_logs`, 관리자 RPC를 추가했습니다. (Supabase에서 Step 21 블록 실행 필요)
+- **SQL 실행 오류 수정**: `references/QUERY.md`에서 `create_report` 함수 파라미터 기본값 규칙 위반으로 발생하던 Supabase `42P13` 오류를 수정했습니다.
 - **운영 가이드**: `references/STEP21_ADMIN_DASHBOARD_PLAN.md`에 `/admin` 접속 및 관리자 role 부여(부트스트랩) 절차를 추가했습니다.
 - **로드맵 보완**: `ROADMAP.md` Step 22에 `profiles.role` 노출 최소화 옵션 2안(A: 공개용 view/RPC 분리, B: roles 분리 테이블 + RLS)을 기록했습니다.
 

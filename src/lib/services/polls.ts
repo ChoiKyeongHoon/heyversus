@@ -55,13 +55,17 @@ async function signPollOptionImages(
     return polls;
   }
 
-  const paths = polls.flatMap((poll) =>
+  const optionPaths = polls.flatMap((poll) =>
     poll.poll_options
       .map((option) => option.image_url)
       .filter((url): url is string => Boolean(url) && !isExternalUrl(url))
   );
 
-  const uniquePaths = Array.from(new Set(paths));
+  const featuredPaths = polls
+    .map((poll) => poll.featured_image_url)
+    .filter((url): url is string => Boolean(url) && !isExternalUrl(url));
+
+  const uniquePaths = Array.from(new Set([...optionPaths, ...featuredPaths]));
 
   if (uniquePaths.length === 0) {
     return polls;
@@ -70,6 +74,9 @@ async function signPollOptionImages(
   const sanitizeWithoutSignedUrl = (items: PollWithOptions[]) =>
     items.map((poll) => ({
       ...poll,
+      featured_image_url: isExternalUrl(poll.featured_image_url)
+        ? poll.featured_image_url
+        : null,
       poll_options: poll.poll_options.map((option) => ({
         ...option,
         image_url: isExternalUrl(option.image_url) ? option.image_url : null,
@@ -97,6 +104,11 @@ async function signPollOptionImages(
 
     return polls.map((poll) => ({
       ...poll,
+      featured_image_url: isExternalUrl(poll.featured_image_url)
+        ? poll.featured_image_url
+        : poll.featured_image_url
+          ? signedMap.get(poll.featured_image_url) ?? null
+          : null,
       poll_options: poll.poll_options.map((option) => ({
         ...option,
         image_url: isExternalUrl(option.image_url)

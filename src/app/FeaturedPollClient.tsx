@@ -20,6 +20,16 @@ interface PollCardProps {
   isHero: boolean;
 }
 
+const supabaseHostname = (() => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+})();
+
 function PollCard({
   poll: initialPoll,
   hasVoted,
@@ -163,31 +173,46 @@ function PollCard({
                     >
                       {option.image_url ? (
                         <div className="relative w-full h-full">
-                          {!imageHasLoaded && (
-                            <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-700/40 to-slate-600/20" />
-                          )}
-                          <Image
-                            src={option.image_url}
-                            alt={option.text || ""}
-                            fill
-                            priority={isHeroImage}
-                            fetchPriority={isHeroImage ? "high" : "auto"}
-                            loading={isHeroImage ? undefined : "lazy"}
-                            quality={70}
-                            sizes={
-                              isHeroImage
-                                ? "(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 560px"
-                                : "(max-width: 768px) 50vw, 320px"
-                            }
-                            placeholder="blur"
-                            blurDataURL={LOW_RES_PLACEHOLDER}
-                            className={`object-cover transition-opacity duration-300 ${
-                              imageHasLoaded ? "opacity-100" : "opacity-0"
-                            }`}
-                            onLoad={() => handleImageLoaded(option.id)}
-                          />
-                        </div>
-                      ) : (
+	                          {!imageHasLoaded && (
+	                            <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-700/40 to-slate-600/20" />
+	                          )}
+	                          {supabaseHostname &&
+	                          option.image_url.includes(supabaseHostname) ? (
+	                            <Image
+	                              src={option.image_url}
+	                              alt={option.text || ""}
+	                              fill
+	                              priority={isHeroImage}
+	                              fetchPriority={isHeroImage ? "high" : "auto"}
+	                              loading={isHeroImage ? undefined : "lazy"}
+	                              quality={70}
+	                              sizes={
+	                                isHeroImage
+	                                  ? "(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 560px"
+	                                  : "(max-width: 768px) 50vw, 320px"
+	                              }
+	                              placeholder="blur"
+	                              blurDataURL={LOW_RES_PLACEHOLDER}
+	                              className={`object-cover transition-opacity duration-300 ${
+	                                imageHasLoaded ? "opacity-100" : "opacity-0"
+	                              }`}
+	                              onLoad={() => handleImageLoaded(option.id)}
+	                            />
+	                          ) : (
+	                            <img
+	                              src={option.image_url}
+	                              alt={option.text || ""}
+	                              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+	                                imageHasLoaded ? "opacity-100" : "opacity-0"
+	                              }`}
+	                              loading={isHeroImage ? "eager" : "lazy"}
+	                              fetchPriority={isHeroImage ? "high" : "auto"}
+	                              referrerPolicy="no-referrer"
+	                              onLoad={() => handleImageLoaded(option.id)}
+	                            />
+	                          )}
+	                        </div>
+	                      ) : (
                         <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
                           <span className="text-4xl font-bold text-primary">
                             ?

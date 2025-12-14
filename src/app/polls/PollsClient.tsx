@@ -26,6 +26,16 @@ type PollsClientProps = {
   removeOnUnfavorite?: boolean;
 };
 
+const supabaseHostname = (() => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+})();
+
 export default function PollsClient({
   serverPolls,
   heading = "진행중인 투표들",
@@ -220,14 +230,25 @@ export default function PollsClient({
                           <div className="flex items-center min-w-0 flex-1">
                             {option.image_url && (
                               <div className="relative w-10 h-10 md:w-12 md:h-12 mr-3 md:mr-4 rounded-md overflow-hidden flex-shrink-0">
-                                <Image
-                                  src={option.image_url}
-                                  alt={option.text}
-                                  fill
-                                  quality={70}
-                                  sizes="(max-width: 768px) 40px, 48px"
-                                  style={{ objectFit: "cover" }}
-                                />
+                                {supabaseHostname &&
+                                option.image_url.includes(supabaseHostname) ? (
+                                  <Image
+                                    src={option.image_url}
+                                    alt={option.text}
+                                    fill
+                                    quality={70}
+                                    sizes="(max-width: 768px) 40px, 48px"
+                                    style={{ objectFit: "cover" }}
+                                  />
+                                ) : (
+                                  <img
+                                    src={option.image_url}
+                                    alt={option.text}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                )}
                               </div>
                             )}
                             <h3 className="text-sm md:text-base text-text-primary truncate">{option.text}</h3>

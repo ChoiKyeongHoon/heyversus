@@ -11,6 +11,16 @@ import { cn } from "@/lib/utils";
 
 import { FavoriteToggle } from "./FavoriteToggle";
 
+const supabaseHostname = (() => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+})();
+
 interface PollCardProps {
   poll: PollWithOptions;
   isPollClosed: boolean;
@@ -190,14 +200,24 @@ export function PollCard({
                   )}
                 >
                   <div className="relative h-full w-full">
-                    <Image
-                      src={option.image_url}
-                      alt={option.text}
-                      fill
-                      quality={70}
-                      className="object-cover"
-                      sizes="48px"
-                    />
+                    {supabaseHostname && option.image_url.includes(supabaseHostname) ? (
+                      <Image
+                        src={option.image_url}
+                        alt={option.text}
+                        fill
+                        quality={70}
+                        className="object-cover"
+                        sizes="48px"
+                      />
+                    ) : (
+                      <img
+                        src={option.image_url}
+                        alt={option.text}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
                   </div>
                 </div>
               ) : (

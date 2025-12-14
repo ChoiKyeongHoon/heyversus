@@ -1,7 +1,10 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
+import { CACHE_TAGS } from "@/constants/cache";
 import type { AdminGuardError } from "@/lib/admin/guards";
 import { requireAdmin } from "@/lib/admin/guards";
+import { getServiceRoleClient } from "@/lib/supabase/service-role";
 import { pollFeaturedSchema } from "@/lib/validation/admin";
 
 export async function PATCH(
@@ -26,6 +29,33 @@ export async function PATCH(
 
     const { supabase } = await requireAdmin();
 
+    if (parsed.data.isFeatured) {
+      const serviceClient = getServiceRoleClient();
+      const { data: options, error: optionsError } = await serviceClient
+        .from("poll_options")
+        .select("id, image_url")
+        .eq("poll_id", id);
+
+      if (optionsError) {
+        return NextResponse.json(
+          { error: optionsError.message || "선택지 이미지를 확인하지 못했습니다." },
+          { status: 500 }
+        );
+      }
+
+      const rows = options ?? [];
+      const hasMissingImage = rows.some(
+        (option) => !option.image_url || !option.image_url.trim()
+      );
+
+      if (rows.length === 0 || hasMissingImage) {
+        return NextResponse.json(
+          { error: "모든 선택지에 이미지가 있어야 대표 투표로 지정할 수 있습니다. 먼저 누락된 선택지 이미지를 설정해 주세요." },
+          { status: 422 }
+        );
+      }
+    }
+
     const { error } = await supabase.rpc("admin_set_featured", {
       p_poll_id: id,
       p_is_featured: parsed.data.isFeatured,
@@ -36,6 +66,10 @@ export async function PATCH(
       const status = message.toLowerCase().includes("admin only") ? 403 : 500;
       return NextResponse.json({ error: message }, { status });
     }
+
+    revalidateTag(CACHE_TAGS.FEATURED_POLLS);
+    revalidateTag(CACHE_TAGS.POLLS);
+    revalidateTag(CACHE_TAGS.POLL(id));
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
@@ -49,4 +83,3 @@ export async function PATCH(
 }
 
 export const dynamic = "force-dynamic";
-

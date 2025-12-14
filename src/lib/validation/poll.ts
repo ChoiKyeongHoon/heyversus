@@ -7,6 +7,32 @@ const MAX_OPTION_LENGTH = 120;
 const MAX_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const MAX_IMAGE_PATH_LENGTH = 2048;
 
+const EXTERNAL_HTTP_URL = z
+  .string()
+  .trim()
+  .url()
+  .refine(
+    (value) => value.startsWith("http://") || value.startsWith("https://"),
+    "이미지 URL은 http/https 형식이어야 합니다."
+  )
+  .refine(
+    (value) => !value.includes("/storage/v1/object/sign/"),
+    "Supabase 서명 URL은 저장할 수 없습니다. 업로드 후 경로(path)를 사용해주세요."
+  );
+
+const STORAGE_PATH = z
+  .string()
+  .trim()
+  .min(1, "이미지 경로가 비어 있습니다.")
+  .max(
+    MAX_IMAGE_PATH_LENGTH,
+    `이미지 경로는 최대 ${MAX_IMAGE_PATH_LENGTH}자까지 가능합니다.`
+  )
+  .refine(
+    (value) => !value.includes("://"),
+    "스토리지 경로는 URL이 아닌 path 형식이어야 합니다."
+  );
+
 const optionSchema = z
   .string()
   .trim()
@@ -67,18 +93,7 @@ export const createPollSchema = z
       .default(null),
     optionImageUrls: z
       .array(
-        z
-          .union([
-            z
-              .string()
-              .trim()
-              .min(1, "이미지 경로가 비어 있습니다.")
-              .max(
-                MAX_IMAGE_PATH_LENGTH,
-                `이미지 경로는 최대 ${MAX_IMAGE_PATH_LENGTH}자까지 가능합니다.`
-              ),
-            z.null(),
-          ])
+        z.union([EXTERNAL_HTTP_URL, STORAGE_PATH, z.null()])
       )
       .optional(),
   })

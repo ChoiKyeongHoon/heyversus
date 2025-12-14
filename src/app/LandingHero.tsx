@@ -2,6 +2,16 @@ import Image from "next/image";
 
 import { LOW_RES_PLACEHOLDER } from "@/constants/images";
 
+const supabaseHostname = (() => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+})();
+
 interface LandingHeroProps {
   highlightQuestion?: string;
   heroImageUrl?: string | null;
@@ -13,6 +23,10 @@ export function LandingHero({
   heroImageUrl,
   heroImageAlt = "대표 투표 이미지",
 }: LandingHeroProps) {
+  const canUseNextImage = Boolean(
+    heroImageUrl && supabaseHostname && heroImageUrl.includes(supabaseHostname)
+  );
+
   return (
     <section className="relative grid gap-10 rounded-3xl border border-border bg-gradient-to-br from-primary/5 via-background to-background px-6 py-8 md:px-10 lg:grid-cols-[1.05fr,0.95fr]">
       <div className="space-y-6">
@@ -36,18 +50,27 @@ export function LandingHero({
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[32px] border border-border/80 bg-gradient-to-br from-slate-800/60 to-slate-600/30 shadow-2xl">
           {heroImageUrl ? (
             <div className="relative h-full w-full">
-              <Image
-                src={heroImageUrl}
-                alt={heroImageAlt}
-                fill
-                priority
-                fetchPriority="high"
-                quality={70}
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 640px"
-                placeholder="blur"
-                blurDataURL={LOW_RES_PLACEHOLDER}
-                className="object-cover"
-              />
+              {canUseNextImage ? (
+                <Image
+                  src={heroImageUrl}
+                  alt={heroImageAlt}
+                  fill
+                  priority
+                  fetchPriority="high"
+                  quality={70}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 60vw, 640px"
+                  placeholder="blur"
+                  blurDataURL={LOW_RES_PLACEHOLDER}
+                  className="object-cover"
+                />
+              ) : (
+                <img
+                  src={heroImageUrl}
+                  alt={heroImageAlt}
+                  className="h-full w-full object-cover"
+                  loading="eager"
+                />
+              )}
             </div>
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-600/50 to-slate-800/60 text-text-secondary">

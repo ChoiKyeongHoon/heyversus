@@ -37,18 +37,25 @@ type PollOptionField = {
   text: string;
   imagePath: string | null;
   previewUrl: string | null;
+  imageUrlInput: string;
   isUploading: boolean;
   uploadError: string | null;
 };
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const EXTERNAL_URL_REGEX = /^https?:\/\//i;
+
+function isExternalUrl(url: string | null) {
+  return Boolean(url && EXTERNAL_URL_REGEX.test(url));
+}
 
 const createEmptyOption = (): PollOptionField => ({
   id: crypto.randomUUID(),
   text: "",
   imagePath: null,
   previewUrl: null,
+  imageUrlInput: "",
   isUploading: false,
   uploadError: null,
 });
@@ -133,7 +140,7 @@ export default function CreatePollClient() {
     setOptions((prev) => {
       if (prev.length <= 2) return prev;
       const target = prev[index];
-      if (target?.imagePath) {
+      if (target?.imagePath && !isExternalUrl(target.imagePath)) {
         void fetch(`/api/polls/images?path=${encodeURIComponent(target.imagePath)}`, {
           method: "DELETE",
         }).catch(() => null);
@@ -149,10 +156,18 @@ export default function CreatePollClient() {
     setOptions((prev) =>
       prev.map((option, i) =>
         i === index
-          ? { ...option, imagePath: null, previewUrl: null, uploadError: null }
+          ? {
+              ...option,
+              imagePath: null,
+              previewUrl: null,
+              imageUrlInput: "",
+              uploadError: null,
+            }
           : option
       )
     );
+
+    if (isExternalUrl(target.imagePath)) return;
 
     try {
       await fetch(`/api/polls/images?path=${encodeURIComponent(target.imagePath)}`, {
@@ -208,7 +223,7 @@ export default function CreatePollClient() {
     );
 
     try {
-      if (previousPath) {
+      if (previousPath && !isExternalUrl(previousPath)) {
         await fetch(`/api/polls/images?path=${encodeURIComponent(previousPath)}`, {
           method: "DELETE",
         });
@@ -255,6 +270,7 @@ export default function CreatePollClient() {
                 ...option,
                 imagePath: result.path as string,
                 previewUrl,
+                imageUrlInput: "",
                 isUploading: false,
                 uploadError: null,
               }
@@ -279,6 +295,81 @@ export default function CreatePollClient() {
             : option
         )
       );
+    }
+  };
+
+  const applyOptionImageUrl = async (index: number) => {
+    const target = options[index];
+    if (!target) return;
+
+    const next = target.imageUrlInput.trim();
+
+    if (!next) {
+      await handleRemoveImage(index);
+      return;
+    }
+
+    if (!isExternalUrl(next) || !(next.startsWith("http://") || next.startsWith("https://"))) {
+      setOptions((prev) =>
+        prev.map((option, i) =>
+          i === index
+            ? {
+                ...option,
+                uploadError: "외부 URL은 http/https 형식이어야 합니다.",
+              }
+            : option
+        )
+      );
+      return;
+    }
+
+    if (next.includes("/storage/v1/object/sign/")) {
+      setOptions((prev) =>
+        prev.map((option, i) =>
+          i === index
+            ? {
+                ...option,
+                uploadError:
+                  "Supabase 서명 URL은 저장할 수 없습니다. 업로드 후 경로(path)를 사용해주세요.",
+              }
+            : option
+        )
+      );
+      return;
+    }
+
+    try {
+      new URL(next);
+    } catch {
+      setOptions((prev) =>
+        prev.map((option, i) =>
+          i === index
+            ? { ...option, uploadError: "외부 URL 형식이 올바르지 않습니다." }
+            : option
+        )
+      );
+      return;
+    }
+
+    const previousPath = target.imagePath;
+
+    setOptions((prev) =>
+      prev.map((option, i) =>
+        i === index
+          ? {
+              ...option,
+              imagePath: next,
+              previewUrl: next,
+              uploadError: null,
+            }
+          : option
+      )
+    );
+
+    if (previousPath && !isExternalUrl(previousPath)) {
+      void fetch(`/api/polls/images?path=${encodeURIComponent(previousPath)}`, {
+        method: "DELETE",
+      }).catch(() => null);
     }
   };
 
@@ -459,27 +550,36 @@ export default function CreatePollClient() {
                         </button>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label
-                        htmlFor={`option-image-${option.id}`}
-                        className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs md:text-sm font-medium text-text-primary hover:border-primary"
-                      >
-                        이미지 업로드
-                        {option.isUploading && (
-                          <span className="text-xs text-text-secondary">(업로드 중)</span>
-                        )}
-                      </label>
-                      <input
-                        id={`option-image-${option.id}`}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        onChange={(e) => handleImageUpload(index, e.target.files?.[0])}
-                      />
-                      {option.previewUrl ? (
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={option.previewUrl}
+	                    <div className="flex flex-wrap items-center gap-3">
+	                      <label
+	                        htmlFor={`option-image-${option.id}`}
+	                        className={`inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs md:text-sm font-medium text-text-primary hover:border-primary ${
+	                          option.isUploading || isSubmitting
+	                            ? "pointer-events-none opacity-60"
+	                            : ""
+	                        }`}
+	                      >
+	                        이미지 업로드
+	                        {option.isUploading && (
+	                          <span className="text-xs text-text-secondary">(업로드 중)</span>
+	                        )}
+	                      </label>
+	                      <input
+	                        id={`option-image-${option.id}`}
+	                        type="file"
+	                        accept="image/jpeg,image/png,image/webp"
+	                        className="hidden"
+	                        disabled={option.isUploading || isSubmitting}
+	                        onChange={(e) => {
+	                          const file = e.target.files?.[0];
+	                          e.target.value = "";
+	                          void handleImageUpload(index, file);
+	                        }}
+	                      />
+	                      {option.previewUrl ? (
+	                        <div className="flex items-center gap-2">
+	                          <img
+	                            src={option.previewUrl}
                             alt="선택지 이미지 미리보기"
                             className="h-14 w-14 rounded-md object-cover border border-border"
                           />
@@ -493,14 +593,54 @@ export default function CreatePollClient() {
                         </div>
                       ) : (
                         <p className="text-xs text-text-secondary">
-                          최대 10MB, JPEG/PNG/WebP 지원
-                        </p>
-                      )}
-                    </div>
-                    {option.uploadError && (
-                      <p className="text-destructive text-xs">{option.uploadError}</p>
-                    )}
-                  </div>
+	                          최대 10MB, JPEG/PNG/WebP 지원
+	                        </p>
+	                      )}
+	                    </div>
+
+	                    <div className="space-y-2">
+	                      <label className="block text-xs font-semibold text-text-tertiary">
+	                        외부 URL (선택)
+	                      </label>
+	                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+	                        <input
+	                          type="text"
+	                          value={option.imageUrlInput}
+	                          onChange={(e) => {
+	                            const value = e.target.value;
+	                            setOptions((prev) =>
+	                              prev.map((item, i) =>
+	                                i === index
+	                                  ? {
+	                                      ...item,
+	                                      imageUrlInput: value,
+	                                      uploadError: null,
+	                                    }
+	                                  : item
+	                              )
+	                            );
+	                          }}
+	                          placeholder="https://... (비워두면 제거)"
+	                          className="flex-1 rounded-md border border-border bg-input px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+	                          disabled={option.isUploading || isSubmitting}
+	                        />
+	                        <button
+	                          type="button"
+	                          onClick={() => void applyOptionImageUrl(index)}
+	                          disabled={option.isUploading || isSubmitting}
+	                          className="rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-text-primary hover:border-primary disabled:opacity-50"
+	                        >
+	                          적용
+	                        </button>
+	                      </div>
+	                      <p className="text-xs text-text-secondary">
+	                        외부 URL은 http/https만 지원하며, Supabase 서명 URL은 저장할 수 없습니다.
+	                      </p>
+	                    </div>
+	                    {option.uploadError && (
+	                      <p className="text-destructive text-xs">{option.uploadError}</p>
+	                    )}
+	                  </div>
                 ))}
               </div>
             </div>
