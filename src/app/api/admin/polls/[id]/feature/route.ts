@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { CACHE_TAGS } from "@/constants/cache";
@@ -70,6 +70,8 @@ export async function PATCH(
     revalidateTag(CACHE_TAGS.FEATURED_POLLS);
     revalidateTag(CACHE_TAGS.POLLS);
     revalidateTag(CACHE_TAGS.POLL(id));
+    revalidatePath("/");
+    revalidatePath("/polls");
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
