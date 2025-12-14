@@ -402,7 +402,7 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
 
               <div className="flex flex-col items-center gap-4">
                 <div className="relative h-56 w-56 md:h-64 md:w-64 flex items-center justify-center">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 h-0 w-0 border-l-[10px] border-r-[10px] border-b-[14px] border-b-primary" />
+                  <div className="absolute top-[-11px] left-1/2 z-10 -translate-x-1/2 h-0 w-0 border-l-[10px] border-r-[10px] border-t-[14px] border-l-transparent border-r-transparent border-t-primary" />
                   <div className="relative h-full w-full rounded-full border border-border bg-background-subtle shadow-inner overflow-hidden">
                     <div
                       className="absolute inset-0 transition-transform"
