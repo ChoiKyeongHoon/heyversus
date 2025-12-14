@@ -299,11 +299,11 @@ export function PollDetailCard({
               <button
                 type="button"
                 onClick={onBack}
-                className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full border border-border bg-panel px-2 py-1 text-[11px] text-text-secondary transition-colors duration-200 hover:bg-panel-hover sm:text-xs"
+                className="absolute left-0 top-1/2 z-10 -translate-y-1/2 flex items-center gap-1 rounded-full border border-border bg-panel px-1.5 py-1 text-[11px] text-text-secondary transition-colors duration-200 hover:bg-panel-hover sm:px-2 sm:text-xs"
                 aria-label="투표 목록으로 이동"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span className="whitespace-nowrap">투표 목록</span>
+                <span className="hidden whitespace-nowrap sm:inline">투표 목록</span>
               </button>
             )}
 

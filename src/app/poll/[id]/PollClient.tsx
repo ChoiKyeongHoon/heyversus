@@ -44,6 +44,7 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
   const ROULETTE_ANIMATION_MS = 5000;
   const ROULETTE_COOLDOWN_MS = 1000;
   const ROULETTE_BASE_ROTATIONS = 8; // 회전 횟수(기본 회전수 + 랜덤 오프셋)
+  const ROULETTE_LABEL_RADIUS_PX = 72;
 
   // 탭 전환 시 자동 새로고침
   useVisibilityChange(() => {
@@ -402,25 +403,41 @@ export default function PollClient({ poll, onRefresh }: PollClientProps) {
 
               <div className="flex flex-col items-center gap-4">
                 <div className="relative h-56 w-56 md:h-64 md:w-64 flex items-center justify-center">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 h-0 w-0 border-l-[10px] border-r-[10px] border-b-[14px] border-b-primary" />
-                  <div className="relative h-full w-full rounded-full border border-border bg-background-subtle shadow-inner overflow-hidden">
-                    <div
-                      className="absolute inset-0 transition-transform"
-                      style={{
-                        background: rouletteGradient,
-                        transform: `rotate(${spinRotation}deg)`,
-                        transitionTimingFunction: "cubic-bezier(0.12, 0.74, 0.05, 1)",
-                        transitionDuration: `${
-                          isSpinTransitionEnabled ? ROULETTE_ANIMATION_MS : 0
-                        }ms`,
-                      }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="rounded-full border border-border bg-background/90 px-3 py-1 text-xs text-text-secondary">
-                        행운을 빕니다!
-                      </div>
-                    </div>
-                  </div>
+	                  <div className="absolute top-[-11px] left-1/2 z-10 -translate-x-1/2 h-0 w-0 border-l-[10px] border-r-[10px] border-t-[14px] border-l-transparent border-r-transparent border-t-primary" />
+	                  <div className="relative h-full w-full rounded-full border border-border bg-background-subtle shadow-inner overflow-hidden">
+	                    <div
+	                      className="absolute inset-0 transition-transform"
+	                      style={{
+	                        background: rouletteGradient,
+	                        transform: `rotate(${spinRotation}deg)`,
+	                        transitionTimingFunction: "cubic-bezier(0.12, 0.74, 0.05, 1)",
+	                        transitionDuration: `${
+	                          isSpinTransitionEnabled ? ROULETTE_ANIMATION_MS : 0
+	                        }ms`,
+	                      }}
+	                    >
+	                      {poll.poll_options.map((option, index) => {
+	                        const sliceAngle = 360 / poll.poll_options.length;
+	                        const centerAngle = index * sliceAngle + sliceAngle / 2;
+	                        return (
+	                          <div
+	                            key={option.id}
+	                            className="pointer-events-none absolute left-1/2 top-1/2 z-10 select-none text-sm font-semibold leading-none text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)] md:text-base"
+	                            style={{
+	                              transform: `rotate(${centerAngle}deg) translateY(-${ROULETTE_LABEL_RADIUS_PX}px) rotate(-${centerAngle}deg) translate(-50%, -50%)`,
+	                            }}
+	                          >
+	                            {index + 1}
+	                          </div>
+	                        );
+	                      })}
+	                    </div>
+	                    <div className="absolute inset-0 flex items-center justify-center">
+	                      <div className="rounded-full border border-border bg-background/90 px-3 py-1 text-xs text-text-secondary">
+	                        행운을 빕니다!
+	                      </div>
+	                    </div>
+	                  </div>
                 </div>
 
                 <div className="grid w-full grid-cols-1 sm:grid-cols-2 gap-2">
