@@ -632,6 +632,7 @@
 - ✅ **문서/아키텍처 동기화**: `references/ARCHITECTURE.md`, `references/USERFLOWCHART.md`, README의 구조·DB 스키마를 최신 코드/스키마에 맞게 정합화.
 - ⏳ **인증 검증 강화**: 클라이언트/서버에서 `supabase.auth.getUser()` 중심으로 인증 정보를 재검증하고, `getSession()`/`onAuthStateChange()`에 의존해 즉시 쓰는 흐름을 점진적으로 교체.
 - ⏳ **디자인/UX 리프레시**: /admin·main 레이아웃 등에서 UI/디자인 개선 계획을 고도화하고, 상단 히어로/카드/토스트 등 디자인 품질 지표를 새 Step 22 문서에 추가.
+- ⏳ **대표 투표 캐시 동기화**: 관리자 대표/대표 이미지 변경 시 `revalidatePath("/")`/`revalidateTag(CACHE_TAGS.FEATURED_POLLS)` 등을 호출해 ISR 캐시를 즉시 무효화하고 외부 이미지가 빠르게 반영되도록 합니다.
 - ⏳ **랭킹 알고리즘 재정의**: 가중치·즐겨찾기/공유 지표 등을 반영한 스코어 공식 재설계 및 스키마 교체.
 - ⏳ **데이터 파이프라인 확장**: 실시간/배치 혼합 파이프라인, 트리거·리얼타임 채널, Edge Function 적용.
 - ⏳ **리더보드 UX 확장**: `/score` 뷰 전환(전체/친구/지역), 순위 변동/하이라이트, 모바일 가독성 개선.

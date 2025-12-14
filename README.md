@@ -289,6 +289,11 @@ erDiagram
 
 ## 📌 업데이트 기록
 
+### v0.7.5
+
+- **대표 캐시 즉시 반영**: 관리자에서 대표 투표나 대표 이미지(옵션 이미지) 변경 시 `revalidatePath("/")`, `revalidateTag(CACHE_TAGS.FEATURED_POLLS)`를 호출해 ISR 캐시를 무효화하고 새 외부 이미지가 즉시 메인에 반영되도록 했습니다.
+- **대표 이미지 외부 URL 허용**: 대표 투표의 대상 이미지도 외부 URL로 지정할 수 있게 해서, 관리자가 외부 콘텐츠를 대표 카드/히어로에 바로 노출할 수 있습니다.
+
 ### v0.7.4
 
 - **대표 투표 단일화(핫픽스)**: 대표 투표 지정 시 기존 대표 투표는 자동 해제되며, DB 제약(부분 유니크 인덱스)으로 `is_featured=true`가 복수로 유지되지 않도록 방지했습니다. (`admin_set_featured` 로직 + `get_featured_polls_with_user_status` 1개 반환)
