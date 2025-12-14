@@ -54,17 +54,8 @@ export async function GET(request: NextRequest) {
 
     const serviceClient = getServiceRoleClient();
 
-    const selectFields = [
-      "id",
-      "question",
-      "created_at",
-      "created_by",
-      "is_public",
-      "is_featured",
-      "expires_at",
-      "status",
-      "poll_options(id, text, image_url, position)",
-    ].join(", ");
+    const selectFields =
+      "id, question, created_at, created_by, is_public, is_featured, expires_at, status, poll_options(id, text, image_url, position)" as const;
 
     let query = serviceClient
       .from("polls")
