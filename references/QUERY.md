@@ -1431,7 +1431,9 @@ CREATE POLICY "Users can update their own profile." ON public.profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
-SECURITY DEFINER AS
+SECURITY DEFINER
+SET search_path = public
+AS
 $$
 
 BEGIN

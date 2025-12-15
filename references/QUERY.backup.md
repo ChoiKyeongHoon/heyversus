@@ -45,6 +45,621 @@ END;
 $$
 ;
 
+-- =============================================================================
+-- 12. Step 21 – 관리자 운영 대시보드 (MVP)
+-- =============================================================================
+
+-- 12-1. profiles.role 컬럼 추가 (기본값: user)
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
+
+-- role 값 제약 (user/admin)
+DO
+$$
+
+BEGIN
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint
+WHERE conname = 'profiles_role_check'
+AND conrelid = 'public.profiles'::regclass
+) THEN
+ALTER TABLE public.profiles
+ADD CONSTRAINT profiles_role_check CHECK (role IN ('user', 'admin'));
+END IF;
+END;
+
+$$
+;
+
+-- ⚠️ 중요: role 컬럼은 일반 사용자가 업데이트할 수 없어야 합니다.
+-- 컬럼 권한으로 role/points 등 민감 컬럼 업데이트를 차단합니다.
+REVOKE UPDATE ON TABLE public.profiles FROM authenticated;
+GRANT UPDATE (username, full_name, bio, avatar_url) ON TABLE public.profiles TO authenticated;
+
+-- 12-2. 관리자 여부 헬퍼 함수
+CREATE OR REPLACE FUNCTION public.is_admin(p_user_id UUID DEFAULT auth.uid())
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+  SELECT
+    (auth.role() = 'service_role')
+    OR EXISTS (
+      SELECT 1
+      FROM public.profiles p
+      WHERE p.id = COALESCE(p_user_id, auth.uid())
+        AND p.role = 'admin'
+    );
+$$
+;
+
+-- 12-3. reports 테이블 (투표/사용자 신고)
+CREATE TABLE IF NOT EXISTS public.reports (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  target_type TEXT NOT NULL, -- 'poll' | 'user'
+  poll_id UUID REFERENCES public.polls(id) ON DELETE CASCADE,
+  target_user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  reason_code TEXT NOT NULL,
+  reason_detail TEXT,
+  status TEXT NOT NULL DEFAULT 'open', -- open | resolved | dismissed
+  reporter_user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  resolved_at TIMESTAMPTZ,
+  admin_note TEXT
+);
+
+-- target_type 제약 + status 제약
+DO
+$$
+
+BEGIN
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint
+WHERE conname = 'reports_target_check'
+AND conrelid = 'public.reports'::regclass
+) THEN
+ALTER TABLE public.reports
+ADD CONSTRAINT reports_target_check CHECK (
+  (target_type = 'poll' AND poll_id IS NOT NULL AND target_user_id IS NULL)
+  OR
+  (target_type = 'user' AND target_user_id IS NOT NULL AND poll_id IS NULL)
+);
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint
+WHERE conname = 'reports_target_type_check'
+AND conrelid = 'public.reports'::regclass
+) THEN
+ALTER TABLE public.reports
+ADD CONSTRAINT reports_target_type_check CHECK (target_type IN ('poll', 'user'));
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint
+WHERE conname = 'reports_status_check'
+AND conrelid = 'public.reports'::regclass
+) THEN
+ALTER TABLE public.reports
+ADD CONSTRAINT reports_status_check CHECK (status IN ('open', 'resolved', 'dismissed'));
+END IF;
+END;
+
+$$
+;
+
+CREATE INDEX IF NOT EXISTS idx_reports_status_created_at
+ON public.reports(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reports_poll_id ON public.reports(poll_id);
+CREATE INDEX IF NOT EXISTS idx_reports_target_user_id ON public.reports(target_user_id);
+CREATE INDEX IF NOT EXISTS idx_reports_reporter_user_id ON public.reports(reporter_user_id);
+
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+
+-- 재실행 안전화를 위해 정책을 DROP 후 재생성합니다.
+DROP POLICY IF EXISTS "Users can create reports" ON public.reports;
+DROP POLICY IF EXISTS "Users can view own reports" ON public.reports;
+DROP POLICY IF EXISTS "Admins can view all reports" ON public.reports;
+DROP POLICY IF EXISTS "Admins can update reports" ON public.reports;
+DROP POLICY IF EXISTS "Admins can delete reports" ON public.reports;
+
+CREATE POLICY "Users can create reports"
+ON public.reports
+FOR INSERT
+WITH CHECK (auth.uid() IS NOT NULL AND reporter_user_id = auth.uid());
+
+CREATE POLICY "Users can view own reports"
+ON public.reports
+FOR SELECT
+USING (reporter_user_id = auth.uid());
+
+CREATE POLICY "Admins can view all reports"
+ON public.reports
+FOR SELECT
+USING (public.is_admin());
+
+CREATE POLICY "Admins can update reports"
+ON public.reports
+FOR UPDATE
+USING (public.is_admin())
+WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can delete reports"
+ON public.reports
+FOR DELETE
+USING (public.is_admin());
+
+-- 12-4. 관리자 감사 로그 테이블
+CREATE TABLE IF NOT EXISTS public.admin_audit_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  actor_user_id UUID NOT NULL REFERENCES public.profiles(id),
+  action TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_id UUID NOT NULL,
+  payload JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at
+ON public.admin_audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_actor_created_at
+ON public.admin_audit_logs(actor_user_id, created_at DESC);
+
+ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can read audit logs" ON public.admin_audit_logs;
+DROP POLICY IF EXISTS "Admins can insert audit logs" ON public.admin_audit_logs;
+
+CREATE POLICY "Admins can read audit logs"
+ON public.admin_audit_logs
+FOR SELECT
+USING (public.is_admin());
+
+CREATE POLICY "Admins can insert audit logs"
+ON public.admin_audit_logs
+FOR INSERT
+WITH CHECK (public.is_admin());
+
+-- 12-5. RPC: 관리자 role 설정 (부트스트랩/운영용)
+DROP FUNCTION IF EXISTS public.set_profile_role(UUID, TEXT);
+CREATE OR REPLACE FUNCTION public.set_profile_role(p_user_id UUID, p_role TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+BEGIN
+IF auth.role() <> 'service_role' AND public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    IF p_role NOT IN ('user', 'admin') THEN
+        RAISE EXCEPTION 'Invalid role';
+    END IF;
+
+    UPDATE public.profiles
+    SET role = p_role
+    WHERE id = p_user_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Profile not found';
+    END IF;
+END;
+
+$$
+;
+
+-- 12-6. RPC: 신고 생성
+DROP FUNCTION IF EXISTS public.create_report(TEXT, UUID, UUID, TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.create_report(
+  p_target_type TEXT,
+  p_poll_id UUID,
+  p_target_user_id UUID,
+  p_reason_code TEXT,
+  p_reason_detail TEXT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_report_id UUID;
+v_allowed_codes TEXT[] := ARRAY['spam', 'hate', 'sexual', 'violence', 'harassment', 'misinfo', 'other'];
+BEGIN
+IF auth.uid() IS NULL THEN
+RAISE EXCEPTION 'Authentication required';
+END IF;
+
+    IF p_target_type NOT IN ('poll', 'user') THEN
+        RAISE EXCEPTION 'Invalid target_type';
+    END IF;
+
+    IF p_reason_code IS NULL OR p_reason_code = '' OR NOT (p_reason_code = ANY(v_allowed_codes)) THEN
+        RAISE EXCEPTION 'Invalid reason_code';
+    END IF;
+
+    IF p_target_type = 'poll' AND p_poll_id IS NULL THEN
+        RAISE EXCEPTION 'poll_id is required';
+    END IF;
+
+    IF p_target_type = 'user' AND p_target_user_id IS NULL THEN
+        RAISE EXCEPTION 'target_user_id is required';
+    END IF;
+
+    INSERT INTO public.reports (
+      target_type,
+      poll_id,
+      target_user_id,
+      reason_code,
+      reason_detail,
+      reporter_user_id
+    )
+    VALUES (
+      p_target_type,
+      CASE WHEN p_target_type = 'poll' THEN p_poll_id ELSE NULL END,
+      CASE WHEN p_target_type = 'user' THEN p_target_user_id ELSE NULL END,
+      p_reason_code,
+      p_reason_detail,
+      auth.uid()
+    )
+    RETURNING id INTO v_report_id;
+
+    RETURN v_report_id;
+END;
+
+$$
+;
+
+-- 12-7. RPC: 관리자용 신고 목록 조회
+DROP FUNCTION IF EXISTS public.get_reports_admin(TEXT, INT, INT);
+CREATE OR REPLACE FUNCTION public.get_reports_admin(
+  p_status TEXT DEFAULT 'open',
+  p_limit INT DEFAULT 50,
+  p_offset INT DEFAULT 0
+)
+RETURNS TABLE (
+  id UUID,
+  target_type TEXT,
+  poll_id UUID,
+  poll_question TEXT,
+  poll_is_public BOOLEAN,
+  poll_is_featured BOOLEAN,
+  target_user_id UUID,
+  target_username TEXT,
+  reason_code TEXT,
+  reason_detail TEXT,
+  status TEXT,
+  reporter_user_id UUID,
+  reporter_username TEXT,
+  created_at TIMESTAMPTZ,
+  resolved_by UUID,
+  resolved_by_username TEXT,
+  resolved_at TIMESTAMPTZ,
+  admin_note TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    RETURN QUERY
+    SELECT
+      r.id,
+      r.target_type,
+      r.poll_id,
+      p.question AS poll_question,
+      p.is_public AS poll_is_public,
+      p.is_featured AS poll_is_featured,
+      r.target_user_id,
+      tu.username AS target_username,
+      r.reason_code,
+      r.reason_detail,
+      r.status,
+      r.reporter_user_id,
+      ru.username AS reporter_username,
+      r.created_at,
+      r.resolved_by,
+      rbu.username AS resolved_by_username,
+      r.resolved_at,
+      r.admin_note
+    FROM public.reports r
+    LEFT JOIN public.polls p ON p.id = r.poll_id
+    LEFT JOIN public.profiles ru ON ru.id = r.reporter_user_id
+    LEFT JOIN public.profiles tu ON tu.id = r.target_user_id
+    LEFT JOIN public.profiles rbu ON rbu.id = r.resolved_by
+    WHERE (p_status = 'all' OR r.status = p_status)
+    ORDER BY r.created_at DESC
+    LIMIT p_limit
+    OFFSET p_offset;
+END;
+
+$$
+;
+
+-- 12-8. RPC: 신고 처리(상태 변경 + 메모) + 감사 로그
+DROP FUNCTION IF EXISTS public.resolve_report(UUID, TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.resolve_report(
+  p_report_id UUID,
+  p_status TEXT,
+  p_admin_note TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_actor UUID := auth.uid();
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    IF p_status NOT IN ('open', 'resolved', 'dismissed') THEN
+        RAISE EXCEPTION 'Invalid status';
+    END IF;
+
+    UPDATE public.reports
+    SET
+      status = p_status,
+      admin_note = p_admin_note,
+      resolved_by = CASE WHEN p_status = 'open' THEN NULL ELSE v_actor END,
+      resolved_at = CASE WHEN p_status = 'open' THEN NULL ELSE now() END
+    WHERE id = p_report_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Report not found';
+    END IF;
+
+    INSERT INTO public.admin_audit_logs (
+      actor_user_id,
+      action,
+      target_type,
+      target_id,
+      payload
+    )
+    VALUES (
+      v_actor,
+      'resolve_report',
+      'report',
+      p_report_id,
+      jsonb_build_object('status', p_status, 'admin_note', p_admin_note)
+    );
+END;
+
+$$
+;
+
+-- 12-9. RPC: 운영 지표(JSONB) 조회
+DROP FUNCTION IF EXISTS public.get_admin_stats(TEXT);
+CREATE OR REPLACE FUNCTION public.get_admin_stats(p_range TEXT DEFAULT '7d')
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_since TIMESTAMPTZ;
+v_polls_created BIGINT;
+v_votes_cast BIGINT;
+v_favorites_added BIGINT;
+v_active_users BIGINT;
+v_open_reports BIGINT;
+v_featured_polls BIGINT;
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    IF p_range = '24h' THEN
+      v_since := now() - interval '24 hours';
+    ELSIF p_range = '7d' THEN
+      v_since := now() - interval '7 days';
+    ELSIF p_range = '30d' THEN
+      v_since := now() - interval '30 days';
+    ELSIF p_range = 'all' THEN
+      v_since := '1970-01-01'::timestamptz;
+    ELSE
+      RAISE EXCEPTION 'Invalid range';
+    END IF;
+
+    SELECT COUNT(*) INTO v_polls_created
+    FROM public.polls
+    WHERE created_at >= v_since;
+
+    SELECT COUNT(*) INTO v_votes_cast
+    FROM public.user_votes
+    WHERE created_at >= v_since;
+
+    SELECT COUNT(*) INTO v_favorites_added
+    FROM public.favorite_polls
+    WHERE created_at >= v_since;
+
+    SELECT COUNT(DISTINCT user_id) INTO v_active_users
+    FROM public.user_votes
+    WHERE created_at >= v_since;
+
+    SELECT COUNT(*) INTO v_open_reports
+    FROM public.reports
+    WHERE status = 'open';
+
+    SELECT COUNT(*) INTO v_featured_polls
+    FROM public.polls
+    WHERE is_featured = TRUE;
+
+    RETURN jsonb_build_object(
+      'range', p_range,
+      'since', v_since,
+      'polls_created', v_polls_created,
+      'authenticated_votes_cast', v_votes_cast,
+      'favorites_added', v_favorites_added,
+      'active_users', v_active_users,
+      'open_reports', v_open_reports,
+      'featured_polls', v_featured_polls
+    );
+END;
+
+$$
+;
+
+-- 12-10. RPC: 관리자 투표 액션 (공개/비공개, 대표 지정, 삭제) + 감사 로그
+DROP FUNCTION IF EXISTS public.admin_set_poll_visibility(UUID, BOOLEAN);
+CREATE OR REPLACE FUNCTION public.admin_set_poll_visibility(
+  p_poll_id UUID,
+  p_is_public BOOLEAN
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_actor UUID := auth.uid();
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    UPDATE public.polls
+    SET is_public = p_is_public
+    WHERE id = p_poll_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Poll not found';
+    END IF;
+
+    INSERT INTO public.admin_audit_logs (actor_user_id, action, target_type, target_id, payload)
+    VALUES (
+      v_actor,
+      'admin_set_poll_visibility',
+      'poll',
+      p_poll_id,
+      jsonb_build_object('is_public', p_is_public)
+    );
+END;
+
+$$
+;
+
+DROP FUNCTION IF EXISTS public.admin_set_featured(UUID, BOOLEAN);
+CREATE OR REPLACE FUNCTION public.admin_set_featured(
+  p_poll_id UUID,
+  p_is_featured BOOLEAN
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_actor UUID := auth.uid();
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    -- 대표 투표는 동시에 1개만 허용합니다. (동시 호출 시 마지막 요청 우선)
+    IF p_is_featured = TRUE THEN
+      PERFORM pg_advisory_xact_lock(hashtext('heyversus'), hashtext('polls_single_featured'));
+
+      UPDATE public.polls
+      SET is_featured = FALSE
+      WHERE is_featured = TRUE
+        AND id <> p_poll_id;
+    END IF;
+
+    UPDATE public.polls
+    SET is_featured = p_is_featured
+    WHERE id = p_poll_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Poll not found';
+    END IF;
+
+    INSERT INTO public.admin_audit_logs (actor_user_id, action, target_type, target_id, payload)
+    VALUES (
+      v_actor,
+      'admin_set_featured',
+      'poll',
+      p_poll_id,
+      jsonb_build_object('is_featured', p_is_featured)
+    );
+END;
+
+$$
+;
+
+DROP FUNCTION IF EXISTS public.admin_delete_poll(UUID);
+CREATE OR REPLACE FUNCTION public.admin_delete_poll(p_poll_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+v_actor UUID := auth.uid();
+BEGIN
+IF public.is_admin() = FALSE THEN
+RAISE EXCEPTION 'Admin only';
+END IF;
+
+    DELETE FROM public.polls
+    WHERE id = p_poll_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Poll not found';
+    END IF;
+
+    INSERT INTO public.admin_audit_logs (actor_user_id, action, target_type, target_id, payload)
+    VALUES (
+      v_actor,
+      'admin_delete_poll',
+      'poll',
+      p_poll_id,
+      NULL
+    );
+END;
+
+$$
+;
+
+-- 함수 실행 권한 부여
+GRANT EXECUTE ON FUNCTION public.is_admin TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin TO anon;
+GRANT EXECUTE ON FUNCTION public.set_profile_role TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_report TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_reports_admin TO authenticated;
+GRANT EXECUTE ON FUNCTION public.resolve_report TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_admin_stats TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_poll_visibility TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_featured TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_poll TO authenticated;
+
 -- 기존 함수 정리 (반환 타입이 변경될 경우, REPLACE가 아닌 DROP 후 CREATE 해야 함)
 DROP FUNCTION IF EXISTS public.get_polls_with_user_status();
 DROP FUNCTION IF EXISTS public.get_poll_with_user_status(UUID);
@@ -81,8 +696,24 @@ poll_id UUID REFERENCES public.polls(id) ON DELETE CASCADE, -- 'polls' 테이블
 -- ON DELETE CASCADE는 투표가 삭제될 때 해당 선택지들도 삭제되도록 합니다.
 text TEXT, -- 투표 선택지의 텍스트 내용
 votes INT DEFAULT 0, -- 이 선택지가 받은 투표 수
-image_url TEXT -- 선택지와 관련된 이미지의 선택적 URL
+image_url TEXT, -- 선택지와 관련된 이미지의 선택적 URL
+position INT NOT NULL DEFAULT 0 -- 생성/입력 순서를 명시적으로 저장합니다.
 );
+
+-- 기존 테이블에 position 컬럼이 없다면 추가하고, 기본값 0을 부여합니다.
+ALTER TABLE public.poll_options
+ADD COLUMN IF NOT EXISTS position INT NOT NULL DEFAULT 0;
+
+-- 기존 데이터에 대해 생성 시각 순서로 position을 백필합니다.
+WITH ranked_options AS (
+    SELECT id, poll_id,
+           ROW_NUMBER() OVER (PARTITION BY poll_id ORDER BY created_at, id) - 1 AS pos
+    FROM public.poll_options
+)
+UPDATE public.poll_options po
+SET position = r.pos
+FROM ranked_options r
+WHERE po.id = r.id;
 
 -- 3.1. 테이블 스키마 수정 (기존 테이블에 컬럼 추가 및 제약 조건 변경)
 -- 이 명령들은 스크립트가 여러 번 실행되더라도 안전하게 컬럼을 추가합니다.
@@ -125,8 +756,9 @@ ON DELETE SET NULL;
 CREATE OR REPLACE FUNCTION public.create_new_poll(
 question_text TEXT, -- 새 투표의 질문
 option_texts TEXT[], -- 투표 선택지들의 텍스트 배열
-is_public BOOLEAN, -- 투표가 공개되어야 하는지 여부를 나타내는 불리언 값
-expires_at_param TIMESTAMPTZ -- 투표 만료 시각
+option_image_urls TEXT[] DEFAULT NULL, -- 선택지 이미지 경로(스토리지 객체 경로), option_texts와 동일 길이여야 함
+is_public BOOLEAN DEFAULT TRUE, -- 투표가 공개되어야 하는지 여부를 나타내는 불리언 값
+expires_at_param TIMESTAMPTZ DEFAULT NULL -- 투표 만료 시각
 )
 RETURNS UUID -- 새로 생성된 투표의 UUID를 반환합니다.
 LANGUAGE plpgsql
@@ -167,6 +799,13 @@ END IF;
         RAISE EXCEPTION 'Expiration time must be in the future.';
     END IF;
 
+    -- 서버 측 검증: 이미지 경로 배열이 있을 경우 길이 일치 확인
+    IF option_image_urls IS NOT NULL
+       AND array_length(option_image_urls, 1) IS NOT NULL
+       AND array_length(option_image_urls, 1) <> array_length(option_texts, 1) THEN
+        RAISE EXCEPTION 'option_image_urls length must match option_texts length.';
+    END IF;
+
     -- 'polls' 테이블에 새 투표를 삽입합니다.
     INSERT INTO public.polls (question, created_by, is_public, expires_at)
     VALUES (question_text, auth.uid(), is_public, expires_at_param) -- auth.uid()는 현재 인증된 사용자의 ID를 가져옵니다.
@@ -174,8 +813,19 @@ END IF;
 
     -- 'option_texts' 배열의 각 선택지를 'poll_options' 테이블에 삽입합니다.
     -- unnest()는 배열을 행 집합으로 변환합니다.
-    INSERT INTO public.poll_options (poll_id, text, votes)
-    SELECT new_poll_id, unnest(option_texts), 0; -- 각 선택지의 투표 수를 0으로 초기화합니다.
+    -- 순서를 보존하기 위해 배열의 인덱스를 position으로 함께 저장합니다.
+    INSERT INTO public.poll_options (poll_id, text, votes, position, image_url)
+    SELECT
+        new_poll_id,
+        opt_text,
+        0,
+        idx - 1,
+        CASE
+            WHEN option_image_urls IS NULL THEN NULL
+            WHEN array_length(option_image_urls, 1) IS NULL THEN NULL
+            ELSE option_image_urls[idx]
+        END
+    FROM UNNEST(option_texts) WITH ORDINALITY AS t(opt_text, idx);
 
     RETURN new_poll_id; -- 생성된 투표의 ID를 반환합니다.
 
@@ -391,7 +1041,7 @@ p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
 EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
 -- 각 투표에 대한 선택지들을 투표 수(내림차순)에 따라 정렬하여 JSON 배열로 집계
-(SELECT jsonb_agg(po ORDER BY po.created_at) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+(SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
 WHERE
@@ -442,7 +1092,7 @@ p.expires_at,
 p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
 EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
-(SELECT jsonb_agg(po ORDER BY po.created_at) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+(SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
 WHERE
@@ -494,14 +1144,15 @@ p.expires_at,
 p.status,
 EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
 EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
-(SELECT jsonb_agg(po ORDER BY po.created_at) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+(SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
 FROM
 public.polls p
-WHERE
-p.is_featured = TRUE
-ORDER BY
-p.created_at DESC;
-END;
+	WHERE
+	p.is_featured = TRUE
+	ORDER BY
+	p.created_at DESC
+	LIMIT 1;
+	END;
 
 $$
 ;
@@ -584,7 +1235,7 @@ END IF;
         p.status,
         EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
         true AS is_favorited,
-        (SELECT jsonb_agg(po ORDER BY po.created_at) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+        (SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
     FROM
         public.favorite_polls fp
         JOIN public.polls p ON p.id = fp.poll_id
@@ -679,7 +1330,7 @@ END IF;
         p.status,
         EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
         EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
-        (SELECT jsonb_agg(po ORDER BY po.created_at) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+        (SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
     FROM
         public.polls p
     WHERE
@@ -815,6 +1466,39 @@ CREATE INDEX IF NOT EXISTS idx_favorite_polls_poll_id ON public.favorite_polls(p
 
 -- polls 테이블: is_featured, is_public, created_by로 필터링이 자주 발생
 CREATE INDEX IF NOT EXISTS idx_polls_is_featured ON public.polls(is_featured) WHERE is_featured = TRUE;
+
+-- 대표 투표는 최대 1개만 허용합니다. (is_featured = TRUE)
+-- 기존 데이터에 중복이 있다면 최근 대표 지정 1개만 유지합니다.
+WITH featured AS (
+  SELECT id, created_at
+  FROM public.polls
+  WHERE is_featured = TRUE
+),
+winner AS (
+  SELECT f.id
+  FROM featured f
+  LEFT JOIN LATERAL (
+    SELECT aal.created_at
+    FROM public.admin_audit_logs aal
+    WHERE aal.target_type = 'poll'
+      AND aal.target_id = f.id
+      AND aal.action = 'admin_set_featured'
+      AND aal.payload->>'is_featured' = 'true'
+    ORDER BY aal.created_at DESC
+    LIMIT 1
+  ) last_feature ON TRUE
+  ORDER BY last_feature.created_at DESC NULLS LAST, f.created_at DESC, f.id DESC
+  LIMIT 1
+)
+UPDATE public.polls p
+SET is_featured = FALSE
+WHERE p.is_featured = TRUE
+  AND p.id <> (SELECT id FROM winner);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_polls_is_featured_singleton
+ON public.polls (is_featured)
+WHERE is_featured = TRUE;
+
 CREATE INDEX IF NOT EXISTS idx_polls_is_public ON public.polls(is_public) WHERE is_public = TRUE;
 CREATE INDEX IF NOT EXISTS idx_polls_created_by ON public.polls(created_by);
 
@@ -864,7 +1548,7 @@ DECLARE
 total_polls BIGINT;
 BEGIN
 -- 전체 투표 수 집계 (페이지네이션 메타데이터용)
-SELECT COUNT(\*)
+SELECT COUNT(*)
 INTO total_polls
 FROM public.polls p
 WHERE
@@ -895,9 +1579,10 @@ jsonb_build_object(
 'text', po.text,
 'votes', COALESCE(po.votes, 0),
 'image_url', po.image_url,
-'created_at', po.created_at
+'created_at', po.created_at,
+'position', po.position
 )
-ORDER BY po.created_at
+ORDER BY po.position, po.created_at, po.id
 )
 FROM public.poll_options po
 WHERE po.poll_id = p.id
@@ -1167,6 +1852,9 @@ $$
 DECLARE
 v_user_id UUID;
 v_result JSON;
+v_points NUMERIC := 0;
+v_last_activity TIMESTAMPTZ;
+v_score NUMERIC;
 BEGIN
 -- p_user_id가 NULL이면 현재 로그인한 사용자 ID 사용
 v_user_id := COALESCE(p_user_id, auth.uid());
@@ -1195,7 +1883,46 @@ IF v_result IS NULL THEN
 RAISE EXCEPTION 'Profile not found';
 END IF;
 
-RETURN v_result;
+-- 점수 계산: 이벤트 합산 → 집계 테이블 → 기존 points 순으로 폴백
+SELECT
+COALESCE(SUM(e.weight), 0),
+MAX(e.occurred_at)
+INTO v_points, v_last_activity
+FROM public.profile_score_events e
+WHERE e.user_id = v_user_id;
+
+IF v_points = 0 THEN
+SELECT score, last_activity_at
+INTO v_score, v_last_activity
+FROM public.profile_scores
+WHERE user_id = v_user_id
+LIMIT 1;
+
+v_points := COALESCE(v_score, v_points, 0);
+END IF;
+
+IF v_points = 0 THEN
+SELECT points
+INTO v_score
+FROM public.profiles
+WHERE id = v_user_id
+LIMIT 1;
+
+v_points := COALESCE(v_score, v_points, 0);
+END IF;
+
+RETURN json_build_object(
+'id', (v_result ->> 'id')::UUID,
+'username', v_result ->> 'username',
+'full_name', v_result ->> 'full_name',
+'bio', v_result ->> 'bio',
+'avatar_url', v_result ->> 'avatar_url',
+'points', v_points,
+'last_activity_at', v_last_activity,
+'created_at', v_result ->> 'created_at',
+'updated_at', v_result ->> 'updated_at',
+'email', v_result ->> 'email'
+);
 END;
 
 $$
@@ -1209,4 +1936,646 @@ $$
 -- SELECT * FROM public.get_profile('user-uuid-here'); -- 특정 사용자 프로필 조회
 -- SELECT * FROM public.update_profile(p_username := 'newusername', p_bio := 'Hello World!');
 -- SELECT * FROM storage.buckets WHERE id = 'avatars';
+
+-- =============================================================================
+-- Step 18 - 리더보드/점수 시스템 (초안)
+-- =============================================================================
+
+-- 1) 점수 집계 테이블
+CREATE TABLE IF NOT EXISTS public.profile_scores (
+  user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  score NUMERIC NOT NULL DEFAULT 0,
+  last_activity_at TIMESTAMPTZ,
+  raw_points_cache NUMERIC,
+  weekly_cap_hit BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_profile_scores_score_desc ON public.profile_scores (score DESC);
+CREATE INDEX IF NOT EXISTS idx_profile_scores_last_activity ON public.profile_scores (last_activity_at DESC);
+
+ALTER TABLE public.profile_scores ENABLE ROW LEVEL SECURITY;
+
+DO
 $$
+
+BEGIN
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Allow public read of profile_scores'
+) THEN
+CREATE POLICY "Allow public read of profile_scores"
+ON public.profile_scores
+FOR SELECT
+USING (true);
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role insert profile_scores'
+) THEN
+CREATE POLICY "Service role insert profile_scores"
+ON public.profile_scores
+FOR INSERT
+WITH CHECK (auth.role() = 'service_role');
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role update profile_scores'
+) THEN
+CREATE POLICY "Service role update profile_scores"
+ON public.profile_scores
+FOR UPDATE
+USING (auth.role() = 'service_role')
+WITH CHECK (auth.role() = 'service_role');
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_scores' AND policyname = 'Service role delete profile_scores'
+) THEN
+CREATE POLICY "Service role delete profile_scores"
+ON public.profile_scores
+FOR DELETE
+USING (auth.role() = 'service_role');
+END IF;
+END $$;
+
+-- 2) 점수 이벤트 로그 (중복 방지 인덱스 포함)
+CREATE TABLE IF NOT EXISTS public.profile_score_events (
+id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+event_type TEXT NOT NULL,
+poll_id UUID,
+weight NUMERIC NOT NULL,
+metadata JSONB,
+occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+occurred_on DATE GENERATED ALWAYS AS ((occurred_at AT TIME ZONE 'UTC')::date) STORED
+);
+
+CREATE INDEX IF NOT EXISTS idx_profile_score_events_user ON public.profile_score_events (user_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_profile_score_events_event ON public.profile_score_events (event_type, occurred_at DESC);
+
+ALTER TABLE public.profile_score_events ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+-- dedup 고유 제약이 없으면 인덱스가 있어도 드롭 후 제약으로 재생성
+IF NOT EXISTS (
+SELECT 1 FROM pg_constraint WHERE conname = 'ux_profile_score_events_dedup' AND conrelid = 'public.profile_score_events'::regclass
+) THEN
+IF EXISTS (
+SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'ux_profile_score_events_dedup'
+) THEN
+DROP INDEX public.ux_profile_score_events_dedup;
+END IF;
+
+    ALTER TABLE public.profile_score_events
+      ADD CONSTRAINT ux_profile_score_events_dedup UNIQUE (user_id, event_type, poll_id, occurred_on);
+
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role insert score_events'
+) THEN
+CREATE POLICY "Service role insert score_events"
+ON public.profile_score_events
+FOR INSERT
+WITH CHECK (auth.role() = 'service_role');
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role select score_events'
+) THEN
+CREATE POLICY "Service role select score_events"
+ON public.profile_score_events
+FOR SELECT
+USING (auth.role() = 'service_role');
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role update score_events'
+) THEN
+CREATE POLICY "Service role update score_events"
+ON public.profile_score_events
+FOR UPDATE
+USING (auth.role() = 'service_role')
+WITH CHECK (auth.role() = 'service_role');
+END IF;
+
+IF NOT EXISTS (
+SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profile_score_events' AND policyname = 'Service role delete score_events'
+) THEN
+CREATE POLICY "Service role delete score_events"
+ON public.profile_score_events
+FOR DELETE
+USING (auth.role() = 'service_role');
+END IF;
+END $$;
+
+-- 3) 점수 리프레시 함수 (집계 전용)
+CREATE OR REPLACE FUNCTION public.refresh_profile_scores(
+p_limit INT DEFAULT 500,
+p_offset INT DEFAULT 0
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+v_now TIMESTAMPTZ := now();
+BEGIN
+WITH target_users AS (
+SELECT user_id
+FROM (
+SELECT DISTINCT user_id
+FROM public.profile_score_events
+ORDER BY user_id
+OFFSET p_offset
+LIMIT p_limit
+) t
+),
+aggregated AS (
+SELECT
+e.user_id,
+COALESCE(SUM(e.weight), 0) AS total_score,
+MAX(e.occurred_at) AS last_activity_at
+FROM public.profile_score_events e
+JOIN target_users t ON t.user_id = e.user_id
+GROUP BY e.user_id
+)
+INSERT INTO public.profile_scores (
+user_id,
+score,
+last_activity_at,
+updated_at
+)
+SELECT
+a.user_id,
+a.total_score,
+a.last_activity_at,
+v_now
+FROM aggregated a
+ON CONFLICT (user_id) DO UPDATE
+SET
+score = EXCLUDED.score,
+last_activity_at = EXCLUDED.last_activity_at,
+updated_at = v_now;
+END;
+
+$$
+;
+
+-- 4) 리더보드 조회 함수 (정렬/스코프/기간 파라미터 지원, delta/region은 placeholder)
+CREATE OR REPLACE FUNCTION public.get_leaderboard(
+  p_limit INT DEFAULT 20,
+  p_offset INT DEFAULT 0,
+  p_scope TEXT DEFAULT 'global', -- 'global' | 'friends' | 'region'
+  p_sort_by TEXT DEFAULT 'score', -- 'score' | 'delta' | 'recent_activity'
+  p_sort_order TEXT DEFAULT 'desc', -- 'asc' | 'desc'
+  p_period TEXT DEFAULT 'all', -- '24h' | '7d' | '30d' | 'all' (추가 기간 필터는 후속)
+  p_region TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+  user_id UUID,
+  rank BIGINT,
+  score NUMERIC,
+  display_name TEXT,
+  avatar_url TEXT,
+  delta NUMERIC,
+  last_activity_at TIMESTAMPTZ,
+  region TEXT,
+  total_count BIGINT
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, auth
+AS
+$$
+
+WITH base AS (
+SELECT
+ps.user_id,
+ps.score,
+COALESCE(p.username, '익명') AS display_name,
+p.avatar_url,
+ps.last_activity_at,
+NULL::NUMERIC AS delta,
+NULL::TEXT AS region
+FROM public.profile_scores ps
+LEFT JOIN public.profiles p ON p.id = ps.user_id
+),
+scoped AS (
+  SELECT *
+  FROM base
+  WHERE (p_scope = 'global')
+    AND (p_region IS NULL OR region = p_region)
+),
+ranked AS (
+  SELECT
+    b.*,
+    ROW_NUMBER() OVER (
+      ORDER BY
+        CASE p_sort_by
+          WHEN 'score' THEN b.score
+          WHEN 'delta' THEN COALESCE(b.delta, 0)
+          WHEN 'recent_activity' THEN EXTRACT(EPOCH FROM COALESCE(b.last_activity_at, now() - INTERVAL '365 days'))
+          ELSE b.score
+        END
+        *
+        CASE WHEN p_sort_order = 'desc' THEN 1 ELSE -1 END DESC,
+        b.user_id
+    ) AS rank,
+    COUNT(*) OVER () AS total_count
+  FROM scoped b
+)
+SELECT
+user_id,
+rank,
+score,
+display_name,
+avatar_url,
+delta,
+last_activity_at,
+region,
+total_count
+FROM ranked
+OFFSET p_offset
+LIMIT p_limit;
+
+$$
+;
+
+-- 5) 점수 이벤트 기록 함수 (중복 방지 + 기본 가중치)
+CREATE OR REPLACE FUNCTION public.log_score_event(
+  p_event_type TEXT,
+  p_poll_id UUID DEFAULT NULL,
+  p_weight_override NUMERIC DEFAULT NULL,
+  p_metadata JSONB DEFAULT NULL,
+  p_user_id UUID DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS
+$$
+
+DECLARE
+v_user_id UUID;
+v_weight NUMERIC;
+v_now TIMESTAMPTZ := now();
+v_row JSON;
+BEGIN
+v_user_id := COALESCE(p_user_id, auth.uid());
+
+IF v_user_id IS NULL THEN
+RAISE EXCEPTION 'Not authenticated';
+END IF;
+
+IF p_event_type NOT IN ('vote', 'create_poll', 'share', 'streak3', 'streak7') THEN
+RAISE EXCEPTION 'Unsupported event type: %', p_event_type;
+END IF;
+
+v_weight := COALESCE(
+p_weight_override,
+CASE p_event_type
+WHEN 'vote' THEN 1
+WHEN 'create_poll' THEN 3
+WHEN 'share' THEN 2
+WHEN 'streak3' THEN 1
+WHEN 'streak7' THEN 2
+ELSE 0
+END
+);
+
+INSERT INTO public.profile_score_events (
+user_id,
+event_type,
+poll_id,
+weight,
+metadata,
+occurred_at
+)
+VALUES (
+v_user_id,
+p_event_type,
+p_poll_id,
+v_weight,
+p_metadata,
+v_now
+)
+ON CONFLICT ON CONSTRAINT ux_profile_score_events_dedup
+DO UPDATE
+SET weight = EXCLUDED.weight,
+metadata = COALESCE(EXCLUDED.metadata, public.profile_score_events.metadata),
+occurred_at = EXCLUDED.occurred_at
+RETURNING json_build_object(
+'id', id,
+'user_id', user_id,
+'event_type', event_type,
+'poll_id', poll_id,
+'weight', weight,
+'metadata', metadata,
+'occurred_at', occurred_at
+) INTO v_row;
+
+RETURN v_row;
+END;
+
+$$
+;
+
+-- =============================================================================
+-- 10. Step 19 – 투표 이미지 업로드 (poll_images 버킷 + image_url + create_new_poll 확장)
+-- =============================================================================
+
+-- 10-1. poll_options.image_url 컬럼을 보강합니다. (존재하지 않을 경우 추가)
+ALTER TABLE public.poll_options
+ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+-- 10-2. poll_images 버킷 생성 (비공개, 10MB, JPEG/PNG/WebP)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'poll_images',
+  'poll_images',
+  false,
+  10485760, -- 10MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 10-3. Storage RLS 정책 설정 (Supabase Dashboard UI에서만 설정 가능)
+--   - SQL로 `storage.objects`를 직접 변경하면 “must be owner of table objects” 오류가 발생합니다.
+--   - Dashboard > Storage > poll_images > Policies에서 다음 두 정책을 추가해 주세요:
+--     - Policy name: `poll_images owners manage`, Operations: ALL, Expression/Check:
+--       `bucket_id = 'poll_images' AND split_part(name, '/', 1) = auth.uid()::text`
+--     - Policy name: `poll_images service access`, Operations: ALL, Roles: service_role, Expression/Check:
+--       `bucket_id = 'poll_images'`
+
+-- 10-4. create_new_poll 함수는 option_image_urls 배열을 받아 image_url을 함께 저장합니다.
+--       (상단의 함수 정의를 최신 버전으로 교체 후 실행)
+
+-- =============================================================================
+-- 11. Step 20 – 비공개 투표 언리스트드 링크 + 정원 제한(max_voters)
+-- =============================================================================
+
+-- 11-1. polls.max_voters 컬럼 추가 (비공개에서만 사용, NULL=제한 없음)
+ALTER TABLE public.polls
+ADD COLUMN IF NOT EXISTS max_voters INT;
+
+-- 전체 재실행 안전을 위해 기존 create_new_poll(구 시그니처)를 제거합니다.
+DROP FUNCTION IF EXISTS public.create_new_poll(TEXT, TEXT[], TEXT[], BOOLEAN, TIMESTAMPTZ);
+
+-- 11-2. create_new_poll 함수 확장: max_voters_param 추가
+CREATE OR REPLACE FUNCTION public.create_new_poll(
+question_text TEXT, -- 새 투표의 질문
+option_texts TEXT[], -- 투표 선택지들의 텍스트 배열
+option_image_urls TEXT[] DEFAULT NULL, -- 선택지 이미지 경로(스토리지 객체 경로)
+is_public BOOLEAN DEFAULT TRUE, -- 공개/비공개 여부
+expires_at_param TIMESTAMPTZ DEFAULT NULL, -- 투표 만료 시각
+max_voters_param INT DEFAULT NULL -- 비공개 투표 정원 제한(선착순), NULL=제한 없음
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+new_poll_id UUID;
+option_text TEXT;
+BEGIN
+IF question_text IS NULL OR trim(question_text) = '' THEN
+RAISE EXCEPTION 'Question text cannot be empty.';
+END IF;
+
+    IF option_texts IS NULL OR array_length(option_texts, 1) < 2 THEN
+        RAISE EXCEPTION 'At least 2 options are required.';
+    END IF;
+
+    IF array_length(option_texts, 1) > 6 THEN
+        RAISE EXCEPTION 'Maximum 6 options are allowed.';
+    END IF;
+
+    FOREACH option_text IN ARRAY option_texts
+    LOOP
+        IF option_text IS NULL OR trim(option_text) = '' THEN
+            RAISE EXCEPTION 'All option texts must be non-empty.';
+        END IF;
+    END LOOP;
+
+    IF expires_at_param IS NOT NULL AND expires_at_param <= now() THEN
+        RAISE EXCEPTION 'Expiration time must be in the future.';
+    END IF;
+
+    IF option_image_urls IS NOT NULL
+       AND array_length(option_image_urls, 1) IS NOT NULL
+       AND array_length(option_image_urls, 1) <> array_length(option_texts, 1) THEN
+        RAISE EXCEPTION 'option_image_urls length must match option_texts length.';
+    END IF;
+
+    -- 공개 투표는 정원 제한을 사용하지 않습니다.
+    IF is_public = TRUE THEN
+        max_voters_param := NULL;
+    END IF;
+
+    IF max_voters_param IS NOT NULL AND max_voters_param <= 0 THEN
+        RAISE EXCEPTION 'max_voters must be positive.';
+    END IF;
+
+    INSERT INTO public.polls (question, created_by, is_public, expires_at, max_voters)
+    VALUES (question_text, auth.uid(), is_public, expires_at_param, max_voters_param)
+    RETURNING id INTO new_poll_id;
+
+    INSERT INTO public.poll_options (poll_id, text, votes, position, image_url)
+    SELECT
+        new_poll_id,
+        opt_text,
+        0,
+        idx - 1,
+        CASE
+            WHEN option_image_urls IS NULL THEN NULL
+            WHEN array_length(option_image_urls, 1) IS NULL THEN NULL
+            ELSE option_image_urls[idx]
+        END
+    FROM UNNEST(option_texts) WITH ORDINALITY AS t(opt_text, idx);
+
+    RETURN new_poll_id;
+END;
+
+$$
+;
+
+-- 11-3. 언리스트드 링크 모델 접근 제어
+-- 공개 투표는 누구나 접근 가능, 비공개 투표는 로그인 사용자라면 링크로 접근 가능
+CREATE OR REPLACE FUNCTION public.can_access_poll(p_poll_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+current_user_id UUID := auth.uid();
+poll_is_public BOOLEAN;
+BEGIN
+SELECT is_public INTO poll_is_public
+FROM public.polls
+WHERE id = p_poll_id;
+
+    IF poll_is_public IS NULL THEN
+        RETURN false;
+    END IF;
+
+    IF poll_is_public = true THEN
+        RETURN true;
+    END IF;
+
+    RETURN current_user_id IS NOT NULL;
+END;
+
+$$
+;
+
+-- 전체 재실행 안전을 위해 기존 get_poll_with_user_status를 제거합니다.
+DROP FUNCTION IF EXISTS public.get_poll_with_user_status(UUID);
+
+-- 11-4. 상세 조회 RPC 권한 모델 변경 + max_voters 포함
+CREATE OR REPLACE FUNCTION public.get_poll_with_user_status(p_id UUID)
+RETURNS TABLE (
+    id UUID,
+    created_at TIMESTAMPTZ,
+    question TEXT,
+    created_by UUID,
+    is_public BOOLEAN,
+    is_featured BOOLEAN,
+    featured_image_url TEXT,
+    expires_at TIMESTAMPTZ,
+    status VARCHAR,
+    max_voters INT,
+    has_voted BOOLEAN,
+    is_favorited BOOLEAN,
+    poll_options JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+current_user_id UUID := auth.uid();
+BEGIN
+RETURN QUERY
+SELECT
+p.id,
+p.created_at,
+p.question,
+p.created_by,
+p.is_public,
+p.is_featured,
+p.featured_image_url,
+p.expires_at,
+p.status,
+p.max_voters,
+EXISTS(SELECT 1 FROM public.user_votes uv WHERE uv.poll_id = p.id AND uv.user_id = current_user_id) AS has_voted,
+EXISTS(SELECT 1 FROM public.favorite_polls fp WHERE fp.poll_id = p.id AND fp.user_id = current_user_id) AS is_favorited,
+(SELECT jsonb_agg(po ORDER BY po.position, po.created_at, po.id) FROM public.poll_options po WHERE po.poll_id = p.id) AS poll_options
+FROM
+public.polls p
+WHERE
+p.id = p_id
+AND (
+p.is_public = TRUE
+OR (p.is_public = FALSE AND current_user_id IS NOT NULL)
+);
+END;
+
+$$
+;
+
+-- 11-5. increment_vote 정원 제한 및 자동 마감(max_voters)
+CREATE OR REPLACE FUNCTION public.increment_vote(
+    option_id_to_update UUID,
+    poll_id_for_vote UUID
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS
+$$
+
+DECLARE
+current_user_id UUID := auth.uid();
+target_poll RECORD;
+voters_before INT := 0;
+BEGIN
+SELECT id, is_public, expires_at, status, max_voters INTO target_poll
+FROM public.polls
+WHERE id = poll_id_for_vote
+FOR UPDATE;
+
+    IF target_poll IS NULL THEN
+        RAISE EXCEPTION 'Poll not found.';
+    END IF;
+
+    IF target_poll.status = 'closed' OR target_poll.expires_at IS NOT NULL AND target_poll.expires_at < now() THEN
+        RAISE EXCEPTION 'This poll is closed and no longer accepting votes.';
+    END IF;
+
+    IF current_user_id IS NOT NULL THEN
+        IF EXISTS (SELECT 1 FROM public.user_votes WHERE user_id = current_user_id AND poll_id = poll_id_for_vote) THEN
+            RAISE EXCEPTION 'User has already voted on this poll.';
+        END IF;
+
+        -- 비공개 + 정원 제한이 있는 경우, 선착순 상한을 원자적으로 강제합니다.
+        IF target_poll.is_public = FALSE AND target_poll.max_voters IS NOT NULL THEN
+            SELECT COUNT(DISTINCT user_id) INTO voters_before
+            FROM public.user_votes
+            WHERE poll_id = poll_id_for_vote;
+
+            IF voters_before >= target_poll.max_voters THEN
+                UPDATE public.polls
+                SET status = 'closed'
+                WHERE id = poll_id_for_vote;
+                RAISE EXCEPTION 'This poll has reached the maximum number of voters.';
+            END IF;
+        END IF;
+
+        INSERT INTO public.user_votes (user_id, poll_id, option_id)
+        VALUES (current_user_id, poll_id_for_vote, option_id_to_update);
+
+        UPDATE public.profiles
+        SET points = points + 1
+        WHERE id = current_user_id;
+
+    ELSE
+        IF NOT target_poll.is_public THEN
+            RAISE EXCEPTION 'Authentication required to vote on this private poll.';
+        END IF;
+    END IF;
+
+    UPDATE public.poll_options
+    SET votes = COALESCE(votes, 0) + 1
+    WHERE id = option_id_to_update
+    AND poll_id = poll_id_for_vote;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Option not found for this poll.';
+    END IF;
+
+    -- N번째 투표 성공 직후 자동 마감
+    IF current_user_id IS NOT NULL
+       AND target_poll.is_public = FALSE
+       AND target_poll.max_voters IS NOT NULL
+       AND voters_before + 1 >= target_poll.max_voters THEN
+        UPDATE public.polls
+        SET status = 'closed'
+        WHERE id = poll_id_for_vote;
+    END IF;
+
+END;
+
+$$
+;
